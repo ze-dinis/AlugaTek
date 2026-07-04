@@ -17,6 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<User>(e =>
         {
+            e.Property(u => u.Email).HasColumnType("citext");
             e.HasIndex(u => u.Email).IsUnique();
         });
 

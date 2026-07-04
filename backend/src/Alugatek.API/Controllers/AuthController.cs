@@ -15,13 +15,15 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
-        if (await db.Users.AnyAsync(u => u.Email == request.Email))
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+        if (await db.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail))
             return Conflict(new { message = "Email already in use." });
 
         var user = new User
         {
             Name = request.Name,
-            Email = request.Email,
+            Email = normalizedEmail,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
         };
 
@@ -34,7 +36,8 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
-        var user = await db.Users.SingleOrDefaultAsync(u => u.Email == request.Email);
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
         if (user is null || user.PasswordHash is null ||
             !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid credentials." });
@@ -65,7 +68,7 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
             user = new User
             {
                 Name = payload.Name ?? payload.Email,
-                Email = payload.Email,
+                Email = payload.Email.Trim().ToLowerInvariant(),
                 OAuthProvider = "Google",
                 OAuthSubject = payload.Sub,
                 AvatarUrl = payload.Picture
