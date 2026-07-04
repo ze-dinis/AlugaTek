@@ -35,7 +35,13 @@ export default function LoginScreen({navigation}: Props) {
       const {data} = await authService.login(email, password);
       await setAuth(data.user, data.token);
     } catch (e: any) {
-      Alert.alert('Login failed', e.response?.data?.message ?? 'Please try again.');
+      const message = e?.response?.data?.message || e?.message || 'Please try again.';
+      const detail =
+        e?.code === 'ERR_NETWORK'
+          ? 'The app could not reach the API. Make sure the backend is running and the API URL points to your machine\'s LAN IP.'
+          : message;
+
+      Alert.alert('Login failed', detail);
     } finally {
       setLoading(false);
     }
