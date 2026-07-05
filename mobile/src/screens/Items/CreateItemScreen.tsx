@@ -6,10 +6,34 @@ import {itemsService} from '../../services/itemsService';
 import {Category} from '../../types';
 import {useNavigation} from '@react-navigation/native';
 import {launchImageLibrary} from 'react-native-image-picker';
+import {Picker} from '@react-native-picker/picker';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
+
+const PORTUGUESE_DISTRICTS = [
+  'Aveiro',
+  'Beja',
+  'Braga',
+  'Braganca',
+  'Castelo Branco',
+  'Coimbra',
+  'Evora',
+  'Faro',
+  'Guarda',
+  'Leiria',
+  'Lisboa',
+  'Portalegre',
+  'Porto',
+  'Santarem',
+  'Setubal',
+  'Viana do Castelo',
+  'Vila Real',
+  'Viseu',
+  'Acores',
+  'Madeira',
+];
 
 export default function CreateItemScreen({route}: Props) {
   const navigation = useNavigation();
@@ -18,6 +42,7 @@ export default function CreateItemScreen({route}: Props) {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [district, setDistrict] = useState('');
   const [dailyRate, setDailyRate] = useState('');
   const [image, setImage] = useState<{uri: string; type?: string; name?: string} | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -36,10 +61,12 @@ export default function CreateItemScreen({route}: Props) {
           const item = itemRes.data;
           setTitle(item.title);
           setDescription(item.description);
+          setDistrict(item.district ?? '');
           setDailyRate(item.dailyRate.toString());
           setCategoryId(item.categoryName ? categories.find(c => c.name === item.categoryName)?.id || null : null);
           if (item.imageUrl) {
-            setImage({uri: resolveApiAssetUrl(item.imageUrl)});
+            const resolvedImageUri = resolveApiAssetUrl(item.imageUrl) ?? item.imageUrl;
+            setImage({uri: resolvedImageUri});
           }
         }
       } finally {
@@ -80,7 +107,7 @@ export default function CreateItemScreen({route}: Props) {
   };
 
   const handleSubmit = async () => {
-    if (!title || !description || !dailyRate || !categoryId) {
+    if (!title || !description || !dailyRate || !categoryId || !district) {
       Alert.alert(i18n.common.error, i18n.item.errorFillFields);
       return;
     }
@@ -99,6 +126,7 @@ export default function CreateItemScreen({route}: Props) {
         await itemsService.update(itemId, {
           title,
           description,
+          district,
           dailyRate: rate,
           imageUrl: image?.uri,
           isAvailable: true,
@@ -110,8 +138,9 @@ export default function CreateItemScreen({route}: Props) {
         await itemsService.create({
           title,
           description,
+          district,
           dailyRate: rate,
-          image,
+          image: image ?? undefined,
           categoryId,
         });
         Alert.alert(i18n.common.success, i18n.item.creationSuccess, [
@@ -141,6 +170,18 @@ export default function CreateItemScreen({route}: Props) {
       <Text style={styles.label}>{i18n.item.description} *</Text>
       <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription}
         placeholder={i18n.item.description} multiline numberOfLines={4} />
+
+      <Text style={styles.label}>{i18n.item.district} *</Text>
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={district}
+          onValueChange={(value: string) => setDistrict(value)}>
+          <Picker.Item label={i18n.item.selectDistrict} value="" />
+          {PORTUGUESE_DISTRICTS.map(d => (
+            <Picker.Item key={d} label={d} value={d} />
+          ))}
+        </Picker>
+      </View>
 
       <Text style={styles.label}>{i18n.item.dailyRate} *</Text>
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
@@ -195,6 +236,13 @@ const styles = StyleSheet.create({
   input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 15},
   multiline: {height: 100, textAlignVertical: 'top'},
   categories: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24},
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
   chip: {borderWidth: 1, borderColor: '#1a73e8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6},
   chipSelected: {backgroundColor: '#1a73e8'},
   chipText: {color: '#1a73e8'},

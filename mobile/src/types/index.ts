@@ -16,6 +16,7 @@ export interface TechItem {
   id: string;
   title: string;
   description: string;
+  district: string;
   dailyRate: number;
   imageUrl?: string;
   isAvailable: boolean;

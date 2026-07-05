@@ -14,6 +14,7 @@ public record UserDto(Guid Id, string Name, string Email, string? AvatarUrl, str
 public record CreateItemRequest(
     string Title,
     string Description,
+    string District,
     decimal DailyRate,
     string? ImageUrl,
     int CategoryId);
@@ -22,6 +23,7 @@ public class CreateItemWithPhotoRequest
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string District { get; set; } = string.Empty;
     public decimal DailyRate { get; set; }
     public string? ImageUrl { get; set; }
     public int CategoryId { get; set; }
@@ -31,6 +33,7 @@ public class CreateItemWithPhotoRequest
 public record UpdateItemRequest(
     string Title,
     string Description,
+    string District,
     decimal DailyRate,
     string? ImageUrl,
     bool IsAvailable);
@@ -39,6 +42,7 @@ public record TechItemDto(
     Guid Id,
     string Title,
     string Description,
+    string District,
     decimal DailyRate,
     string? ImageUrl,
     bool IsAvailable,

@@ -5,6 +5,7 @@ public class TechItem
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string District { get; set; } = string.Empty;
     public decimal DailyRate { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsAvailable { get; set; } = true;

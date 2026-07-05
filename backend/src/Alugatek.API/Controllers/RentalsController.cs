@@ -104,7 +104,7 @@ public class RentalsController(AppDbContext db) : ControllerBase
     private static RentalDto MapToDto(Rental r, TechItem item, User renter)
     {
         var itemDto = new TechItemDto(
-            item.Id, item.Title, item.Description, item.DailyRate, item.ImageUrl,
+            item.Id, item.Title, item.Description, item.District, item.DailyRate, item.ImageUrl,
             item.IsAvailable, item.Category.Name,
             new UserDto(item.Owner.Id, item.Owner.Name, item.Owner.Email, item.Owner.AvatarUrl, item.Owner.Phone),
             item.Reviews.Count > 0 ? item.Reviews.Average(rev => rev.Rating) : null,

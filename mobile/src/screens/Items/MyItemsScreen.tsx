@@ -68,6 +68,7 @@ export default function MyItemsScreen() {
               {item.title}
             </Text>
             <Text style={styles.cardCategory}>{item.categoryName}</Text>
+            <Text style={styles.cardDistrict}>{i18n.item.district}: {item.district}</Text>
             <Text style={styles.cardRate}>R$ {item.dailyRate.toFixed(2)}/day</Text>
             <View
               style={[
@@ -149,6 +150,7 @@ const styles = StyleSheet.create({
   cardInfo: {flex: 1, padding: 12, justifyContent: 'space-between'},
   cardTitle: {fontSize: 16, fontWeight: '600', color: '#333'},
   cardCategory: {fontSize: 13, color: '#666', marginTop: 2},
+  cardDistrict: {fontSize: 13, color: '#666', marginTop: 2},
   cardRate: {fontSize: 14, color: '#1a73e8', fontWeight: '500', marginTop: 4},
   badge: {
     alignSelf: 'flex-start',

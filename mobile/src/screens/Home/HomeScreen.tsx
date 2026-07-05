@@ -79,6 +79,7 @@ export default function HomeScreen() {
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.cardCategory}>{item.categoryName}</Text>
+        <Text style={styles.cardDistrict}>{i18n.item.district}: {item.district}</Text>
         <Text style={styles.cardRate}>R$ {item.dailyRate.toFixed(2)}/day</Text>
         {item.averageRating && (
           <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
@@ -135,7 +136,7 @@ export default function HomeScreen() {
           }
           ListEmptyComponent={<Text style={styles.empty}>{i18n.home.noItems}</Text>}
         />
-      )}}
+      )}
     </View>
   );
 }
@@ -159,6 +160,7 @@ const styles = StyleSheet.create({
   cardContent: {padding: 8},
   cardTitle: {fontWeight: '600', fontSize: 14},
   cardCategory: {color: '#888', fontSize: 12, marginTop: 2},
+  cardDistrict: {color: '#666', fontSize: 12, marginTop: 2},
   cardRate: {color: '#1a73e8', fontWeight: '700', marginTop: 4},
   rating: {fontSize: 12, marginTop: 2},
   empty: {textAlign: 'center', marginTop: 40, color: '#888'},

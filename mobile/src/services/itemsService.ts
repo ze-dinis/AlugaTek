@@ -14,6 +14,7 @@ export const itemsService = {
   create: (data: {
     title: string;
     description: string;
+    district: string;
     dailyRate: number;
     image?: {
       uri: string;
@@ -25,6 +26,7 @@ export const itemsService = {
     const formData = new FormData();
     formData.append('title', data.title);
     formData.append('description', data.description);
+    formData.append('district', data.district);
     formData.append('dailyRate', data.dailyRate.toString());
     formData.append('categoryId', data.categoryId.toString());
 
@@ -47,6 +49,7 @@ export const itemsService = {
     data: {
       title: string;
       description: string;
+      district: string;
       dailyRate: number;
       imageUrl?: string;
       isAvailable: boolean;

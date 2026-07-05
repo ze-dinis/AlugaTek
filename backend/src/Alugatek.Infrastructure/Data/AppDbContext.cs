@@ -24,6 +24,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<TechItem>(e =>
         {
+            e.Property(i => i.District)
+             .HasColumnType("text")
+             .HasMaxLength(100)
+             .IsRequired();
             e.Property(i => i.DailyRate).HasColumnType("decimal(18,2)");
             e.HasOne(i => i.Owner)
              .WithMany(u => u.ListedItems)

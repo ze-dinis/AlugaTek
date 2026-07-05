@@ -125,6 +125,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
       <View style={styles.content}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.category}>{item.categoryName}</Text>
+        <Text style={styles.district}>{i18n.item.district}: {item.district}</Text>
 
         <View style={styles.rateRow}>
           <Text style={styles.rate}>R$ {item.dailyRate.toFixed(2)}<Text style={styles.rateLabel}>/day</Text></Text>
@@ -219,6 +220,7 @@ const styles = StyleSheet.create({
   content: {padding: 20},
   title: {fontSize: 24, fontWeight: 'bold'},
   category: {color: '#888', marginTop: 4},
+  district: {color: '#666', marginTop: 2},
   rateRow: {flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 12},
   rate: {fontSize: 22, fontWeight: '700', color: '#1a73e8'},
   rateLabel: {fontSize: 14, color: '#888'},

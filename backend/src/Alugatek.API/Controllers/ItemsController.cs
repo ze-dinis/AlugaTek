@@ -16,6 +16,13 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     private static readonly HashSet<string> AllowedImageContentTypes =
     ["image/jpeg", "image/png", "image/webp"];
 
+    private static readonly HashSet<string> PortugueseDistricts =
+    [
+        "Aveiro", "Beja", "Braga", "Braganca", "Castelo Branco", "Coimbra", "Evora", "Faro",
+        "Guarda", "Leiria", "Lisboa", "Portalegre", "Porto", "Santarem", "Setubal", "Viana do Castelo",
+        "Vila Real", "Viseu", "Acores", "Madeira"
+    ];
+
     private const long MaxPhotoSizeBytes = 5 * 1024 * 1024;
 
     [HttpGet]
@@ -70,6 +77,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         return await CreateItemAsync(
             request.Title,
             request.Description,
+            request.District,
             request.DailyRate,
             request.ImageUrl,
             request.CategoryId);
@@ -97,6 +105,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         return await CreateItemAsync(
             request.Title,
             request.Description,
+            request.District,
             request.DailyRate,
             imageUrl,
             request.CategoryId);
@@ -105,6 +114,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     private async Task<ActionResult<TechItemDto>> CreateItemAsync(
         string title,
         string description,
+        string district,
         decimal dailyRate,
         string? imageUrl,
         int categoryId)
@@ -114,10 +124,18 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (!await db.Categories.AnyAsync(c => c.Id == categoryId))
             return BadRequest(new { message = "Invalid category." });
 
+        if (string.IsNullOrWhiteSpace(district))
+            return BadRequest(new { message = "District is required." });
+
+        var normalizedDistrict = district.Trim();
+        if (!PortugueseDistricts.Contains(normalizedDistrict))
+            return BadRequest(new { message = "District must be a valid Portuguese district." });
+
         var item = new TechItem
         {
             Title = title,
             Description = description,
+            District = normalizedDistrict,
             DailyRate = dailyRate,
             ImageUrl = imageUrl,
             CategoryId = categoryId,
@@ -144,8 +162,16 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (item is null) return NotFound();
         if (item.OwnerId != userId) return Forbid();
 
+        if (string.IsNullOrWhiteSpace(request.District))
+            return BadRequest(new { message = "District is required." });
+
+        var normalizedDistrict = request.District.Trim();
+        if (!PortugueseDistricts.Contains(normalizedDistrict))
+            return BadRequest(new { message = "District must be a valid Portuguese district." });
+
         item.Title = request.Title;
         item.Description = request.Description;
+        item.District = normalizedDistrict;
         item.DailyRate = request.DailyRate;
         item.ImageUrl = request.ImageUrl;
         item.IsAvailable = request.IsAvailable;
@@ -191,7 +217,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         Ok(await db.Categories.Select(c => new { c.Id, c.Name, c.IconUrl }).ToListAsync());
 
     private static TechItemDto MapToDto(TechItem i) => new(
-        i.Id, i.Title, i.Description, i.DailyRate, i.ImageUrl, i.IsAvailable,
+        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.ImageUrl, i.IsAvailable,
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,
