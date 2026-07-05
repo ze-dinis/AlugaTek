@@ -69,3 +69,23 @@ public record ReviewDto(
     string Comment,
     UserDto Author,
     DateTime CreatedAt);
+
+// Message
+public record SendMessageRequest(Guid ReceiverId, string Content);
+
+public record MessageDto(
+    Guid Id,
+    string Content,
+    UserDto Sender,
+    UserDto Receiver,
+    DateTime CreatedAt,
+    bool IsRead);
+
+public record ConversationDto(
+    Guid OtherId,
+    string OtherName,
+    string? OtherAvatarUrl,
+    string LastMessage,
+    DateTime LastMessageTime,
+    int UnreadCount);
+

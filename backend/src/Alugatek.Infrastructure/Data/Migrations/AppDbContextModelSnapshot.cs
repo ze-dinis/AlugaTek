@@ -74,6 +74,37 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Alugatek.Domain.Entities.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ReceiverId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SenderId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.HasIndex("SenderId");
+
+                    b.ToTable("Messages");
+                });
+
             modelBuilder.Entity("Alugatek.Domain.Entities.Rental", b =>
                 {
                     b.Property<Guid>("Id")
@@ -222,6 +253,25 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Alugatek.Domain.Entities.Message", b =>
+                {
+                    b.HasOne("Alugatek.Domain.Entities.User", "Receiver")
+                        .WithMany("ReceivedMessages")
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alugatek.Domain.Entities.User", "Sender")
+                        .WithMany("SentMessages")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
+                });
+
             modelBuilder.Entity("Alugatek.Domain.Entities.Rental", b =>
                 {
                     b.HasOne("Alugatek.Domain.Entities.TechItem", "Item")
@@ -295,9 +345,13 @@ namespace Alugatek.Infrastructure.Data.Migrations
                 {
                     b.Navigation("ListedItems");
 
+                    b.Navigation("ReceivedMessages");
+
                     b.Navigation("Rentals");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("SentMessages");
                 });
 #pragma warning restore 612, 618
         }

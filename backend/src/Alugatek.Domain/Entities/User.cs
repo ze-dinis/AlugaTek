@@ -15,4 +15,6 @@ public class User
     public ICollection<TechItem> ListedItems { get; set; } = [];
     public ICollection<Rental> Rentals { get; set; } = [];
     public ICollection<Review> Reviews { get; set; } = [];
+    public ICollection<Message> SentMessages { get; set; } = [];
+    public ICollection<Message> ReceivedMessages { get; set; } = [];
 }

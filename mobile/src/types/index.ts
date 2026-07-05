@@ -50,3 +50,21 @@ export interface AuthResponse {
   token: string;
   user: User;
 }
+
+export interface Message {
+  id: string;
+  content: string;
+  sender: User;
+  receiver: User;
+  createdAt: string;
+  isRead: boolean;
+}
+
+export interface Conversation {
+  otherId: string;
+  otherName: string;
+  otherAvatarUrl?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+}

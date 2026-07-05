@@ -13,12 +13,15 @@ import MyRentalsScreen from '../screens/Rentals/MyRentalsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CreateItemScreen from '../screens/Items/CreateItemScreen';
 import MyItemsScreen from '../screens/Items/MyItemsScreen';
+import ChatListScreen from '../screens/Chat/ChatListScreen';
+import ChatDetailScreen from '../screens/Chat/ChatDetailScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   ItemDetail: {itemId: string};
   CreateItem: undefined;
+  Chat: {otherId: string; otherName: string};
 };
 
 export type AuthStackParamList = {
@@ -30,6 +33,7 @@ export type MainTabParamList = {
   Home: undefined;
   MyItems: undefined;
   MyRentals: undefined;
+  ChatList: undefined;
   Profile: undefined;
 };
 
@@ -52,6 +56,7 @@ function MainTabNavigator() {
       <MainTab.Screen name="Home" component={HomeScreen} />
       <MainTab.Screen name="MyItems" component={MyItemsScreen} options={{title: 'My Items'}} />
       <MainTab.Screen name="MyRentals" component={MyRentalsScreen} options={{title: 'My Rentals'}} />
+      <MainTab.Screen name="ChatList" component={ChatListScreen} options={{title: 'Messages'}} />
       <MainTab.Screen name="Profile" component={ProfileScreen} />
     </MainTab.Navigator>
   );
@@ -75,6 +80,11 @@ export default function AppNavigator() {
               name="CreateItem"
               component={CreateItemScreen}
               options={{headerShown: true, title: 'List an Item'}}
+            />
+            <RootStack.Screen
+              name="Chat"
+              component={ChatDetailScreen}
+              options={{headerShown: true}}
             />
           </>
         ) : (

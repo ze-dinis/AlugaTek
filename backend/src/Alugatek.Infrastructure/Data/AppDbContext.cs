@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TechItem> TechItems => Set<TechItem>();
     public DbSet<Rental> Rentals => Set<Rental>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +45,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(r => r.Author)
              .WithMany(u => u.Reviews)
              .HasForeignKey(r => r.AuthorId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Message>(e =>
+        {
+            e.HasOne(m => m.Sender)
+             .WithMany(u => u.SentMessages)
+             .HasForeignKey(m => m.SenderId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(m => m.Receiver)
+             .WithMany(u => u.ReceivedMessages)
+             .HasForeignKey(m => m.ReceiverId)
              .OnDelete(DeleteBehavior.Restrict);
         });
 

@@ -148,13 +148,24 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               <Text style={styles.deleteButtonText}>Delete Item</Text>
             )}
           </TouchableOpacity>
-        ) : item.isAvailable ? (
-          <TouchableOpacity style={styles.rentButton} onPress={handleRent} disabled={renting}>
-            {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>Rent Now</Text>}
-          </TouchableOpacity>
         ) : (
-          <View style={styles.unavailableButton}>
-            <Text style={styles.unavailableText}>Currently Unavailable</Text>
+          <View style={styles.buttonRow}>
+            {item.isAvailable ? (
+              <TouchableOpacity style={[styles.rentButton, styles.halfButton]} onPress={handleRent} disabled={renting}>
+                {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>Rent Now</Text>}
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.unavailableButton, styles.halfButton]}>
+                <Text style={styles.unavailableText}>Unavailable</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={() =>
+                navigation.navigate('Chat', {otherId: item.owner.id, otherName: item.owner.name})
+              }>
+              <Text style={styles.messageButtonText}>Message</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -188,10 +199,14 @@ const styles = StyleSheet.create({
   sectionTitle: {fontSize: 16, fontWeight: '600', marginTop: 20, marginBottom: 6},
   description: {color: '#444', lineHeight: 22},
   owner: {color: '#444'},
+  buttonRow: {flexDirection: 'row', gap: 12, marginTop: 24},
+  halfButton: {flex: 1},
   rentButton: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   rentButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   unavailableButton: {backgroundColor: '#e0e0e0', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   unavailableText: {color: '#888', fontWeight: '600'},
+  messageButton: {flex: 1, backgroundColor: '#34a853', padding: 16, borderRadius: 10, alignItems: 'center'},
+  messageButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   deleteButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   review: {borderTopWidth: 1, borderColor: '#f0f0f0', paddingTop: 12, marginTop: 12},
