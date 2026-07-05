@@ -70,7 +70,7 @@ export default function MyItemsScreen() {
                 item.isAvailable ? styles.badgeAvailable : styles.badgeUnavailable,
               ]}>
               <Text style={styles.badgeText}>
-                {item.isAvailable ? `✅ ${i18n.myAdvertisements.available}` : `⛔ ${i18n.myAdvertisements.unavailable}`}
+                {item.isAvailable ? `✅ ${i18n.myAdvertisements.available}` : `✅ ${i18n.myAdvertisements.unavailable}`}
               </Text>
             </View>
           </View>
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   badgeAvailable: {backgroundColor: '#e6f4ea'},
-  badgeUnavailable: {backgroundColor: '#fce8e6'},
+  badgeUnavailable: {backgroundColor: '#fff8e1'},
   badgeText: {fontSize: 12, fontWeight: '500', color: '#333'},
   editButton: {backgroundColor: '#34a853', padding: 12, justifyContent: 'center', alignItems: 'center'},
   editButtonText: {color: '#fff', fontWeight: '600', fontSize: 14},

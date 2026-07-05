@@ -66,7 +66,7 @@ export const pt = {
     for: 'para',
     total: 'Total',
     rentNow: 'Alugar Agora',
-    unavailable: 'Indisponível',
+    unavailable: 'Alugado',
     message: 'Mensagem',
     deleteItem: 'Apagar Item',
     deleteConfirm: 'Tem a certeza que quer apagar',
@@ -86,7 +86,7 @@ export const pt = {
     noItems: 'Ainda não listou nenhum item.',
     edit: 'Editar',
     available: 'Disponível',
-    unavailable: 'Indisponível',
+    unavailable: 'Alugado',
   },
 
   // My Rentals screen
@@ -95,7 +95,9 @@ export const pt = {
     noRentals: 'Ainda não alugou nada.',
     pending: 'Pendente',
     active: 'Ativo',
-    completed: 'Concluído',
+    completed: 'Em curso',
+    returnRequested: 'A confirmar devolução',
+    returned: 'Concluído',
     cancelled: 'Cancelado',
     from: 'De',
     to: 'Para',

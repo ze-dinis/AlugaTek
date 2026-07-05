@@ -38,8 +38,17 @@ public class RentalsController(AppDbContext db) : ControllerBase
             TotalPrice = item.DailyRate * days
         };
 
+        var rentRequestMessage = new Message
+        {
+            SenderId = renterId,
+            ReceiverId = item.OwnerId,
+            Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
+            IsRead = false
+        };
+
         item.IsAvailable = false;
         db.Rentals.Add(rental);
+        db.Messages.Add(rentRequestMessage);
         await db.SaveChangesAsync();
 
         var renter = await db.Users.FindAsync(renterId);
@@ -97,6 +106,188 @@ public class RentalsController(AppDbContext db) : ControllerBase
 
         rental.Status = RentalStatus.Cancelled;
         rental.Item.IsAvailable = true;
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/confirm")]
+    public async Task<ActionResult<RentalDto>> Confirm(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.Item.OwnerId != userId) return Forbid();
+        if (rental.Status != RentalStatus.Pending)
+            return BadRequest(new { message = "Only pending rentals can be confirmed." });
+
+        rental.Status = RentalStatus.Active;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.RenterId,
+            Content = $"O seu pedido de aluguer ({rental.Id}) foi confirmado às {DateTime.UtcNow:HH:mm}. Toque em Pagar para concluir.",
+            IsRead = false
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/pay")]
+    public async Task<ActionResult<RentalDto>> Pay(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.RenterId != userId) return Forbid();
+        if (rental.Status != RentalStatus.Active)
+            return BadRequest(new { message = "Only active rentals can be paid." });
+
+        rental.Status = RentalStatus.Completed;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.Item.OwnerId,
+            Content = $"O aluguer ({rental.Id}) foi pago às {DateTime.UtcNow:HH:mm}.",
+            IsRead = false
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/return")]
+    public async Task<ActionResult<RentalDto>> Return(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.RenterId != userId) return Forbid();
+        if (rental.Status != RentalStatus.Completed)
+            return BadRequest(new { message = "Only rentals in progress can be returned." });
+
+        rental.Status = RentalStatus.ReturnRequested;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.Item.OwnerId,
+            Content = $"Pedido de devolução ({rental.Id}) enviado às {DateTime.UtcNow:HH:mm}. Confirme a devolução.",
+            IsRead = false
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/confirm-return")]
+    public async Task<ActionResult<RentalDto>> ConfirmReturn(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.Item.OwnerId != userId) return Forbid();
+        if (rental.Status != RentalStatus.ReturnRequested)
+            return BadRequest(new { message = "Only requested returns can be confirmed." });
+
+        rental.Status = RentalStatus.Returned;
+        rental.Item.IsAvailable = true;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.RenterId,
+            Content = $"A devolução do aluguer ({rental.Id}) foi confirmada às {DateTime.UtcNow:HH:mm}.",
+            IsRead = false
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/decline-return")]
+    public async Task<ActionResult<RentalDto>> DeclineReturn(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.Item.OwnerId != userId) return Forbid();
+        if (rental.Status != RentalStatus.ReturnRequested)
+            return BadRequest(new { message = "Only requested returns can be declined." });
+
+        rental.Status = RentalStatus.Completed;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.RenterId,
+            Content = $"A devolução do aluguer ({rental.Id}) foi recusada às {DateTime.UtcNow:HH:mm}.",
+            IsRead = false
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/decline")]
+    public async Task<ActionResult<RentalDto>> Decline(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.Item.OwnerId != userId) return Forbid();
+        if (rental.Status != RentalStatus.Pending)
+            return BadRequest(new { message = "Only pending rentals can be declined." });
+
+        rental.Status = RentalStatus.Cancelled;
+        rental.Item.IsAvailable = true;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.RenterId,
+            Content = $"O seu pedido de aluguer ({rental.Id}) foi cancelado às {DateTime.UtcNow:HH:mm}.",
+            IsRead = false
+        });
+
         await db.SaveChangesAsync();
         return Ok(MapToDto(rental, rental.Item, rental.Renter));
     }

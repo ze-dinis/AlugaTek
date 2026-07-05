@@ -178,7 +178,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               </TouchableOpacity>
             ) : (
               <View style={[styles.unavailableButton, styles.halfButton, styles.secondaryActionButton]}>
-                <Text style={styles.unavailableText}>⛔ {i18n.itemDetail.unavailable}</Text>
+                <Text style={styles.unavailableText}>✅ {i18n.itemDetail.unavailable}</Text>
               </View>
             )}
             <TouchableOpacity
@@ -234,8 +234,8 @@ const styles = StyleSheet.create({
   secondaryActionButton: {padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   rentButton: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   rentButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
-  unavailableButton: {backgroundColor: '#e0e0e0'},
-  unavailableText: {color: '#888', fontWeight: '600', fontSize: 16},
+  unavailableButton: {backgroundColor: '#fbc02d'},
+  unavailableText: {color: '#5d4037', fontWeight: '600', fontSize: 16},
   messageButton: {backgroundColor: '#34a853'},
   messageButtonText: {color: '#fff', fontWeight: '600', fontSize: 16},
   deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},

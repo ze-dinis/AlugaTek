@@ -10,4 +10,16 @@ export const rentalsService = {
   getMyRentals: () => api.get<Rental[]>('/rentals/my'),
 
   cancel: (id: string) => api.patch<Rental>(`/rentals/${id}/cancel`),
+
+  confirm: (id: string) => api.patch<Rental>(`/rentals/${id}/confirm`),
+
+  decline: (id: string) => api.patch<Rental>(`/rentals/${id}/decline`),
+
+  pay: (id: string) => api.patch<Rental>(`/rentals/${id}/pay`),
+
+  returnRental: (id: string) => api.patch<Rental>(`/rentals/${id}/return`),
+
+  confirmReturn: (id: string) => api.patch<Rental>(`/rentals/${id}/confirm-return`),
+
+  declineReturn: (id: string) => api.patch<Rental>(`/rentals/${id}/decline-return`),
 };

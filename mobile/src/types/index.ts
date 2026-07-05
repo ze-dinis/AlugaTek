@@ -26,7 +26,7 @@ export interface TechItem {
   createdAt: string;
 }
 
-export type RentalStatus = 'Pending' | 'Active' | 'Completed' | 'Cancelled';
+export type RentalStatus = 'Pending' | 'Active' | 'Completed' | 'ReturnRequested' | 'Returned' | 'Cancelled';
 
 export interface Rental {
   id: string;

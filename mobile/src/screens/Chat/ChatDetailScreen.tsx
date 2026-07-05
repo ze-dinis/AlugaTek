@@ -9,10 +9,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
+import {rentalsService} from '../../services/rentalsService';
 import {useAuthStore} from '../../store/authStore';
 import {Message} from '../../types';
 import {i18n} from '../../locales';
@@ -26,7 +28,28 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [requestActionLoading, setRequestActionLoading] = useState<Record<string, boolean>>({});
+  const [paymentActionLoading, setPaymentActionLoading] = useState<Record<string, boolean>>({});
+  const [returnActionLoading, setReturnActionLoading] = useState<Record<string, boolean>>({});
+  const [handledRequests, setHandledRequests] = useState<string[]>([]);
+  const [paidRequests, setPaidRequests] = useState<string[]>([]);
+  const [confirmedReturns, setConfirmedReturns] = useState<string[]>([]);
   const flatListRef = useRef<FlatList>(null);
+
+  const getRentalRequestId = (content: string): string | null => {
+    const match = content.match(/pedido de aluguer \(([0-9a-fA-F-]{36})\) para/i);
+    return match?.[1] ?? null;
+  };
+
+  const getAcceptedRentalId = (content: string): string | null => {
+    const match = content.match(/pedido de aluguer \(([0-9a-fA-F-]{36})\) foi confirmado/i);
+    return match?.[1] ?? null;
+  };
+
+  const getReturnRequestId = (content: string): string | null => {
+    const match = content.match(/pedido de devolução \(([0-9a-fA-F-]{36})\)/i);
+    return match?.[1] ?? null;
+  };
 
   useEffect(() => {
     navigation.setOptions({title: otherName});
@@ -66,8 +89,65 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     }
   };
 
+  const handleRentalRequestAction = async (rentalId: string, action: 'confirm' | 'decline') => {
+    setRequestActionLoading(prev => ({...prev, [rentalId]: true}));
+    try {
+      if (action === 'confirm') {
+        await rentalsService.confirm(rentalId);
+      } else {
+        await rentalsService.decline(rentalId);
+      }
+      setHandledRequests(prev => [...prev, rentalId]);
+      Alert.alert('Sucesso', action === 'confirm' ? 'Pedido confirmado.' : 'Pedido cancelado.');
+    } catch {
+      Alert.alert('Erro', 'Não foi possível processar o pedido.');
+    } finally {
+      setRequestActionLoading(prev => ({...prev, [rentalId]: false}));
+    }
+  };
+
+  const handlePayRental = async (rentalId: string) => {
+    setPaymentActionLoading(prev => ({...prev, [rentalId]: true}));
+    try {
+      await rentalsService.pay(rentalId);
+      setPaidRequests(prev => [...prev, rentalId]);
+      Alert.alert('Sucesso', 'Pagamento realizado com sucesso.');
+    } catch {
+      Alert.alert('Erro', 'Não foi possível processar o pagamento.');
+    } finally {
+      setPaymentActionLoading(prev => ({...prev, [rentalId]: false}));
+    }
+  };
+
+  const handleReturnAction = async (rentalId: string, action: 'confirm' | 'decline') => {
+    setReturnActionLoading(prev => ({...prev, [rentalId]: true}));
+    try {
+      if (action === 'confirm') {
+        await rentalsService.confirmReturn(rentalId);
+      } else {
+        await rentalsService.declineReturn(rentalId);
+      }
+      setConfirmedReturns(prev => [...prev, rentalId]);
+      Alert.alert('Sucesso', action === 'confirm' ? 'Devolução confirmada.' : 'Devolução recusada.');
+    } catch {
+      Alert.alert('Erro', 'Não foi possível processar a devolução.');
+    } finally {
+      setReturnActionLoading(prev => ({...prev, [rentalId]: false}));
+    }
+  };
+
   const renderMessage = ({item}: {item: Message}) => {
     const isOwn = user?.id === item.sender.id;
+    const rentalRequestId = getRentalRequestId(item.content);
+    const acceptedRentalId = getAcceptedRentalId(item.content);
+    const returnRequestId = getReturnRequestId(item.content);
+    const showActions = !isOwn && !!rentalRequestId && !acceptedRentalId && !handledRequests.includes(rentalRequestId);
+    const isActionLoading = rentalRequestId ? !!requestActionLoading[rentalRequestId] : false;
+    const showPayAction = !isOwn && !!acceptedRentalId && !paidRequests.includes(acceptedRentalId);
+    const isPayLoading = acceptedRentalId ? !!paymentActionLoading[acceptedRentalId] : false;
+    const showReturnConfirm = !isOwn && !!returnRequestId && !confirmedReturns.includes(returnRequestId);
+    const isReturnActionLoading = returnRequestId ? !!returnActionLoading[returnRequestId] : false;
+
     return (
       <View style={[styles.messageRow, isOwn ? styles.ownMessageRow : styles.otherMessageRow]}>
         <View
@@ -88,6 +168,48 @@ export default function ChatDetailScreen({route, navigation}: Props) {
               minute: '2-digit',
             })}
           </Text>
+          {showActions && rentalRequestId && (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.confirmButton, isActionLoading && styles.actionButtonDisabled]}
+                onPress={() => handleRentalRequestAction(rentalRequestId, 'confirm')}
+                disabled={isActionLoading}>
+                <Text style={styles.actionButtonText}>Confirmar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.cancelButton, isActionLoading && styles.actionButtonDisabled]}
+                onPress={() => handleRentalRequestAction(rentalRequestId, 'decline')}
+                disabled={isActionLoading}>
+                <Text style={styles.actionButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {showPayAction && acceptedRentalId && (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.payButton, isPayLoading && styles.actionButtonDisabled]}
+                onPress={() => handlePayRental(acceptedRentalId)}
+                disabled={isPayLoading}>
+                <Text style={styles.actionButtonText}>Pagar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {showReturnConfirm && returnRequestId && (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.confirmButton, isReturnActionLoading && styles.actionButtonDisabled]}
+                onPress={() => handleReturnAction(returnRequestId, 'confirm')}
+                disabled={isReturnActionLoading}>
+                <Text style={styles.actionButtonText}>Confirmar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.cancelButton, isReturnActionLoading && styles.actionButtonDisabled]}
+                onPress={() => handleReturnAction(returnRequestId, 'decline')}
+                disabled={isReturnActionLoading}>
+                <Text style={styles.actionButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -163,6 +285,13 @@ const styles = StyleSheet.create({
   timestamp: {fontSize: 11, marginTop: 4},
   ownTimestamp: {color: '#b3d9ff'},
   otherTimestamp: {color: '#999'},
+  actionRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8},
+  actionButton: {borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6},
+  confirmButton: {backgroundColor: '#2e7d32'},
+  cancelButton: {backgroundColor: '#c62828'},
+  payButton: {backgroundColor: '#1565c0'},
+  actionButtonDisabled: {opacity: 0.6},
+  actionButtonText: {color: '#fff', fontSize: 12, fontWeight: '600'},
   inputContainer: {
     flexDirection: 'row',
     padding: 12,

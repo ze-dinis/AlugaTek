@@ -1,8 +1,32 @@
 import {Platform} from 'react-native';
 
+function isAndroidEmulator(): boolean {
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+
+  const constants = Platform.constants as Record<string, unknown>;
+  const fingerprint = String(constants.Fingerprint ?? '').toLowerCase();
+  const model = String(constants.Model ?? '').toLowerCase();
+  const brand = String(constants.Brand ?? '').toLowerCase();
+  const manufacturer = String(constants.Manufacturer ?? '').toLowerCase();
+  const product = String(constants.Product ?? '').toLowerCase();
+
+  return (
+    fingerprint.includes('generic') ||
+    model.includes('emulator') ||
+    model.includes('sdk') ||
+    manufacturer.includes('genymotion') ||
+    (brand.startsWith('generic') && product.startsWith('generic')) ||
+    product.includes('emulator')
+  );
+}
+
 // Development API URL for physical devices and emulators.
+const DEV_ANDROID_PRIMARY_HOST = isAndroidEmulator() ? '10.0.2.2' : 'localhost';
+
 const DEV_API_HOST = Platform.select({
-  android: '10.0.2.2',
+  android: DEV_ANDROID_PRIMARY_HOST,
   ios: 'localhost',
   default: 'localhost',
 });
@@ -10,6 +34,14 @@ const DEV_API_HOST = Platform.select({
 export const API_BASE_URL = __DEV__
   ? `http://${DEV_API_HOST}:5000/api`
   : 'https://api.alugatek.pt/api';
+
+export const DEV_ANDROID_API_FALLBACK_BASE_URLS = __DEV__
+  ? [
+      'http://localhost:5000/api',
+      'http://10.0.2.2:5000/api',
+      'http://192.168.1.119:5000/api',
+    ]
+  : [];
 
 export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
