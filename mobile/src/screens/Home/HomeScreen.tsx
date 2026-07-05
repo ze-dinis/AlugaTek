@@ -98,9 +98,9 @@ export default function HomeScreen() {
       )}
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.cardCategory}>{item.categoryName}</Text>
-        <Text style={styles.cardDistrict}>{i18n.item.district}: {item.district}</Text>
-        <Text style={styles.cardRate}>R$ {item.dailyRate.toFixed(2)}/day</Text>
+        <Text style={styles.cardCategory}>🏷️ {item.categoryName}</Text>
+        <Text style={styles.cardDistrict}>📍 {item.district}</Text>
+        <Text style={styles.cardRate}>💶 R$ {item.dailyRate.toFixed(2)}/day</Text>
         {item.averageRating && (
           <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
         )}
@@ -112,13 +112,21 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.hero}>
+        <Text style={styles.heroTitle}>✨ Descobrir Tecnologia</Text>
+        <Text style={styles.heroSubtitle}>Escolha o equipamento ideal para alugar hoje.</Text>
+      </View>
+
       <View style={styles.header}>
+        <View style={styles.searchBox}>
+          <Text style={styles.searchIcon}>🔎</Text>
         <TextInput
           style={styles.searchInput}
           placeholder={i18n.home.searchPlaceholder}
           value={search}
           onChangeText={setSearch}
         />
+        </View>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('CreateItem')}>
@@ -129,6 +137,7 @@ export default function HomeScreen() {
       <FlatList
         data={categories}
         horizontal
+        style={styles.categoryListWrapper}
         keyExtractor={c => String(c.id)}
         contentContainerStyle={styles.categoryList}
         renderItem={({item: cat}) => (
@@ -143,6 +152,7 @@ export default function HomeScreen() {
       />
 
       <View style={styles.districtFilterContainer}>
+        <Text style={styles.districtFilterLabel}>📍 {i18n.item.district}</Text>
         <Picker
           selectedValue={selectedDistrict}
           onValueChange={(value: string) => setSelectedDistrict(value)}>
@@ -160,12 +170,18 @@ export default function HomeScreen() {
           data={items}
           keyExtractor={i => i.id}
           numColumns={2}
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={items.length === 0 ? styles.gridEmpty : styles.grid}
           renderItem={renderItem}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchItems();}} />
           }
-          ListEmptyComponent={<Text style={styles.empty}>{i18n.home.noItems}</Text>}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📭</Text>
+              <Text style={styles.emptyTitle}>{i18n.home.noItems}</Text>
+              <Text style={styles.emptyHint}>Tente mudar a categoria ou o distrito.</Text>
+            </View>
+          }
         />
       )}
     </View>
@@ -173,15 +189,40 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#f5f5f5'},
-  header: {flexDirection: 'row', padding: 12, gap: 8, backgroundColor: '#fff'},
-  searchInput: {flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, fontSize: 15},
+  container: {flex: 1, backgroundColor: '#f3f6fb'},
+  hero: {paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: '#f3f6fb'},
+  heroTitle: {fontSize: 24, fontWeight: '800', color: '#1f2937'},
+  heroSubtitle: {fontSize: 13, color: '#526072', marginTop: 4},
+  header: {flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10, gap: 8},
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d8e0ea',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+  },
+  searchIcon: {fontSize: 16, marginRight: 6},
+  searchInput: {flex: 1, paddingVertical: 10, fontSize: 15},
   addButton: {backgroundColor: '#1a73e8', width: 44, borderRadius: 8, justifyContent: 'center', alignItems: 'center'},
-  addButtonText: {color: '#fff', fontSize: 24, lineHeight: 28},
-  categoryList: {paddingHorizontal: 12, paddingVertical: 8},
-  chip: {borderWidth: 1, borderColor: '#1a73e8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8},
+  addButtonText: {color: '#fff', fontSize: 24, lineHeight: 24, fontWeight: '600', marginTop: -1},
+  categoryListWrapper: {maxHeight: 60},
+  categoryList: {paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center'},
+  chip: {
+    borderWidth: 1,
+    borderColor: '#1a73e8',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginRight: 8,
+    minHeight: 40,
+    marginVertical: 2,
+    justifyContent: 'center',
+  },
   chipSelected: {backgroundColor: '#1a73e8'},
-  chipText: {color: '#1a73e8', fontSize: 13},
+  chipText: {color: '#1a73e8', fontSize: 13, lineHeight: 16, includeFontPadding: false},
   chipTextSelected: {color: '#fff'},
   districtFilterContainer: {
     marginHorizontal: 12,
@@ -192,8 +233,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#fff',
   },
+  districtFilterLabel: {fontSize: 12, color: '#5e6b7a', paddingHorizontal: 12, paddingTop: 8},
   grid: {padding: 8},
-  card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4},
+  gridEmpty: {flexGrow: 1, padding: 16, justifyContent: 'center'},
+  card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.12, shadowRadius: 6},
   cardImage: {width: '100%', height: 130},
   placeholder: {backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center'},
   placeholderText: {fontSize: 40},
@@ -203,5 +246,8 @@ const styles = StyleSheet.create({
   cardDistrict: {color: '#666', fontSize: 12, marginTop: 2},
   cardRate: {color: '#1a73e8', fontWeight: '700', marginTop: 4},
   rating: {fontSize: 12, marginTop: 2},
-  empty: {textAlign: 'center', marginTop: 40, color: '#888'},
+  emptyState: {alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20},
+  emptyIcon: {fontSize: 42, marginBottom: 10},
+  emptyTitle: {fontSize: 16, fontWeight: '600', color: '#5b6575'},
+  emptyHint: {fontSize: 13, color: '#8b95a5', marginTop: 6, textAlign: 'center'},
 });

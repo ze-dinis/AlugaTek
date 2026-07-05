@@ -142,14 +142,16 @@ export default function CreateItemScreen({route}: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>{i18n.item.title} *</Text>
+      <Text style={styles.heading}>{isEditing ? '🛠️ Editar anúncio' : '🚀 Novo anúncio'}</Text>
+
+      <Text style={styles.label}>✏️ {i18n.item.title} *</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="ex: iPhone 15 Pro" />
 
-      <Text style={styles.label}>{i18n.item.description} *</Text>
+      <Text style={styles.label}>📝 {i18n.item.description} *</Text>
       <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription}
         placeholder={i18n.item.description} multiline numberOfLines={4} />
 
-      <Text style={styles.label}>{i18n.item.district} *</Text>
+      <Text style={styles.label}>📍 {i18n.item.district} *</Text>
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={district}
@@ -161,15 +163,15 @@ export default function CreateItemScreen({route}: Props) {
         </Picker>
       </View>
 
-      <Text style={styles.label}>{i18n.item.dailyRate} *</Text>
+      <Text style={styles.label}>💶 {i18n.item.dailyRate} *</Text>
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
         placeholder="0.00" keyboardType="decimal-pad" />
 
       {!isEditing && (
         <>
-          <Text style={styles.label}>{i18n.item.selectPhoto} *</Text>
+          <Text style={styles.label}>🖼️ {i18n.item.selectPhoto} *</Text>
           <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-            <Text style={styles.photoButtonText}>{image ? i18n.item.uploadPhoto : i18n.item.selectPhoto}</Text>
+            <Text style={styles.photoButtonText}>📷 {image ? i18n.item.uploadPhoto : i18n.item.selectPhoto}</Text>
           </TouchableOpacity>
           {image ? <Image source={{uri: image.uri}} style={styles.preview} /> : null}
         </>
@@ -177,15 +179,15 @@ export default function CreateItemScreen({route}: Props) {
 
       {isEditing && image && (
         <>
-          <Text style={styles.label}>{i18n.item.photoPreview}</Text>
+          <Text style={styles.label}>🖼️ {i18n.item.photoPreview}</Text>
           <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-            <Text style={styles.photoButtonText}>{i18n.item.uploadPhoto}</Text>
+            <Text style={styles.photoButtonText}>📷 {i18n.item.uploadPhoto}</Text>
           </TouchableOpacity>
           <Image source={{uri: image.uri}} style={styles.preview} />
         </>
       )}
 
-      <Text style={styles.label}>{i18n.item.category} *</Text>
+      <Text style={styles.label}>🏷️ {i18n.item.category} *</Text>
       <View style={styles.categories}>
         {categories.map(cat => (
           <TouchableOpacity
@@ -200,26 +202,28 @@ export default function CreateItemScreen({route}: Props) {
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isEditing ? i18n.item.updateItem : i18n.item.listItem}</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isEditing ? `💾 ${i18n.item.updateItem}` : `🚀 ${i18n.item.listItem}`}</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#fff'},
+  container: {flex: 1, backgroundColor: '#f3f6fb'},
   centered: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  content: {padding: 20},
+  content: {padding: 20, paddingBottom: 28},
+  heading: {fontSize: 24, fontWeight: '800', color: '#1f2937', marginBottom: 16},
   label: {fontWeight: '600', marginBottom: 6, color: '#333'},
-  input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 15},
+  input: {borderWidth: 1, borderColor: '#d8e0ea', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 15},
   multiline: {height: 100, textAlignVertical: 'top'},
   categories: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24},
   pickerContainer: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#d8e0ea',
+    borderRadius: 10,
     marginBottom: 16,
     overflow: 'hidden',
+    backgroundColor: '#fff',
   },
   chip: {borderWidth: 1, borderColor: '#1a73e8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6},
   chipSelected: {backgroundColor: '#1a73e8'},
@@ -228,10 +232,11 @@ const styles = StyleSheet.create({
   photoButton: {
     borderWidth: 1,
     borderColor: '#1a73e8',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     marginBottom: 12,
+    backgroundColor: '#eef4ff',
   },
   photoButtonText: {color: '#1a73e8', fontWeight: '600'},
   preview: {
@@ -241,6 +246,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     resizeMode: 'cover',
   },
-  button: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 10, alignItems: 'center'},
+  button: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 12, alignItems: 'center', shadowColor: '#1a73e8', shadowOpacity: 0.25, shadowRadius: 8},
   buttonText: {color: '#fff', fontWeight: '700', fontSize: 16},
 });

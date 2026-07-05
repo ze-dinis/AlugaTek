@@ -123,12 +123,12 @@ export default function ItemDetailScreen({route, navigation}: Props) {
       )}
 
       <View style={styles.content}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.category}>{item.categoryName}</Text>
-        <Text style={styles.district}>{i18n.item.district}: {item.district}</Text>
+        <Text style={styles.title}>✨ {item.title}</Text>
+        <Text style={styles.category}>🏷️ {item.categoryName}</Text>
+        <Text style={styles.district}>📍 {item.district}</Text>
 
         <View style={styles.rateRow}>
-          <Text style={styles.rate}>R$ {item.dailyRate.toFixed(2)}<Text style={styles.rateLabel}>/day</Text></Text>
+          <Text style={styles.rate}>💶 R$ {item.dailyRate.toFixed(2)}<Text style={styles.rateLabel}>/day</Text></Text>
           {item.averageRating && (
             <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
           )}
@@ -136,7 +136,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
         {item.isAvailable && user?.id !== item.owner.id ? (
           <View style={styles.rentalSelector}>
-            <Text style={styles.sectionTitle}>{i18n.itemDetail.rentalDuration}</Text>
+            <Text style={styles.sectionTitle}>🗓️ {i18n.itemDetail.rentalDuration}</Text>
             <View style={styles.daySelector}>
               <TouchableOpacity
                 style={styles.dayButton}
@@ -155,14 +155,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 <Text style={styles.dayButtonText}>+</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.totalPrice}>{i18n.itemDetail.total}: R$ {(item.dailyRate * rentalDays).toFixed(2)}</Text>
+            <Text style={styles.totalPrice}>💰 {i18n.itemDetail.total}: R$ {(item.dailyRate * rentalDays).toFixed(2)}</Text>
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>{i18n.itemDetail.description}</Text>
+        <Text style={styles.sectionTitle}>📝 {i18n.itemDetail.description}</Text>
         <Text style={styles.description}>{item.description}</Text>
 
-        <Text style={styles.sectionTitle}>{i18n.itemDetail.owner}</Text>
+        <Text style={styles.sectionTitle}>👤 {i18n.itemDetail.owner}</Text>
         <Text style={styles.owner}>{item.owner.name}</Text>
 
         {user?.id === item.owner.id ? (
@@ -173,18 +173,18 @@ export default function ItemDetailScreen({route, navigation}: Props) {
             {deleting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.deleteButtonText}>{i18n.itemDetail.deleteItem}</Text>
+              <Text style={styles.deleteButtonText}>🗑️ {i18n.itemDetail.deleteItem}</Text>
             )}
           </TouchableOpacity>
         ) : (
           <View style={styles.buttonRow}>
             {item.isAvailable ? (
               <TouchableOpacity style={[styles.rentButton, styles.halfButton]} onPress={handleRent} disabled={renting}>
-                {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>{i18n.itemDetail.rentNow}</Text>}
+                {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>🚀 {i18n.itemDetail.rentNow}</Text>}
               </TouchableOpacity>
             ) : (
               <View style={[styles.unavailableButton, styles.halfButton]}>
-                <Text style={styles.unavailableText}>{i18n.itemDetail.unavailable}</Text>
+                <Text style={styles.unavailableText}>⛔ {i18n.itemDetail.unavailable}</Text>
               </View>
             )}
             <TouchableOpacity
@@ -192,14 +192,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               onPress={() =>
                 navigation.navigate('Chat', {otherId: item.owner.id, otherName: item.owner.name})
               }>
-              <Text style={styles.messageButtonText}>{i18n.itemDetail.message}</Text>
+              <Text style={styles.messageButtonText}>💬 {i18n.itemDetail.message}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {reviews.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>{i18n.itemDetail.reviews} ({reviews.length})</Text>
+            <Text style={styles.sectionTitle}>⭐ {i18n.itemDetail.reviews} ({reviews.length})</Text>
             {reviews.map(r => (
               <View key={r.id} style={styles.review}>
                 <Text style={styles.reviewAuthor}>{r.author.name} · {'⭐'.repeat(r.rating)}</Text>
@@ -214,10 +214,10 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#fff'},
+  container: {flex: 1, backgroundColor: '#f3f6fb'},
   image: {width: '100%', height: 260},
   placeholder: {backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center'},
-  content: {padding: 20},
+  content: {padding: 20, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -18},
   title: {fontSize: 24, fontWeight: 'bold'},
   category: {color: '#888', marginTop: 4},
   district: {color: '#666', marginTop: 2},

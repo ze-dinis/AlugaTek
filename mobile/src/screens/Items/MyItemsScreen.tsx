@@ -67,16 +67,16 @@ export default function MyItemsScreen() {
             <Text style={styles.cardTitle} numberOfLines={1}>
               {item.title}
             </Text>
-            <Text style={styles.cardCategory}>{item.categoryName}</Text>
-            <Text style={styles.cardDistrict}>{i18n.item.district}: {item.district}</Text>
-            <Text style={styles.cardRate}>R$ {item.dailyRate.toFixed(2)}/day</Text>
+            <Text style={styles.cardCategory}>🏷️ {item.categoryName}</Text>
+            <Text style={styles.cardDistrict}>📍 {item.district}</Text>
+            <Text style={styles.cardRate}>💶 R$ {item.dailyRate.toFixed(2)}/day</Text>
             <View
               style={[
                 styles.badge,
                 item.isAvailable ? styles.badgeAvailable : styles.badgeUnavailable,
               ]}>
               <Text style={styles.badgeText}>
-                {item.isAvailable ? i18n.myItems.available : i18n.myItems.unavailable}
+                {item.isAvailable ? `✅ ${i18n.myItems.available}` : `⛔ ${i18n.myItems.unavailable}`}
               </Text>
             </View>
           </View>
@@ -84,7 +84,7 @@ export default function MyItemsScreen() {
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => navigation.navigate('EditItem', {itemId: item.id})}>
-          <Text style={styles.editButtonText}>{i18n.myItems.edit}</Text>
+          <Text style={styles.editButtonText}>✏️ {i18n.myItems.edit}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -123,7 +123,7 @@ export default function MyItemsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#f5f5f5'},
+  container: {flex: 1, backgroundColor: '#f3f6fb'},
   centered: {flex: 1, justifyContent: 'center', alignItems: 'center'},
   list: {padding: 12},
   emptyContainer: {flex: 1},
@@ -133,15 +133,15 @@ const styles = StyleSheet.create({
   emptySubtitle: {fontSize: 14, color: '#888', textAlign: 'center'},
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
+    elevation: 3,
+    shadowColor: '#0f172a',
     shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   cardContent: {flex: 1, flexDirection: 'row'},
   cardImage: {width: 100, height: 100},

@@ -1,4 +1,5 @@
 import React from 'react';
+import {Text} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
@@ -55,11 +56,47 @@ function AuthNavigator() {
 function MainTabNavigator() {
   return (
     <MainTab.Navigator>
-      <MainTab.Screen name="Home" component={HomeScreen} />
-      <MainTab.Screen name="MyItems" component={MyItemsScreen} options={{title: i18n.navigation.myItems}} />
-      <MainTab.Screen name="MyRentals" component={MyRentalsScreen} options={{title: i18n.navigation.myRentals}} />
-      <MainTab.Screen name="ChatList" component={ChatListScreen} options={{title: i18n.navigation.messages}} />
-      <MainTab.Screen name="Profile" component={ProfileScreen} />
+      <MainTab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          headerShown: false,
+          title: i18n.navigation.home,
+          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'🏠'}</Text>,
+        }}
+      />
+      <MainTab.Screen
+        name="MyItems"
+        component={MyItemsScreen}
+        options={{
+          title: i18n.navigation.myItems,
+          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'📦'}</Text>,
+        }}
+      />
+      <MainTab.Screen
+        name="MyRentals"
+        component={MyRentalsScreen}
+        options={{
+          title: i18n.navigation.myRentals,
+          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'🗓️'}</Text>,
+        }}
+      />
+      <MainTab.Screen
+        name="ChatList"
+        component={ChatListScreen}
+        options={{
+          title: i18n.navigation.messages,
+          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'💬'}</Text>,
+        }}
+      />
+      <MainTab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: i18n.navigation.profile,
+          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'👤'}</Text>,
+        }}
+      />
     </MainTab.Navigator>
   );
 }
