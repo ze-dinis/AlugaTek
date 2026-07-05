@@ -18,6 +18,30 @@ import {i18n} from '../../locales';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
+function ConversationAvatar({avatarUrl, name}: {avatarUrl?: string; name?: string}) {
+  const [avatarError, setAvatarError] = useState(false);
+
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [avatarUrl]);
+
+  if (avatarUrl && !avatarError) {
+    return (
+      <Image
+        source={{uri: avatarUrl}}
+        style={styles.avatar}
+        onError={() => setAvatarError(true)}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.avatarPlaceholder}>
+      <Text style={styles.avatarInitial}>{name?.[0]?.toUpperCase()}</Text>
+    </View>
+  );
+}
+
 export default function ChatListScreen() {
   const navigation = useNavigation<NavProp>();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -54,13 +78,7 @@ export default function ChatListScreen() {
       <TouchableOpacity
         style={styles.conversationItem}
         onPress={() => navigation.navigate('Chat', {otherId: item.otherId, otherName: item.otherName})}>
-        {item.otherAvatarUrl ? (
-          <Image source={{uri: item.otherAvatarUrl}} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarInitial}>{item.otherName?.[0]?.toUpperCase()}</Text>
-          </View>
-        )}
+        <ConversationAvatar avatarUrl={item.otherAvatarUrl} name={item.otherName} />
         <View style={styles.content}>
           <Text style={styles.name}>{item.otherName}</Text>
           <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage}</Text>

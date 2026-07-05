@@ -143,8 +143,8 @@ namespace Alugatek.Infrastructure.Data.Migrations
                 {
                     { 1, null, "Smartphones" },
                     { 2, null, "Laptops" },
-                    { 3, null, "Cameras" },
-                    { 4, null, "Audio" },
+                    { 3, null, "Câmeras" },
+                    { 4, null, "Áudio" },
                     { 5, null, "Tablets" },
                     { 6, null, "Gaming" }
                 });

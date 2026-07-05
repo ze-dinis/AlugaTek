@@ -37,7 +37,7 @@ export const pt = {
     district: 'Distrito',
     selectDistrict: 'Selecione um distrito',
     category: 'Categoria',
-    dailyRate: 'Taxa Diária (R$)',
+    dailyRate: 'Taxa Diária (€)',
     selectCategory: 'Selecione uma categoria',
     selectPhoto: 'Selecionar Foto',
     uploadPhoto: 'Carregar Foto',

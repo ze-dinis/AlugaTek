@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -18,6 +17,7 @@ import api from '../../services/api';
 import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
 import {i18n} from '../../locales';
+import SafeImage from '../../components/SafeImage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetail'>;
 
@@ -76,7 +76,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
     Alert.alert(
       i18n.itemDetail.confirmRental,
-      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.total}: R$ ${totalPrice.toFixed(2)}`,
+      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.total}: ${totalPrice.toFixed(2)}€`,
       [
         {text: i18n.common.cancel, style: 'cancel'},
         {
@@ -114,13 +114,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
   return (
     <ScrollView style={styles.container}>
-      {imageUri ? (
-        <Image source={{uri: imageUri}} style={styles.image} />
-      ) : (
-        <View style={[styles.image, styles.placeholder]}>
-          <Text style={{fontSize: 60}}>📱</Text>
-        </View>
-      )}
+      <SafeImage uri={imageUri} style={styles.image} />
 
       <View style={styles.content}>
         <Text style={styles.title}>✨ {item.title}</Text>
@@ -128,7 +122,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
         <Text style={styles.district}>📍 {item.district}</Text>
 
         <View style={styles.rateRow}>
-          <Text style={styles.rate}>💶 R$ {item.dailyRate.toFixed(2)}<Text style={styles.rateLabel}>/day</Text></Text>
+          <Text style={styles.rate}>💶 {item.dailyRate.toFixed(2)}€<Text style={styles.rateLabel}>€/dia</Text></Text>
           {item.averageRating && (
             <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
           )}
@@ -155,7 +149,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 <Text style={styles.dayButtonText}>+</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.totalPrice}>💰 {i18n.itemDetail.total}: R$ {(item.dailyRate * rentalDays).toFixed(2)}</Text>
+            <Text style={styles.totalPrice}>💰 {i18n.itemDetail.total}: {(item.dailyRate * rentalDays).toFixed(2)}€</Text>
           </View>
         ) : null}
 
@@ -183,12 +177,12 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>🚀 {i18n.itemDetail.rentNow}</Text>}
               </TouchableOpacity>
             ) : (
-              <View style={[styles.unavailableButton, styles.halfButton]}>
+              <View style={[styles.unavailableButton, styles.halfButton, styles.secondaryActionButton]}>
                 <Text style={styles.unavailableText}>⛔ {i18n.itemDetail.unavailable}</Text>
               </View>
             )}
             <TouchableOpacity
-              style={styles.messageButton}
+              style={[styles.messageButton, styles.halfButton, styles.secondaryActionButton]}
               onPress={() =>
                 navigation.navigate('Chat', {otherId: item.owner.id, otherName: item.owner.name})
               }>
@@ -216,7 +210,6 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f3f6fb'},
   image: {width: '100%', height: 260},
-  placeholder: {backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center'},
   content: {padding: 20, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -18},
   title: {fontSize: 24, fontWeight: 'bold'},
   category: {color: '#888', marginTop: 4},
@@ -238,12 +231,13 @@ const styles = StyleSheet.create({
   owner: {color: '#444'},
   buttonRow: {flexDirection: 'row', gap: 12, marginTop: 24},
   halfButton: {flex: 1},
+  secondaryActionButton: {padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   rentButton: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   rentButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
-  unavailableButton: {backgroundColor: '#e0e0e0', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
-  unavailableText: {color: '#888', fontWeight: '600'},
-  messageButton: {flex: 1, backgroundColor: '#34a853', padding: 16, borderRadius: 10, alignItems: 'center'},
-  messageButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
+  unavailableButton: {backgroundColor: '#e0e0e0'},
+  unavailableText: {color: '#888', fontWeight: '600', fontSize: 16},
+  messageButton: {backgroundColor: '#34a853'},
+  messageButtonText: {color: '#fff', fontWeight: '600', fontSize: 16},
   deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   deleteButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   review: {borderTopWidth: 1, borderColor: '#f0f0f0', paddingTop: 12, marginTop: 12},

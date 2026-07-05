@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Image,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -16,6 +15,7 @@ import {itemsService} from '../../services/itemsService';
 import {TechItem} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
+import SafeImage from '../../components/SafeImage';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -56,20 +56,14 @@ export default function MyItemsScreen() {
         <TouchableOpacity
           style={styles.cardContent}
           onPress={() => navigation.navigate('ItemDetail', {itemId: item.id})}>
-          {imageUri ? (
-            <Image source={{uri: imageUri}} style={styles.cardImage} />
-          ) : (
-            <View style={[styles.cardImage, styles.placeholder]}>
-              <Text style={styles.placeholderText}>📱</Text>
-            </View>
-          )}
+          <SafeImage uri={imageUri} style={styles.cardImage} />
           <View style={styles.cardInfo}>
             <Text style={styles.cardTitle} numberOfLines={1}>
               {item.title}
             </Text>
             <Text style={styles.cardCategory}>🏷️ {item.categoryName}</Text>
             <Text style={styles.cardDistrict}>📍 {item.district}</Text>
-            <Text style={styles.cardRate}>💶 R$ {item.dailyRate.toFixed(2)}/day</Text>
+            <Text style={styles.cardRate}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
             <View
               style={[
                 styles.badge,
@@ -145,8 +139,6 @@ const styles = StyleSheet.create({
   },
   cardContent: {flex: 1, flexDirection: 'row'},
   cardImage: {width: 100, height: 100},
-  placeholder: {backgroundColor: '#e8f0fe', justifyContent: 'center', alignItems: 'center'},
-  placeholderText: {fontSize: 32},
   cardInfo: {flex: 1, padding: 12, justifyContent: 'space-between'},
   cardTitle: {fontSize: 16, fontWeight: '600', color: '#333'},
   cardCategory: {fontSize: 13, color: '#666', marginTop: 2},

@@ -58,12 +58,12 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 3,
-                            Name = "Cameras"
+                            Name = "Câmeras"
                         },
                         new
                         {
                             Id = 4,
-                            Name = "Audio"
+                            Name = "Áudio"
                         },
                         new
                         {

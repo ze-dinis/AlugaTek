@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image} from 'react-native';
+import {View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
@@ -10,6 +10,7 @@ import {Picker} from '@react-native-picker/picker';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
+import SafeImage from '../../components/SafeImage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
 
@@ -173,7 +174,7 @@ export default function CreateItemScreen({route}: Props) {
           <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
             <Text style={styles.photoButtonText}>📷 {image ? i18n.item.uploadPhoto : i18n.item.selectPhoto}</Text>
           </TouchableOpacity>
-          {image ? <Image source={{uri: image.uri}} style={styles.preview} /> : null}
+          {image ? <SafeImage uri={image.uri} style={styles.preview} /> : null}
         </>
       )}
 
@@ -183,7 +184,7 @@ export default function CreateItemScreen({route}: Props) {
           <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
             <Text style={styles.photoButtonText}>📷 {i18n.item.uploadPhoto}</Text>
           </TouchableOpacity>
-          <Image source={{uri: image.uri}} style={styles.preview} />
+          <SafeImage uri={image.uri} style={styles.preview} />
         </>
       )}
 

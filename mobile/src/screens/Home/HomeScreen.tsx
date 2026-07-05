@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Image,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -19,6 +18,7 @@ import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 import {Picker} from '@react-native-picker/picker';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
+import SafeImage from '../../components/SafeImage';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -89,18 +89,12 @@ export default function HomeScreen() {
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate('ItemDetail', {itemId: item.id})}>
-      {imageUri ? (
-        <Image source={{uri: imageUri}} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.placeholder]}>
-          <Text style={styles.placeholderText}>📱</Text>
-        </View>
-      )}
+      <SafeImage uri={imageUri} style={styles.cardImage} />
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.cardCategory}>🏷️ {item.categoryName}</Text>
         <Text style={styles.cardDistrict}>📍 {item.district}</Text>
-        <Text style={styles.cardRate}>💶 R$ {item.dailyRate.toFixed(2)}/day</Text>
+        <Text style={styles.cardRate}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
         {item.averageRating && (
           <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
         )}
@@ -238,8 +232,6 @@ const styles = StyleSheet.create({
   gridEmpty: {flexGrow: 1, padding: 16, justifyContent: 'center'},
   card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.12, shadowRadius: 6},
   cardImage: {width: '100%', height: 130},
-  placeholder: {backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center'},
-  placeholderText: {fontSize: 40},
   cardContent: {padding: 8},
   cardTitle: {fontWeight: '600', fontSize: 14},
   cardCategory: {color: '#888', fontSize: 12, marginTop: 2},

@@ -50,7 +50,7 @@ export default function MyRentalsScreen() {
             <Text style={styles.dates}>
               {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
             </Text>
-            <Text style={styles.total}>{i18n.itemDetail.total}: R$ {item.totalPrice.toFixed(2)}</Text>
+            <Text style={styles.total}>{i18n.itemDetail.total}: {item.totalPrice.toFixed(2)}€</Text>
           </View>
         </TouchableOpacity>
       )}

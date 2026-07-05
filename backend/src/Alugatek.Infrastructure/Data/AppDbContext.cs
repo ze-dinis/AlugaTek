@@ -69,8 +69,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Category>().HasData(
             new Category { Id = 1, Name = "Smartphones" },
             new Category { Id = 2, Name = "Laptops" },
-            new Category { Id = 3, Name = "Cameras" },
-            new Category { Id = 4, Name = "Audio" },
+            new Category { Id = 3, Name = "Câmeras" },
+            new Category { Id = 4, Name = "Áudio" },
             new Category { Id = 5, Name = "Tablets" },
             new Category { Id = 6, Name = "Gaming" }
         );

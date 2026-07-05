@@ -1,10 +1,15 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Alert, Image} from 'react-native';
 import {useAuthStore} from '../../store/authStore';
 import {i18n} from '../../locales';
 
 export default function ProfileScreen() {
   const {user, logout} = useAuthStore();
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
 
   const handleLogout = () => {
     Alert.alert(i18n.profile.logout, i18n.common.cancel ? 'Are you sure?' : '', [
@@ -15,8 +20,12 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {user?.avatarUrl ? (
-        <Image source={{uri: user.avatarUrl}} style={styles.avatar} />
+      {user?.avatarUrl && !avatarError ? (
+        <Image
+          source={{uri: user.avatarUrl}}
+          style={styles.avatar}
+          onError={() => setAvatarError(true)}
+        />
       ) : (
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.avatarInitial}>{user?.name?.[0]?.toUpperCase()}</Text>
