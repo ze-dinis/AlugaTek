@@ -28,6 +28,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [loading, setLoading] = useState(true);
   const [renting, setRenting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [rentalDays, setRentalDays] = useState(3);
 
   useEffect(() => {
     Promise.all([
@@ -67,14 +68,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
   const handleRent = () => {
     if (!item) return;
-    // Simple: rent for 3 days from today
     const start = new Date();
     const end = new Date();
-    end.setDate(end.getDate() + 3);
+    end.setDate(end.getDate() + rentalDays);
+    const totalPrice = item.dailyRate * rentalDays;
 
     Alert.alert(
       'Confirm Rental',
-      `Rent "${item.title}" for 3 days?\nTotal: R$ ${(item.dailyRate * 3).toFixed(2)}`,
+      `Rent "${item.title}" for ${rentalDays} day${rentalDays === 1 ? '' : 's'}?\nTotal: R$ ${totalPrice.toFixed(2)}`,
       [
         {text: 'Cancel', style: 'cancel'},
         {
@@ -130,6 +131,31 @@ export default function ItemDetailScreen({route, navigation}: Props) {
             <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
           )}
         </View>
+
+        {item.isAvailable && user?.id !== item.owner.id ? (
+          <View style={styles.rentalSelector}>
+            <Text style={styles.sectionTitle}>Rental Duration</Text>
+            <View style={styles.daySelector}>
+              <TouchableOpacity
+                style={styles.dayButton}
+                onPress={() => setRentalDays(prev => Math.max(1, prev - 1))}
+                disabled={rentalDays <= 1}>
+                <Text style={styles.dayButtonText}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.dayDisplay}>
+                <Text style={styles.dayText}>{rentalDays}</Text>
+                <Text style={styles.dayLabel}>day{rentalDays === 1 ? '' : 's'}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dayButton}
+                onPress={() => setRentalDays(prev => Math.min(30, prev + 1))}
+                disabled={rentalDays >= 30}>
+                <Text style={styles.dayButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.totalPrice}>Total: R$ {(item.dailyRate * rentalDays).toFixed(2)}</Text>
+          </View>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Description</Text>
         <Text style={styles.description}>{item.description}</Text>
@@ -196,6 +222,14 @@ const styles = StyleSheet.create({
   rate: {fontSize: 22, fontWeight: '700', color: '#1a73e8'},
   rateLabel: {fontSize: 14, color: '#888'},
   rating: {fontSize: 16},
+  rentalSelector: {marginTop: 20},
+  daySelector: {flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 12},
+  dayButton: {width: 44, height: 44, borderRadius: 8, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center'},
+  dayButtonText: {fontSize: 24, fontWeight: 'bold', color: '#1a73e8'},
+  dayDisplay: {flex: 1, alignItems: 'center'},
+  dayText: {fontSize: 20, fontWeight: 'bold'},
+  dayLabel: {fontSize: 12, color: '#888'},
+  totalPrice: {fontSize: 16, fontWeight: '600', color: '#1a73e8', textAlign: 'center'},
   sectionTitle: {fontSize: 16, fontWeight: '600', marginTop: 20, marginBottom: 6},
   description: {color: '#444', lineHeight: 22},
   owner: {color: '#444'},

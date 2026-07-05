@@ -1,12 +1,20 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image} from 'react-native';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
 import {Category} from '../../types';
 import {useNavigation} from '@react-navigation/native';
 import {launchImageLibrary} from 'react-native-image-picker';
+import {resolveApiAssetUrl} from '../../config';
 
-export default function CreateItemScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
+
+export default function CreateItemScreen({route}: Props) {
   const navigation = useNavigation();
+  const isEditing = 'params' in route && route.name === 'EditItem';
+  const itemId = isEditing ? (route.params as any)?.itemId : null;
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dailyRate, setDailyRate] = useState('');
@@ -14,9 +22,31 @@ export default function CreateItemScreen() {
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditing);
 
   useEffect(() => {
-    itemsService.getCategories().then(r => setCategories(r.data));
+    const loadData = async () => {
+      try {
+        const categoriesRes = await itemsService.getCategories();
+        setCategories(categoriesRes.data);
+
+        if (isEditing && itemId) {
+          const itemRes = await itemsService.getById(itemId);
+          const item = itemRes.data;
+          setTitle(item.title);
+          setDescription(item.description);
+          setDailyRate(item.dailyRate.toString());
+          setCategoryId(item.categoryName ? categories.find(c => c.name === item.categoryName)?.id || null : null);
+          if (item.imageUrl) {
+            setImage({uri: resolveApiAssetUrl(item.imageUrl)});
+          }
+        }
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleChoosePhoto = async () => {
@@ -53,7 +83,7 @@ export default function CreateItemScreen() {
       Alert.alert('Error', 'Please fill in all required fields.');
       return;
     }
-    if (!image) {
+    if (!isEditing && !image) {
       Alert.alert('Error', 'Please choose a photo.');
       return;
     }
@@ -64,22 +94,43 @@ export default function CreateItemScreen() {
     }
     setLoading(true);
     try {
-      await itemsService.create({
-        title,
-        description,
-        dailyRate: rate,
-        image,
-        categoryId,
-      });
-      Alert.alert('Success', 'Item listed successfully!', [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
+      if (isEditing && itemId) {
+        await itemsService.update(itemId, {
+          title,
+          description,
+          dailyRate: rate,
+          imageUrl: image?.uri,
+          isAvailable: true,
+        });
+        Alert.alert('Success', 'Item updated successfully!', [
+          {text: 'OK', onPress: () => navigation.goBack()},
+        ]);
+      } else {
+        await itemsService.create({
+          title,
+          description,
+          dailyRate: rate,
+          image,
+          categoryId,
+        });
+        Alert.alert('Success', 'Item listed successfully!', [
+          {text: 'OK', onPress: () => navigation.goBack()},
+        ]);
+      }
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.message ?? 'Could not create item.');
+      Alert.alert('Error', e.response?.data?.message ?? `Could not ${isEditing ? 'update' : 'create'} item.`);
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#1a73e8" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -94,11 +145,25 @@ export default function CreateItemScreen() {
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
         placeholder="0.00" keyboardType="decimal-pad" />
 
-      <Text style={styles.label}>Photo Upload *</Text>
-      <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-        <Text style={styles.photoButtonText}>{image ? 'Change Photo' : 'Choose Photo'}</Text>
-      </TouchableOpacity>
-      {image ? <Image source={{uri: image.uri}} style={styles.preview} /> : null}
+      {!isEditing && (
+        <>
+          <Text style={styles.label}>Photo Upload *</Text>
+          <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
+            <Text style={styles.photoButtonText}>{image ? 'Change Photo' : 'Choose Photo'}</Text>
+          </TouchableOpacity>
+          {image ? <Image source={{uri: image.uri}} style={styles.preview} /> : null}
+        </>
+      )}
+
+      {isEditing && image && (
+        <>
+          <Text style={styles.label}>Photo</Text>
+          <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
+            <Text style={styles.photoButtonText}>Change Photo</Text>
+          </TouchableOpacity>
+          <Image source={{uri: image.uri}} style={styles.preview} />
+        </>
+      )}
 
       <Text style={styles.label}>Category *</Text>
       <View style={styles.categories}>
@@ -115,7 +180,7 @@ export default function CreateItemScreen() {
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>List Item</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isEditing ? 'Update Item' : 'List Item'}</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -123,6 +188,7 @@ export default function CreateItemScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff'},
+  centered: {flex: 1, justifyContent: 'center', alignItems: 'center'},
   content: {padding: 20},
   label: {fontWeight: '600', marginBottom: 6, color: '#333'},
   input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 15},

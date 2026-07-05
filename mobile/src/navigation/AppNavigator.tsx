@@ -21,6 +21,7 @@ export type RootStackParamList = {
   Main: undefined;
   ItemDetail: {itemId: string};
   CreateItem: undefined;
+  EditItem: {itemId: string};
   Chat: {otherId: string; otherName: string};
 };
 
@@ -80,6 +81,11 @@ export default function AppNavigator() {
               name="CreateItem"
               component={CreateItemScreen}
               options={{headerShown: true, title: 'List an Item'}}
+            />
+            <RootStack.Screen
+              name="EditItem"
+              component={CreateItemScreen}
+              options={{headerShown: true, title: 'Edit Item'}}
             />
             <RootStack.Screen
               name="Chat"

@@ -51,33 +51,40 @@ export default function MyItemsScreen() {
   const renderItem = ({item}: {item: TechItem}) => {
     const imageUri = resolveApiAssetUrl(item.imageUrl);
     return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('ItemDetail', {itemId: item.id})}>
-        {imageUri ? (
-          <Image source={{uri: imageUri}} style={styles.cardImage} />
-        ) : (
-          <View style={[styles.cardImage, styles.placeholder]}>
-            <Text style={styles.placeholderText}>📱</Text>
-          </View>
-        )}
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.cardCategory}>{item.categoryName}</Text>
-          <Text style={styles.cardRate}>R$ {item.dailyRate.toFixed(2)}/day</Text>
-          <View
-            style={[
-              styles.badge,
-              item.isAvailable ? styles.badgeAvailable : styles.badgeUnavailable,
-            ]}>
-            <Text style={styles.badgeText}>
-              {item.isAvailable ? 'Available' : 'Unavailable'}
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.cardContent}
+          onPress={() => navigation.navigate('ItemDetail', {itemId: item.id})}>
+          {imageUri ? (
+            <Image source={{uri: imageUri}} style={styles.cardImage} />
+          ) : (
+            <View style={[styles.cardImage, styles.placeholder]}>
+              <Text style={styles.placeholderText}>📱</Text>
+            </View>
+          )}
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {item.title}
             </Text>
+            <Text style={styles.cardCategory}>{item.categoryName}</Text>
+            <Text style={styles.cardRate}>R$ {item.dailyRate.toFixed(2)}/day</Text>
+            <View
+              style={[
+                styles.badge,
+                item.isAvailable ? styles.badgeAvailable : styles.badgeUnavailable,
+              ]}>
+              <Text style={styles.badgeText}>
+                {item.isAvailable ? 'Available' : 'Unavailable'}
+              </Text>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate('EditItem', {itemId: item.id})}>
+          <Text style={styles.editButtonText}>Edit</Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -134,10 +141,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
+  cardContent: {flex: 1, flexDirection: 'row'},
   cardImage: {width: 100, height: 100},
   placeholder: {backgroundColor: '#e8f0fe', justifyContent: 'center', alignItems: 'center'},
   placeholderText: {fontSize: 32},
-  cardContent: {flex: 1, padding: 12, justifyContent: 'space-between'},
+  cardInfo: {flex: 1, padding: 12, justifyContent: 'space-between'},
   cardTitle: {fontSize: 16, fontWeight: '600', color: '#333'},
   cardCategory: {fontSize: 13, color: '#666', marginTop: 2},
   cardRate: {fontSize: 14, color: '#1a73e8', fontWeight: '500', marginTop: 4},
@@ -151,4 +159,6 @@ const styles = StyleSheet.create({
   badgeAvailable: {backgroundColor: '#e6f4ea'},
   badgeUnavailable: {backgroundColor: '#fce8e6'},
   badgeText: {fontSize: 12, fontWeight: '500', color: '#333'},
+  editButton: {backgroundColor: '#34a853', padding: 12, justifyContent: 'center', alignItems: 'center'},
+  editButtonText: {color: '#fff', fontWeight: '600', fontSize: 14},
 });
