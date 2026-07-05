@@ -1,14 +1,15 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Alert, Image} from 'react-native';
 import {useAuthStore} from '../../store/authStore';
+import {i18n} from '../../locales';
 
 export default function ProfileScreen() {
   const {user, logout} = useAuthStore();
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure?', [
-      {text: 'Cancel', style: 'cancel'},
-      {text: 'Sign Out', style: 'destructive', onPress: logout},
+    Alert.alert(i18n.profile.logout, i18n.common.cancel ? 'Are you sure?' : '', [
+      {text: i18n.common.cancel, style: 'cancel'},
+      {text: i18n.profile.signOut, style: 'destructive', onPress: logout},
     ]);
   };
 
@@ -27,7 +28,7 @@ export default function ProfileScreen() {
       {user?.phone && <Text style={styles.phone}>{user.phone}</Text>}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={styles.logoutText}>{i18n.profile.signOut}</Text>
       </TouchableOpacity>
     </View>
   );

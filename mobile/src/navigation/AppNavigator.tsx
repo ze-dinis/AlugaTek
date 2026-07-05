@@ -3,6 +3,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useAuthStore} from '../store/authStore';
+import {i18n} from '../locales';
 
 // Screens
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -55,9 +56,9 @@ function MainTabNavigator() {
   return (
     <MainTab.Navigator>
       <MainTab.Screen name="Home" component={HomeScreen} />
-      <MainTab.Screen name="MyItems" component={MyItemsScreen} options={{title: 'My Items'}} />
-      <MainTab.Screen name="MyRentals" component={MyRentalsScreen} options={{title: 'My Rentals'}} />
-      <MainTab.Screen name="ChatList" component={ChatListScreen} options={{title: 'Messages'}} />
+      <MainTab.Screen name="MyItems" component={MyItemsScreen} options={{title: i18n.navigation.myItems}} />
+      <MainTab.Screen name="MyRentals" component={MyRentalsScreen} options={{title: i18n.navigation.myRentals}} />
+      <MainTab.Screen name="ChatList" component={ChatListScreen} options={{title: i18n.navigation.messages}} />
       <MainTab.Screen name="Profile" component={ProfileScreen} />
     </MainTab.Navigator>
   );
@@ -75,17 +76,17 @@ export default function AppNavigator() {
             <RootStack.Screen
               name="ItemDetail"
               component={ItemDetailScreen}
-              options={{headerShown: true, title: 'Item Details'}}
+              options={{headerShown: true, title: 'Detalhes'}}
             />
             <RootStack.Screen
               name="CreateItem"
               component={CreateItemScreen}
-              options={{headerShown: true, title: 'List an Item'}}
+              options={{headerShown: true, title: i18n.navigation.createItem}}
             />
             <RootStack.Screen
               name="EditItem"
               component={CreateItemScreen}
-              options={{headerShown: true, title: 'Edit Item'}}
+              options={{headerShown: true, title: i18n.item.editTitle}}
             />
             <RootStack.Screen
               name="Chat"

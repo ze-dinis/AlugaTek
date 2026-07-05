@@ -15,6 +15,7 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
 import {TechItem} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
+import {i18n} from '../../locales';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -74,7 +75,7 @@ export default function MyItemsScreen() {
                 item.isAvailable ? styles.badgeAvailable : styles.badgeUnavailable,
               ]}>
               <Text style={styles.badgeText}>
-                {item.isAvailable ? 'Available' : 'Unavailable'}
+                {item.isAvailable ? i18n.myItems.available : i18n.myItems.unavailable}
               </Text>
             </View>
           </View>
@@ -82,7 +83,7 @@ export default function MyItemsScreen() {
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => navigation.navigate('EditItem', {itemId: item.id})}>
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Text style={styles.editButtonText}>{i18n.myItems.edit}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -109,7 +110,7 @@ export default function MyItemsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContent}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>No items listed yet</Text>
+            <Text style={styles.emptyTitle}>{i18n.myItems.noItems}</Text>
             <Text style={styles.emptySubtitle}>
               Tap the + button on Home to list your first item.
             </Text>

@@ -14,6 +14,7 @@ import {authService} from '../../services/authService';
 import {useAuthStore} from '../../store/authStore';
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import {GOOGLE_WEB_CLIENT_ID} from '../../config';
+import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -27,7 +28,7 @@ export default function LoginScreen({navigation}: Props) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert(i18n.common.error, i18n.auth.errorFillFields);
       return;
     }
     setLoading(true);
@@ -35,13 +36,13 @@ export default function LoginScreen({navigation}: Props) {
       const {data} = await authService.login(email, password);
       await setAuth(data.user, data.token);
     } catch (e: any) {
-      const message = e?.response?.data?.message || e?.message || 'Please try again.';
+      const message = e?.response?.data?.message || e?.message || i18n.auth.tryAgain;
       const detail =
         e?.code === 'ERR_NETWORK'
-          ? 'The app could not reach the API. Make sure the backend is running and the API URL points to your machine\'s LAN IP.'
+          ? i18n.auth.errorNetworkDetail
           : message;
 
-      Alert.alert('Login failed', detail);
+      Alert.alert(i18n.auth.loginFailed, detail);
     } finally {
       setLoading(false);
     }
@@ -56,7 +57,7 @@ export default function LoginScreen({navigation}: Props) {
       const {data} = await authService.googleOAuth(tokens.idToken);
       await setAuth(data.user, data.token);
     } catch (e: any) {
-      Alert.alert('Google login failed', e.message ?? 'Please try again.');
+      Alert.alert(i18n.auth.googleLoginFailed, e.message ?? i18n.auth.tryAgain);
     } finally {
       setLoading(false);
     }
@@ -64,12 +65,12 @@ export default function LoginScreen({navigation}: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Alugatek</Text>
-      <Text style={styles.subtitle}>Rent tech. Simply.</Text>
+      <Text style={styles.title}>{i18n.auth.title}</Text>
+      <Text style={styles.subtitle}>{i18n.auth.subtitle}</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder={i18n.auth.email}
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -77,22 +78,22 @@ export default function LoginScreen({navigation}: Props) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={i18n.auth.password}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{i18n.auth.signIn}</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.button, styles.googleButton]} onPress={handleGoogleLogin} disabled={loading}>
-        <Text style={styles.buttonText}>Sign in with Google</Text>
+        <Text style={styles.buttonText}>{i18n.auth.signInGoogle}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.link}>Don't have an account? Register</Text>
+        <Text style={styles.link}>{i18n.auth.noAccount}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -4,6 +4,7 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AuthStackParamList} from '../../navigation/AppNavigator';
 import {authService} from '../../services/authService';
 import {useAuthStore} from '../../store/authStore';
+import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
@@ -16,11 +17,11 @@ export default function RegisterScreen({navigation}: Props) {
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert(i18n.common.error, i18n.auth.errorFillFields);
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters.');
+      Alert.alert(i18n.common.error, i18n.auth.errorPasswordMinLength);
       return;
     }
     setLoading(true);
@@ -28,7 +29,7 @@ export default function RegisterScreen({navigation}: Props) {
       const {data} = await authService.register(name, email, password);
       await setAuth(data.user, data.token);
     } catch (e: any) {
-      Alert.alert('Registration failed', e.response?.data?.message ?? 'Please try again.');
+      Alert.alert(i18n.auth.registrationFailed, e.response?.data?.message ?? i18n.auth.tryAgain);
     } finally {
       setLoading(false);
     }
@@ -36,12 +37,12 @@ export default function RegisterScreen({navigation}: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.title}>{i18n.auth.createAccount}</Text>
 
-      <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder={i18n.auth.fullName} value={name} onChangeText={setName} />
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder={i18n.auth.email}
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -49,18 +50,18 @@ export default function RegisterScreen({navigation}: Props) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={i18n.auth.password}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create Account</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{i18n.auth.createAccount}</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.link}>Already have an account? Sign in</Text>
+        <Text style={styles.link}>{i18n.auth.hasAccount}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -14,6 +14,7 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
 import {Conversation} from '../../types';
+import {i18n} from '../../locales';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -97,7 +98,7 @@ export default function ChatListScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContent}>
             <Text style={styles.emptyIcon}>💬</Text>
-            <Text style={styles.emptyTitle}>No messages yet</Text>
+            <Text style={styles.emptyTitle}>{i18n.chat.noConversations}</Text>
             <Text style={styles.emptySubtitle}>Start a conversation by viewing an item</Text>
           </View>
         }

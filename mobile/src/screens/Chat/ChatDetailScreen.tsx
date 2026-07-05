@@ -15,6 +15,7 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
 import {useAuthStore} from '../../store/authStore';
 import {Message} from '../../types';
+import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -114,7 +115,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
         onEndReached={() => flatListRef.current?.scrollToEnd()}
         ListEmptyComponent={
           <View style={styles.emptyContent}>
-            <Text style={styles.emptyText}>No messages yet. Say hello!</Text>
+            <Text style={styles.emptyText}>{i18n.chat.noMessages}</Text>
           </View>
         }
       />
@@ -122,7 +123,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Type a message..."
+          placeholder={i18n.chat.writeMessage}
           value={inputText}
           onChangeText={setInputText}
           multiline
@@ -136,7 +137,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
           {sending ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.sendButtonText}>Send</Text>
+            <Text style={styles.sendButtonText}>{i18n.chat.send}</Text>
           )}
         </TouchableOpacity>
       </View>

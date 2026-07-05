@@ -17,6 +17,7 @@ import {TechItem, Review} from '../../types';
 import api from '../../services/api';
 import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
+import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetail'>;
 
@@ -43,12 +44,12 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const handleDelete = () => {
     if (!item) return;
     Alert.alert(
-      'Delete Item',
-      `Are you sure you want to delete "${item.title}"? This cannot be undone.`,
+      i18n.itemDetail.deleteItem,
+      `${i18n.itemDetail.deleteConfirm} "${item.title}"? ${i18n.itemDetail.deleteConfirmDetail}`,
       [
-        {text: 'Cancel', style: 'cancel'},
+        {text: i18n.common.cancel, style: 'cancel'},
         {
-          text: 'Delete',
+          text: i18n.common.delete,
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
@@ -56,7 +57,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               await itemsService.delete(item.id);
               navigation.goBack();
             } catch (e: any) {
-              Alert.alert('Error', e.response?.data?.message ?? 'Could not delete item.');
+              Alert.alert(i18n.common.error, e.response?.data?.message ?? i18n.itemDetail.deleteFailed);
             } finally {
               setDeleting(false);
             }
@@ -74,12 +75,12 @@ export default function ItemDetailScreen({route, navigation}: Props) {
     const totalPrice = item.dailyRate * rentalDays;
 
     Alert.alert(
-      'Confirm Rental',
-      `Rent "${item.title}" for ${rentalDays} day${rentalDays === 1 ? '' : 's'}?\nTotal: R$ ${totalPrice.toFixed(2)}`,
+      i18n.itemDetail.confirmRental,
+      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.total}: R$ ${totalPrice.toFixed(2)}`,
       [
-        {text: 'Cancel', style: 'cancel'},
+        {text: i18n.common.cancel, style: 'cancel'},
         {
-          text: 'Confirm',
+          text: i18n.common.ok,
           onPress: async () => {
             setRenting(true);
             try {
@@ -88,10 +89,10 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 start.toISOString(),
                 end.toISOString(),
               );
-              Alert.alert('Success', 'Rental created!');
+              Alert.alert(i18n.common.success, i18n.itemDetail.rentalSuccess);
               setItem(prev => prev ? {...prev, isAvailable: false} : null);
             } catch (e: any) {
-              Alert.alert('Error', e.response?.data?.message ?? 'Could not create rental.');
+              Alert.alert(i18n.common.error, e.response?.data?.message ?? i18n.itemDetail.rentalFailed);
             } finally {
               setRenting(false);
             }
@@ -134,7 +135,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
         {item.isAvailable && user?.id !== item.owner.id ? (
           <View style={styles.rentalSelector}>
-            <Text style={styles.sectionTitle}>Rental Duration</Text>
+            <Text style={styles.sectionTitle}>{i18n.itemDetail.rentalDuration}</Text>
             <View style={styles.daySelector}>
               <TouchableOpacity
                 style={styles.dayButton}
@@ -144,7 +145,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               </TouchableOpacity>
               <View style={styles.dayDisplay}>
                 <Text style={styles.dayText}>{rentalDays}</Text>
-                <Text style={styles.dayLabel}>day{rentalDays === 1 ? '' : 's'}</Text>
+                <Text style={styles.dayLabel}>{rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}</Text>
               </View>
               <TouchableOpacity
                 style={styles.dayButton}
@@ -153,14 +154,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 <Text style={styles.dayButtonText}>+</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.totalPrice}>Total: R$ {(item.dailyRate * rentalDays).toFixed(2)}</Text>
+            <Text style={styles.totalPrice}>{i18n.itemDetail.total}: R$ {(item.dailyRate * rentalDays).toFixed(2)}</Text>
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Description</Text>
+        <Text style={styles.sectionTitle}>{i18n.itemDetail.description}</Text>
         <Text style={styles.description}>{item.description}</Text>
 
-        <Text style={styles.sectionTitle}>Owner</Text>
+        <Text style={styles.sectionTitle}>{i18n.itemDetail.owner}</Text>
         <Text style={styles.owner}>{item.owner.name}</Text>
 
         {user?.id === item.owner.id ? (
@@ -171,18 +172,18 @@ export default function ItemDetailScreen({route, navigation}: Props) {
             {deleting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.deleteButtonText}>Delete Item</Text>
+              <Text style={styles.deleteButtonText}>{i18n.itemDetail.deleteItem}</Text>
             )}
           </TouchableOpacity>
         ) : (
           <View style={styles.buttonRow}>
             {item.isAvailable ? (
               <TouchableOpacity style={[styles.rentButton, styles.halfButton]} onPress={handleRent} disabled={renting}>
-                {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>Rent Now</Text>}
+                {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>{i18n.itemDetail.rentNow}</Text>}
               </TouchableOpacity>
             ) : (
               <View style={[styles.unavailableButton, styles.halfButton]}>
-                <Text style={styles.unavailableText}>Unavailable</Text>
+                <Text style={styles.unavailableText}>{i18n.itemDetail.unavailable}</Text>
               </View>
             )}
             <TouchableOpacity
@@ -190,14 +191,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               onPress={() =>
                 navigation.navigate('Chat', {otherId: item.owner.id, otherName: item.owner.name})
               }>
-              <Text style={styles.messageButtonText}>Message</Text>
+              <Text style={styles.messageButtonText}>{i18n.itemDetail.message}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {reviews.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Reviews ({reviews.length})</Text>
+            <Text style={styles.sectionTitle}>{i18n.itemDetail.reviews} ({reviews.length})</Text>
             {reviews.map(r => (
               <View key={r.id} style={styles.review}>
                 <Text style={styles.reviewAuthor}>{r.author.name} · {'⭐'.repeat(r.rating)}</Text>

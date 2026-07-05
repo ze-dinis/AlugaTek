@@ -7,6 +7,7 @@ import {Category} from '../../types';
 import {useNavigation} from '@react-navigation/native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import {resolveApiAssetUrl} from '../../config';
+import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
 
@@ -61,13 +62,13 @@ export default function CreateItemScreen({route}: Props) {
     }
 
     if (result.errorCode) {
-      Alert.alert('Error', result.errorMessage ?? 'Could not pick image.');
+      Alert.alert(i18n.common.error, result.errorMessage ?? 'Could not pick image.');
       return;
     }
 
     const asset = result.assets?.[0];
     if (!asset?.uri) {
-      Alert.alert('Error', 'Invalid image selected.');
+      Alert.alert(i18n.common.error, 'Invalid image selected.');
       return;
     }
 
@@ -80,16 +81,16 @@ export default function CreateItemScreen({route}: Props) {
 
   const handleSubmit = async () => {
     if (!title || !description || !dailyRate || !categoryId) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+      Alert.alert(i18n.common.error, i18n.item.errorFillFields);
       return;
     }
     if (!isEditing && !image) {
-      Alert.alert('Error', 'Please choose a photo.');
+      Alert.alert(i18n.common.error, i18n.item.errorSelectPhoto);
       return;
     }
     const rate = parseFloat(dailyRate);
     if (isNaN(rate) || rate <= 0) {
-      Alert.alert('Error', 'Enter a valid daily rate.');
+      Alert.alert(i18n.common.error, 'Enter a valid daily rate.');
       return;
     }
     setLoading(true);
@@ -102,8 +103,8 @@ export default function CreateItemScreen({route}: Props) {
           imageUrl: image?.uri,
           isAvailable: true,
         });
-        Alert.alert('Success', 'Item updated successfully!', [
-          {text: 'OK', onPress: () => navigation.goBack()},
+        Alert.alert(i18n.common.success, i18n.item.updateSuccess, [
+          {text: i18n.common.ok, onPress: () => navigation.goBack()},
         ]);
       } else {
         await itemsService.create({
@@ -113,12 +114,12 @@ export default function CreateItemScreen({route}: Props) {
           image,
           categoryId,
         });
-        Alert.alert('Success', 'Item listed successfully!', [
-          {text: 'OK', onPress: () => navigation.goBack()},
+        Alert.alert(i18n.common.success, i18n.item.creationSuccess, [
+          {text: i18n.common.ok, onPress: () => navigation.goBack()},
         ]);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.message ?? `Could not ${isEditing ? 'update' : 'create'} item.`);
+      Alert.alert(i18n.common.error, e.response?.data?.message ?? (isEditing ? i18n.item.updateFailed : i18n.item.creationFailed));
     } finally {
       setLoading(false);
     }
@@ -134,22 +135,22 @@ export default function CreateItemScreen({route}: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>Title *</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="e.g. iPhone 15 Pro" />
+      <Text style={styles.label}>{i18n.item.title} *</Text>
+      <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="ex: iPhone 15 Pro" />
 
-      <Text style={styles.label}>Description *</Text>
+      <Text style={styles.label}>{i18n.item.description} *</Text>
       <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription}
-        placeholder="Describe the item..." multiline numberOfLines={4} />
+        placeholder={i18n.item.description} multiline numberOfLines={4} />
 
-      <Text style={styles.label}>Daily Rate (R$) *</Text>
+      <Text style={styles.label}>{i18n.item.dailyRate} *</Text>
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
         placeholder="0.00" keyboardType="decimal-pad" />
 
       {!isEditing && (
         <>
-          <Text style={styles.label}>Photo Upload *</Text>
+          <Text style={styles.label}>{i18n.item.selectPhoto} *</Text>
           <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-            <Text style={styles.photoButtonText}>{image ? 'Change Photo' : 'Choose Photo'}</Text>
+            <Text style={styles.photoButtonText}>{image ? i18n.item.uploadPhoto : i18n.item.selectPhoto}</Text>
           </TouchableOpacity>
           {image ? <Image source={{uri: image.uri}} style={styles.preview} /> : null}
         </>
@@ -157,15 +158,15 @@ export default function CreateItemScreen({route}: Props) {
 
       {isEditing && image && (
         <>
-          <Text style={styles.label}>Photo</Text>
+          <Text style={styles.label}>{i18n.item.photoPreview}</Text>
           <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-            <Text style={styles.photoButtonText}>Change Photo</Text>
+            <Text style={styles.photoButtonText}>{i18n.item.uploadPhoto}</Text>
           </TouchableOpacity>
           <Image source={{uri: image.uri}} style={styles.preview} />
         </>
       )}
 
-      <Text style={styles.label}>Category *</Text>
+      <Text style={styles.label}>{i18n.item.category} *</Text>
       <View style={styles.categories}>
         {categories.map(cat => (
           <TouchableOpacity
@@ -180,7 +181,7 @@ export default function CreateItemScreen({route}: Props) {
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isEditing ? 'Update Item' : 'List Item'}</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isEditing ? i18n.item.updateItem : i18n.item.listItem}</Text>}
       </TouchableOpacity>
     </ScrollView>
   );

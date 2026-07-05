@@ -16,6 +16,7 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
 import {TechItem, Category} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
+import {i18n} from '../../locales';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -93,7 +94,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search tech items..."
+          placeholder={i18n.home.searchPlaceholder}
           value={search}
           onChangeText={setSearch}
         />
@@ -132,9 +133,9 @@ export default function HomeScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchItems();}} />
           }
-          ListEmptyComponent={<Text style={styles.empty}>No items found.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{i18n.home.noItems}</Text>}
         />
-      )}
+      )}}
     </View>
   );
 }
