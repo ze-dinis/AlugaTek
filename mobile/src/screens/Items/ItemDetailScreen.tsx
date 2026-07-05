@@ -15,6 +15,7 @@ import {itemsService} from '../../services/itemsService';
 import {rentalsService} from '../../services/rentalsService';
 import {TechItem, Review} from '../../types';
 import api from '../../services/api';
+import {resolveApiAssetUrl} from '../../config';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetail'>;
 
@@ -78,10 +79,12 @@ export default function ItemDetailScreen({route}: Props) {
     return <Text style={{textAlign: 'center', marginTop: 40}}>Item not found.</Text>;
   }
 
+  const imageUri = resolveApiAssetUrl(item.imageUrl);
+
   return (
     <ScrollView style={styles.container}>
-      {item.imageUrl ? (
-        <Image source={{uri: item.imageUrl}} style={styles.image} />
+      {imageUri ? (
+        <Image source={{uri: imageUri}} style={styles.image} />
       ) : (
         <View style={[styles.image, styles.placeholder]}>
           <Text style={{fontSize: 60}}>📱</Text>

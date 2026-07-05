@@ -10,8 +10,13 @@ namespace Alugatek.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ItemsController(AppDbContext db) : ControllerBase
+public class ItemsController(AppDbContext db, IWebHostEnvironment env) : ControllerBase
 {
+    private static readonly HashSet<string> AllowedImageContentTypes =
+    ["image/jpeg", "image/png", "image/webp"];
+
+    private const long MaxPhotoSizeBytes = 5 * 1024 * 1024;
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TechItemDto>>> GetAll(
         [FromQuery] int? categoryId,
@@ -55,20 +60,63 @@ public class ItemsController(AppDbContext db) : ControllerBase
 
     [Authorize]
     [HttpPost]
+    [Consumes("application/json")]
     public async Task<ActionResult<TechItemDto>> Create(CreateItemRequest request)
+        => await CreateItemAsync(
+            request.Title,
+            request.Description,
+            request.DailyRate,
+            request.ImageUrl,
+            request.CategoryId);
+
+    [Authorize]
+    [HttpPost("upload")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<TechItemDto>> CreateWithPhoto([FromForm] CreateItemWithPhotoRequest request)
+    {
+        string? imageUrl = request.ImageUrl;
+
+        if (request.Photo is not null)
+        {
+            if (request.Photo.Length == 0)
+                return BadRequest(new { message = "Photo file is empty." });
+
+            if (request.Photo.Length > MaxPhotoSizeBytes)
+                return BadRequest(new { message = "Photo must be at most 5 MB." });
+
+            if (!AllowedImageContentTypes.Contains(request.Photo.ContentType))
+                return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
+
+            imageUrl = await SavePhotoAsync(request.Photo);
+        }
+
+        return await CreateItemAsync(
+            request.Title,
+            request.Description,
+            request.DailyRate,
+            imageUrl,
+            request.CategoryId);
+    }
+
+    private async Task<ActionResult<TechItemDto>> CreateItemAsync(
+        string title,
+        string description,
+        decimal dailyRate,
+        string? imageUrl,
+        int categoryId)
     {
         var ownerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        if (!await db.Categories.AnyAsync(c => c.Id == request.CategoryId))
+        if (!await db.Categories.AnyAsync(c => c.Id == categoryId))
             return BadRequest(new { message = "Invalid category." });
 
         var item = new TechItem
         {
-            Title = request.Title,
-            Description = request.Description,
-            DailyRate = request.DailyRate,
-            ImageUrl = request.ImageUrl,
-            CategoryId = request.CategoryId,
+            Title = title,
+            Description = description,
+            DailyRate = dailyRate,
+            ImageUrl = imageUrl,
+            CategoryId = categoryId,
             OwnerId = ownerId
         };
 
@@ -78,6 +126,22 @@ public class ItemsController(AppDbContext db) : ControllerBase
         await db.Entry(item).Reference(i => i.Owner).LoadAsync();
 
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, MapToDto(item));
+    }
+
+    private async Task<string> SavePhotoAsync(IFormFile photo)
+    {
+        var webRootPath = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+        var uploadDir = Path.Combine(webRootPath, "uploads", "items");
+        Directory.CreateDirectory(uploadDir);
+
+        var extension = Path.GetExtension(photo.FileName);
+        var fileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadDir, fileName);
+
+        await using var stream = System.IO.File.Create(filePath);
+        await photo.CopyToAsync(stream);
+
+        return $"/uploads/items/{fileName}";
     }
 
     [Authorize]

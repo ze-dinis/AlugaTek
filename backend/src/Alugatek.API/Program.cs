@@ -2,6 +2,7 @@ using System.Text;
 using Alugatek.Infrastructure.Data;
 using Alugatek.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -78,6 +79,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+var webRootPath = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(webRootPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(webRootPath)
+});
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();

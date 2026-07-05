@@ -51,6 +51,10 @@ alugatek/
 | POST | `/api/reviews` | ✅ | Leave review (post-rental) |
 | GET | `/api/reviews/item/{itemId}` | — | Reviews for an item |
 
+`POST /api/items` supports both:
+- `application/json` body (`title`, `description`, `dailyRate`, `categoryId`, optional `imageUrl`)
+- `multipart/form-data` with the same fields and optional `photo` file (JPEG, PNG, WEBP up to 5 MB)
+
 ### Running the backend
 
 #### With Docker Compose (recommended)

@@ -1,5 +1,7 @@
 namespace Alugatek.API.DTOs;
 
+using Microsoft.AspNetCore.Http;
+
 // Auth
 public record RegisterRequest(string Name, string Email, string Password);
 public record LoginRequest(string Email, string Password);
@@ -15,6 +17,16 @@ public record CreateItemRequest(
     decimal DailyRate,
     string? ImageUrl,
     int CategoryId);
+
+public class CreateItemWithPhotoRequest
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal DailyRate { get; set; }
+    public string? ImageUrl { get; set; }
+    public int CategoryId { get; set; }
+    public IFormFile? Photo { get; set; }
+}
 
 public record UpdateItemRequest(
     string Title,

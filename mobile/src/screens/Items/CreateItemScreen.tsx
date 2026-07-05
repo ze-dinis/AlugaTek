@@ -1,15 +1,16 @@
 import React, {useEffect, useState} from 'react';
-import {View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator} from 'react-native';
+import {View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image} from 'react-native';
 import {itemsService} from '../../services/itemsService';
 import {Category} from '../../types';
 import {useNavigation} from '@react-navigation/native';
+import {launchImageLibrary} from 'react-native-image-picker';
 
 export default function CreateItemScreen() {
   const navigation = useNavigation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dailyRate, setDailyRate] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [image, setImage] = useState<{uri: string; type?: string; name?: string} | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,6 +18,35 @@ export default function CreateItemScreen() {
   useEffect(() => {
     itemsService.getCategories().then(r => setCategories(r.data));
   }, []);
+
+  const handleChoosePhoto = async () => {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+      quality: 0.9,
+    });
+
+    if (result.didCancel) {
+      return;
+    }
+
+    if (result.errorCode) {
+      Alert.alert('Error', result.errorMessage ?? 'Could not pick image.');
+      return;
+    }
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
+      Alert.alert('Error', 'Invalid image selected.');
+      return;
+    }
+
+    setImage({
+      uri: asset.uri,
+      type: asset.type,
+      name: asset.fileName,
+    });
+  };
 
   const handleSubmit = async () => {
     if (!title || !description || !dailyRate || !categoryId) {
@@ -34,7 +64,7 @@ export default function CreateItemScreen() {
         title,
         description,
         dailyRate: rate,
-        imageUrl: imageUrl || undefined,
+        image: image ?? undefined,
         categoryId,
       });
       Alert.alert('Success', 'Item listed successfully!', [
@@ -60,9 +90,11 @@ export default function CreateItemScreen() {
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
         placeholder="0.00" keyboardType="decimal-pad" />
 
-      <Text style={styles.label}>Image URL (optional)</Text>
-      <TextInput style={styles.input} value={imageUrl} onChangeText={setImageUrl}
-        placeholder="https://..." keyboardType="url" autoCapitalize="none" />
+      <Text style={styles.label}>Photo Upload (optional)</Text>
+      <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
+        <Text style={styles.photoButtonText}>{image ? 'Change Photo' : 'Choose Photo'}</Text>
+      </TouchableOpacity>
+      {image ? <Image source={{uri: image.uri}} style={styles.preview} /> : null}
 
       <Text style={styles.label}>Category *</Text>
       <View style={styles.categories}>
@@ -96,6 +128,22 @@ const styles = StyleSheet.create({
   chipSelected: {backgroundColor: '#1a73e8'},
   chipText: {color: '#1a73e8'},
   chipTextSelected: {color: '#fff'},
+  photoButton: {
+    borderWidth: 1,
+    borderColor: '#1a73e8',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  photoButtonText: {color: '#1a73e8', fontWeight: '600'},
+  preview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginBottom: 16,
+    resizeMode: 'cover',
+  },
   button: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 10, alignItems: 'center'},
   buttonText: {color: '#fff', fontWeight: '700', fontSize: 16},
 });

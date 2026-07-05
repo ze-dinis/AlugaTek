@@ -13,9 +13,32 @@ export const itemsService = {
     title: string;
     description: string;
     dailyRate: number;
-    imageUrl?: string;
+    image?: {
+      uri: string;
+      name?: string;
+      type?: string;
+    };
     categoryId: number;
-  }) => api.post<TechItem>('/items', data),
+  }) => {
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('dailyRate', data.dailyRate.toString());
+    formData.append('categoryId', data.categoryId.toString());
+
+    if (data.image?.uri) {
+      formData.append('photo', {
+        uri: data.image.uri,
+        name: data.image.name ?? `item-${Date.now()}.jpg`,
+        type: data.image.type ?? 'image/jpeg',
+      } as any);
+    }
+
+    return api.post<TechItem>('/items/upload', formData, {
+      headers: {'Content-Type': 'multipart/form-data'},
+      transformRequest: data => data,
+    });
+  },
 
   update: (
     id: string,

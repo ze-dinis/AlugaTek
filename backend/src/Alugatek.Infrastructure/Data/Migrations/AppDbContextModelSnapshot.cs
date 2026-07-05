@@ -20,7 +20,6 @@ namespace Alugatek.Infrastructure.Data.Migrations
                 .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Alugatek.Domain.Entities.Category", b =>
@@ -197,7 +196,7 @@ namespace Alugatek.Infrastructure.Data.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("citext");
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()

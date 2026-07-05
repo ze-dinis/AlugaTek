@@ -10,11 +10,12 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
 import {TechItem, Category} from '../../types';
+import {resolveApiAssetUrl} from '../../config';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -52,12 +53,23 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, [fetchItems]);
 
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchItems();
+    }, [fetchItems]),
+  );
+
   const renderItem = ({item}: {item: TechItem}) => (
+    (() => {
+      const imageUri = resolveApiAssetUrl(item.imageUrl);
+
+      return (
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate('ItemDetail', {itemId: item.id})}>
-      {item.imageUrl ? (
-        <Image source={{uri: item.imageUrl}} style={styles.cardImage} />
+      {imageUri ? (
+        <Image source={{uri: imageUri}} style={styles.cardImage} />
       ) : (
         <View style={[styles.cardImage, styles.placeholder]}>
           <Text style={styles.placeholderText}>📱</Text>
@@ -72,6 +84,8 @@ export default function HomeScreen() {
         )}
       </View>
     </TouchableOpacity>
+      );
+    })()
   );
 
   return (
