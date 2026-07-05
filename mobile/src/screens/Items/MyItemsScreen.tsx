@@ -76,7 +76,7 @@ export default function MyItemsScreen() {
                 item.isAvailable ? styles.badgeAvailable : styles.badgeUnavailable,
               ]}>
               <Text style={styles.badgeText}>
-                {item.isAvailable ? `✅ ${i18n.myItems.available}` : `⛔ ${i18n.myItems.unavailable}`}
+                {item.isAvailable ? `✅ ${i18n.myAdvertisements.available}` : `⛔ ${i18n.myAdvertisements.unavailable}`}
               </Text>
             </View>
           </View>
@@ -84,7 +84,7 @@ export default function MyItemsScreen() {
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => navigation.navigate('EditItem', {itemId: item.id})}>
-          <Text style={styles.editButtonText}>✏️ {i18n.myItems.edit}</Text>
+          <Text style={styles.editButtonText}>✏️ {i18n.myAdvertisements.edit}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -111,7 +111,7 @@ export default function MyItemsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContent}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>{i18n.myItems.noItems}</Text>
+            <Text style={styles.emptyTitle}>{i18n.myAdvertisements.noItems}</Text>
             <Text style={styles.emptySubtitle}>
               Tap the + button on Home to list your first item.
             </Text>

@@ -80,9 +80,9 @@ export const pt = {
     deleteFailed: 'Não foi possível apagar o item.',
   },
 
-  // My Items screen
-  myItems: {
-    title: 'Meus Itens',
+  // My Advertisements screen
+  myAdvertisements: {
+    title: 'Meus Anúncios',
     noItems: 'Ainda não listou nenhum item.',
     edit: 'Editar',
     available: 'Disponível',
@@ -91,7 +91,7 @@ export const pt = {
 
   // My Rentals screen
   myRentals: {
-    title: 'Meus Aluguéis',
+    title: 'Meus Alugueres',
     noRentals: 'Ainda não alugou nada.',
     pending: 'Pendente',
     active: 'Ativo',
@@ -124,8 +124,8 @@ export const pt = {
   // Navigation
   navigation: {
     home: 'Início',
-    myItems: 'Meus Itens',
-    myRentals: 'Meus Aluguéis',
+    myItems: 'Anúncios',
+    myRentals: 'Alugueres',
     messages: 'Mensagens',
     profile: 'Perfil',
     createItem: 'Novo Item',
