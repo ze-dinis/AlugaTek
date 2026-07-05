@@ -16,15 +16,18 @@ import {rentalsService} from '../../services/rentalsService';
 import {TechItem, Review} from '../../types';
 import api from '../../services/api';
 import {resolveApiAssetUrl} from '../../config';
+import {useAuthStore} from '../../store/authStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetail'>;
 
-export default function ItemDetailScreen({route}: Props) {
+export default function ItemDetailScreen({route, navigation}: Props) {
   const {itemId} = route.params;
+  const {user} = useAuthStore();
   const [item, setItem] = useState<TechItem | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [renting, setRenting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -35,6 +38,32 @@ export default function ItemDetailScreen({route}: Props) {
       setReviews(reviewRes.data);
     }).finally(() => setLoading(false));
   }, [itemId]);
+
+  const handleDelete = () => {
+    if (!item) return;
+    Alert.alert(
+      'Delete Item',
+      `Are you sure you want to delete "${item.title}"? This cannot be undone.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await itemsService.delete(item.id);
+              navigation.goBack();
+            } catch (e: any) {
+              Alert.alert('Error', e.response?.data?.message ?? 'Could not delete item.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleRent = () => {
     if (!item) return;
@@ -108,7 +137,18 @@ export default function ItemDetailScreen({route}: Props) {
         <Text style={styles.sectionTitle}>Owner</Text>
         <Text style={styles.owner}>{item.owner.name}</Text>
 
-        {item.isAvailable ? (
+        {user?.id === item.owner.id ? (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            disabled={deleting}>
+            {deleting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.deleteButtonText}>Delete Item</Text>
+            )}
+          </TouchableOpacity>
+        ) : item.isAvailable ? (
           <TouchableOpacity style={styles.rentButton} onPress={handleRent} disabled={renting}>
             {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>Rent Now</Text>}
           </TouchableOpacity>
@@ -152,6 +192,8 @@ const styles = StyleSheet.create({
   rentButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   unavailableButton: {backgroundColor: '#e0e0e0', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   unavailableText: {color: '#888', fontWeight: '600'},
+  deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
+  deleteButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   review: {borderTopWidth: 1, borderColor: '#f0f0f0', paddingTop: 12, marginTop: 12},
   reviewAuthor: {fontWeight: '600', marginBottom: 4},
   reviewComment: {color: '#444'},

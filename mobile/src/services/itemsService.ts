@@ -5,6 +5,8 @@ export const itemsService = {
   getAll: (params?: {categoryId?: number; search?: string; page?: number}) =>
     api.get<TechItem[]>('/items', {params}),
 
+  getMyItems: () => api.get<TechItem[]>('/items/my'),
+
   getById: (id: string) => api.get<TechItem>(`/items/${id}`),
 
   getCategories: () => api.get<Category[]>('/items/categories'),

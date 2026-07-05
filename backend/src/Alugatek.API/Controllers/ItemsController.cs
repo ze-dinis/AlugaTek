@@ -169,6 +169,23 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         return NoContent();
     }
 
+    [Authorize]
+    [HttpGet("my")]
+    public async Task<ActionResult<IEnumerable<TechItemDto>>> GetMyItems()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var items = await db.TechItems
+            .Include(i => i.Category)
+            .Include(i => i.Owner)
+            .Include(i => i.Reviews)
+            .Where(i => i.OwnerId == userId)
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
+
+        return Ok(items.Select(MapToDto));
+    }
+
     [HttpGet("categories")]
     public async Task<ActionResult<IEnumerable<object>>> GetCategories() =>
         Ok(await db.Categories.Select(c => new { c.Id, c.Name, c.IconUrl }).ToListAsync());

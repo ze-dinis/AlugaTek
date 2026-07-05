@@ -12,6 +12,7 @@ import ItemDetailScreen from '../screens/Items/ItemDetailScreen';
 import MyRentalsScreen from '../screens/Rentals/MyRentalsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CreateItemScreen from '../screens/Items/CreateItemScreen';
+import MyItemsScreen from '../screens/Items/MyItemsScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -27,6 +28,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
+  MyItems: undefined;
   MyRentals: undefined;
   Profile: undefined;
 };
@@ -48,6 +50,7 @@ function MainTabNavigator() {
   return (
     <MainTab.Navigator>
       <MainTab.Screen name="Home" component={HomeScreen} />
+      <MainTab.Screen name="MyItems" component={MyItemsScreen} options={{title: 'My Items'}} />
       <MainTab.Screen name="MyRentals" component={MyRentalsScreen} options={{title: 'My Rentals'}} />
       <MainTab.Screen name="Profile" component={ProfileScreen} />
     </MainTab.Navigator>
