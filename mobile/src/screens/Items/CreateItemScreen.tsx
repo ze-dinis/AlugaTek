@@ -53,6 +53,10 @@ export default function CreateItemScreen() {
       Alert.alert('Error', 'Please fill in all required fields.');
       return;
     }
+    if (!image) {
+      Alert.alert('Error', 'Please choose a photo.');
+      return;
+    }
     const rate = parseFloat(dailyRate);
     if (isNaN(rate) || rate <= 0) {
       Alert.alert('Error', 'Enter a valid daily rate.');
@@ -64,7 +68,7 @@ export default function CreateItemScreen() {
         title,
         description,
         dailyRate: rate,
-        image: image ?? undefined,
+        image,
         categoryId,
       });
       Alert.alert('Success', 'Item listed successfully!', [
@@ -90,7 +94,7 @@ export default function CreateItemScreen() {
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
         placeholder="0.00" keyboardType="decimal-pad" />
 
-      <Text style={styles.label}>Photo Upload (optional)</Text>
+      <Text style={styles.label}>Photo Upload *</Text>
       <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
         <Text style={styles.photoButtonText}>{image ? 'Change Photo' : 'Choose Photo'}</Text>
       </TouchableOpacity>

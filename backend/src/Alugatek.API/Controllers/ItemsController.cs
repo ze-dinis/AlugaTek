@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Alugatek.API.DTOs;
+using Alugatek.API.Storage;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -10,7 +11,7 @@ namespace Alugatek.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ItemsController(AppDbContext db, IWebHostEnvironment env) : ControllerBase
+public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : ControllerBase
 {
     private static readonly HashSet<string> AllowedImageContentTypes =
     ["image/jpeg", "image/png", "image/webp"];
@@ -62,33 +63,36 @@ public class ItemsController(AppDbContext db, IWebHostEnvironment env) : Control
     [HttpPost]
     [Consumes("application/json")]
     public async Task<ActionResult<TechItemDto>> Create(CreateItemRequest request)
-        => await CreateItemAsync(
+    {
+        if (string.IsNullOrWhiteSpace(request.ImageUrl))
+            return BadRequest(new { message = "Image is required. Use /api/items/upload with a photo file." });
+
+        return await CreateItemAsync(
             request.Title,
             request.Description,
             request.DailyRate,
             request.ImageUrl,
             request.CategoryId);
+    }
 
     [Authorize]
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<TechItemDto>> CreateWithPhoto([FromForm] CreateItemWithPhotoRequest request)
     {
-        string? imageUrl = request.ImageUrl;
+        if (request.Photo is null)
+            return BadRequest(new { message = "Photo is required." });
 
-        if (request.Photo is not null)
-        {
-            if (request.Photo.Length == 0)
-                return BadRequest(new { message = "Photo file is empty." });
+        if (request.Photo.Length == 0)
+            return BadRequest(new { message = "Photo file is empty." });
 
-            if (request.Photo.Length > MaxPhotoSizeBytes)
-                return BadRequest(new { message = "Photo must be at most 5 MB." });
+        if (request.Photo.Length > MaxPhotoSizeBytes)
+            return BadRequest(new { message = "Photo must be at most 5 MB." });
 
-            if (!AllowedImageContentTypes.Contains(request.Photo.ContentType))
-                return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
+        if (!AllowedImageContentTypes.Contains(request.Photo.ContentType))
+            return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
 
-            imageUrl = await SavePhotoAsync(request.Photo);
-        }
+        var imageUrl = await imageStorage.SaveAsync(request.Photo, HttpContext.RequestAborted);
 
         return await CreateItemAsync(
             request.Title,
@@ -126,22 +130,6 @@ public class ItemsController(AppDbContext db, IWebHostEnvironment env) : Control
         await db.Entry(item).Reference(i => i.Owner).LoadAsync();
 
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, MapToDto(item));
-    }
-
-    private async Task<string> SavePhotoAsync(IFormFile photo)
-    {
-        var webRootPath = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-        var uploadDir = Path.Combine(webRootPath, "uploads", "items");
-        Directory.CreateDirectory(uploadDir);
-
-        var extension = Path.GetExtension(photo.FileName);
-        var fileName = $"{Guid.NewGuid()}{extension}";
-        var filePath = Path.Combine(uploadDir, fileName);
-
-        await using var stream = System.IO.File.Create(filePath);
-        await photo.CopyToAsync(stream);
-
-        return $"/uploads/items/{fileName}";
     }
 
     [Authorize]
