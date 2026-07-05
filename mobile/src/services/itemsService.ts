@@ -2,7 +2,7 @@ import api from './api';
 import {TechItem, Category} from '../types';
 
 export const itemsService = {
-  getAll: (params?: {categoryId?: number; search?: string; page?: number}) =>
+  getAll: (params?: {categoryId?: number; search?: string; district?: string; page?: number}) =>
     api.get<TechItem[]>('/items', {params}),
 
   getMyItems: () => api.get<TechItem[]>('/items/my'),

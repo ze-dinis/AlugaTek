@@ -9,31 +9,9 @@ import {launchImageLibrary} from 'react-native-image-picker';
 import {Picker} from '@react-native-picker/picker';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
+import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
-
-const PORTUGUESE_DISTRICTS = [
-  'Aveiro',
-  'Beja',
-  'Braga',
-  'Braganca',
-  'Castelo Branco',
-  'Coimbra',
-  'Evora',
-  'Faro',
-  'Guarda',
-  'Leiria',
-  'Lisboa',
-  'Portalegre',
-  'Porto',
-  'Santarem',
-  'Setubal',
-  'Viana do Castelo',
-  'Vila Real',
-  'Viseu',
-  'Acores',
-  'Madeira',
-];
 
 export default function CreateItemScreen({route}: Props) {
   const navigation = useNavigation();

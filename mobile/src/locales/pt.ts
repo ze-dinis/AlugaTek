@@ -23,6 +23,7 @@ export const pt = {
   // Home screen
   home: {
     searchPlaceholder: 'Procurar itens de tech...',
+    allDistricts: 'Todos os distritos',
     loading: 'A carregar...',
     noItems: 'Nenhum item encontrado.',
   },

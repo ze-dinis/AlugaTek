@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Globalization;
+using System.Text;
 using Alugatek.API.DTOs;
 using Alugatek.API.Storage;
 using Alugatek.Domain.Entities;
@@ -16,12 +18,29 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     private static readonly HashSet<string> AllowedImageContentTypes =
     ["image/jpeg", "image/png", "image/webp"];
 
-    private static readonly HashSet<string> PortugueseDistricts =
-    [
-        "Aveiro", "Beja", "Braga", "Braganca", "Castelo Branco", "Coimbra", "Evora", "Faro",
-        "Guarda", "Leiria", "Lisboa", "Portalegre", "Porto", "Santarem", "Setubal", "Viana do Castelo",
-        "Vila Real", "Viseu", "Acores", "Madeira"
-    ];
+    private static readonly Dictionary<string, string> PortugueseDistrictsByKey = new(StringComparer.Ordinal)
+    {
+        ["aveiro"] = "Aveiro",
+        ["beja"] = "Beja",
+        ["braga"] = "Braga",
+        ["braganca"] = "Bragança",
+        ["castelo branco"] = "Castelo Branco",
+        ["coimbra"] = "Coimbra",
+        ["evora"] = "Évora",
+        ["faro"] = "Faro",
+        ["guarda"] = "Guarda",
+        ["leiria"] = "Leiria",
+        ["lisboa"] = "Lisboa",
+        ["portalegre"] = "Portalegre",
+        ["porto"] = "Porto",
+        ["santarem"] = "Santarém",
+        ["setubal"] = "Setúbal",
+        ["viana do castelo"] = "Viana do Castelo",
+        ["vila real"] = "Vila Real",
+        ["viseu"] = "Viseu",
+        ["acores"] = "Açores",
+        ["madeira"] = "Madeira"
+    };
 
     private const long MaxPhotoSizeBytes = 5 * 1024 * 1024;
 
@@ -29,6 +48,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     public async Task<ActionResult<IEnumerable<TechItemDto>>> GetAll(
         [FromQuery] int? categoryId,
         [FromQuery] string? search,
+        [FromQuery] string? district,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -43,7 +63,22 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             query = query.Where(i => i.CategoryId == categoryId);
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(i => i.Title.ToLower().Contains(search.ToLower()));
+        {
+            var normalizedSearch = RemoveDiacritics(search.Trim());
+            query = query.Where(i => EF.Functions.ILike(EF.Functions.Unaccent(i.Title), $"%{normalizedSearch}%"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(district))
+        {
+            var requestedDistrict = district.Trim();
+            var canonicalDistrict = TryGetCanonicalDistrict(requestedDistrict);
+
+            query = canonicalDistrict is null
+                ? query.Where(i => EF.Functions.ILike(i.District, requestedDistrict))
+                : query.Where(i =>
+                    EF.Functions.ILike(i.District, canonicalDistrict) ||
+                    EF.Functions.ILike(i.District, ToLegacyDistrict(canonicalDistrict)));
+        }
 
         var items = await query
             .OrderByDescending(i => i.CreatedAt)
@@ -127,15 +162,15 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (string.IsNullOrWhiteSpace(district))
             return BadRequest(new { message = "District is required." });
 
-        var normalizedDistrict = district.Trim();
-        if (!PortugueseDistricts.Contains(normalizedDistrict))
+        var canonicalDistrict = TryGetCanonicalDistrict(district);
+        if (canonicalDistrict is null)
             return BadRequest(new { message = "District must be a valid Portuguese district." });
 
         var item = new TechItem
         {
             Title = title,
             Description = description,
-            District = normalizedDistrict,
+            District = canonicalDistrict,
             DailyRate = dailyRate,
             ImageUrl = imageUrl,
             CategoryId = categoryId,
@@ -165,13 +200,13 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (string.IsNullOrWhiteSpace(request.District))
             return BadRequest(new { message = "District is required." });
 
-        var normalizedDistrict = request.District.Trim();
-        if (!PortugueseDistricts.Contains(normalizedDistrict))
+        var canonicalDistrict = TryGetCanonicalDistrict(request.District);
+        if (canonicalDistrict is null)
             return BadRequest(new { message = "District must be a valid Portuguese district." });
 
         item.Title = request.Title;
         item.Description = request.Description;
-        item.District = normalizedDistrict;
+        item.District = canonicalDistrict;
         item.DailyRate = request.DailyRate;
         item.ImageUrl = request.ImageUrl;
         item.IsAvailable = request.IsAvailable;
@@ -222,4 +257,33 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,
         i.CreatedAt);
+
+    private static string? TryGetCanonicalDistrict(string district)
+    {
+        var key = NormalizeDistrictKey(district);
+        return PortugueseDistrictsByKey.TryGetValue(key, out var canonical) ? canonical : null;
+    }
+
+    private static string ToLegacyDistrict(string district) =>
+        RemoveDiacritics(district).Normalize(NormalizationForm.FormC);
+
+    private static string NormalizeDistrictKey(string district) =>
+        RemoveDiacritics(district.Trim()).ToLowerInvariant();
+
+    private static string RemoveDiacritics(string input)
+    {
+        var normalized = input.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var c in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (category != UnicodeCategory.NonSpacingMark)
+            {
+                builder.Append(c);
+            }
+        }
+
+        return builder.ToString();
+    }
 }

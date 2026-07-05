@@ -17,14 +17,29 @@ import {itemsService} from '../../services/itemsService';
 import {TechItem, Category} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
+import {Picker} from '@react-native-picker/picker';
+import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
+
+function normalizeDistrict(value: string | undefined): string {
+  if (!value) {
+    return '';
+  }
+
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const [items, setItems] = useState<TechItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,15 +49,20 @@ export default function HomeScreen() {
       const {data} = await itemsService.getAll({
         categoryId: selectedCategory,
         search: search || undefined,
+        district: selectedDistrict || undefined,
       });
-      setItems(data);
+      const selectedDistrictKey = normalizeDistrict(selectedDistrict);
+      const filtered = selectedDistrict
+        ? data.filter(item => normalizeDistrict(item.district) === selectedDistrictKey)
+        : data;
+      setItems(filtered);
     } catch {
       // silently fail; items will remain as-is
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, search]);
+  }, [selectedCategory, search, selectedDistrict]);
 
   useEffect(() => {
     itemsService.getCategories().then(r => setCategories(r.data));
@@ -122,6 +142,17 @@ export default function HomeScreen() {
         )}
       />
 
+      <View style={styles.districtFilterContainer}>
+        <Picker
+          selectedValue={selectedDistrict}
+          onValueChange={(value: string) => setSelectedDistrict(value)}>
+          <Picker.Item label={i18n.home.allDistricts} value="" />
+          {PORTUGUESE_DISTRICTS.map(d => (
+            <Picker.Item key={d} label={d} value={d} />
+          ))}
+        </Picker>
+      </View>
+
       {loading ? (
         <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />
       ) : (
@@ -152,6 +183,15 @@ const styles = StyleSheet.create({
   chipSelected: {backgroundColor: '#1a73e8'},
   chipText: {color: '#1a73e8', fontSize: 13},
   chipTextSelected: {color: '#fff'},
+  districtFilterContainer: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
   grid: {padding: 8},
   card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4},
   cardImage: {width: '100%', height: 130},
