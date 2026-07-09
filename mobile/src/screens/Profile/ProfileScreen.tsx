@@ -1,6 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Alert, Image} from 'react-native';
+import {getMessaging, getToken} from '@react-native-firebase/messaging';
 import {useAuthStore} from '../../store/authStore';
+import {pushTokenService} from '../../services/pushTokenService';
 import {i18n} from '../../locales';
 
 export default function ProfileScreen() {
@@ -14,7 +16,22 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(i18n.profile.logout, i18n.common.cancel ? 'Are you sure?' : '', [
       {text: i18n.common.cancel, style: 'cancel'},
-      {text: i18n.profile.signOut, style: 'destructive', onPress: logout},
+      {
+        text: i18n.profile.signOut,
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const token = await getToken(getMessaging());
+            if (token) {
+              await pushTokenService.unregisterDeviceToken(token);
+            }
+          } catch {
+            // silently fail
+          }
+
+          await logout();
+        },
+      },
     ]);
   };
 

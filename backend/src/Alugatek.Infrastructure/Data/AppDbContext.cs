@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Rental> Rentals => Set<Rental>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +64,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany(u => u.ReceivedMessages)
              .HasForeignKey(m => m.ReceiverId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DevicePushToken>(e =>
+        {
+            e.Property(t => t.Token)
+             .HasColumnType("text")
+             .IsRequired();
+
+            e.Property(t => t.Platform)
+             .HasColumnType("text")
+             .HasMaxLength(20)
+             .IsRequired();
+
+            e.HasIndex(t => t.Token).IsUnique();
+
+            e.HasOne(t => t.User)
+             .WithMany(u => u.DevicePushTokens)
+             .HasForeignKey(t => t.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed categories

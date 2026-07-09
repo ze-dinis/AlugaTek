@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.*" />
+    <PackageReference Include="FirebaseAdmin" Version="3.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.*" />
   </ItemGroup>
@@ -15,6 +16,16 @@
   <ItemGroup>
     <ProjectReference Include="..\Alugatek.Domain\Alugatek.Domain.csproj" />
     <ProjectReference Include="..\Alugatek.Infrastructure\Alugatek.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ship the Firebase service account with the published app/container so
+         push notifications work at runtime. File is gitignored; present locally.
+         Use Update (not Include) because the Web SDK already includes *.json as Content. -->
+    <Content Update="firebase-service-account.json" Condition="Exists('firebase-service-account.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

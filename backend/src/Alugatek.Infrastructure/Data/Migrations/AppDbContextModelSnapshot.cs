@@ -74,6 +74,40 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Alugatek.Domain.Entities.DevicePushToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("text");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("DevicePushTokens");
+                });
+
             modelBuilder.Entity("Alugatek.Domain.Entities.Message", b =>
                 {
                     b.Property<Guid>("Id")
@@ -258,6 +292,17 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Alugatek.Domain.Entities.DevicePushToken", b =>
+                {
+                    b.HasOne("Alugatek.Domain.Entities.User", "User")
+                        .WithMany("DevicePushTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Alugatek.Domain.Entities.Message", b =>
                 {
                     b.HasOne("Alugatek.Domain.Entities.User", "Receiver")
@@ -348,6 +393,8 @@ namespace Alugatek.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("Alugatek.Domain.Entities.User", b =>
                 {
+                    b.Navigation("DevicePushTokens");
+
                     b.Navigation("ListedItems");
 
                     b.Navigation("ReceivedMessages");

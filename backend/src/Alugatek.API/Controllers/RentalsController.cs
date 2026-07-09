@@ -42,7 +42,7 @@ public class RentalsController(AppDbContext db) : ControllerBase
         {
             SenderId = renterId,
             ReceiverId = item.OwnerId,
-            Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
+            Content = $"Pedido de aluguer ({rental.Id}) para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
             IsRead = false
         };
 

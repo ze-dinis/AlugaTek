@@ -1,6 +1,6 @@
 import React from 'react';
 import {Text} from 'react-native';
-import {NavigationContainer} from '@react-navigation/native';
+import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useAuthStore} from '../store/authStore';
@@ -39,6 +39,8 @@ export type MainTabParamList = {
   ChatList: undefined;
   Profile: undefined;
 };
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -105,7 +107,7 @@ export default function AppNavigator() {
   const {user} = useAuthStore();
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator screenOptions={{headerShown: false}}>
         {user ? (
           <>

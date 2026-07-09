@@ -30,9 +30,13 @@ mobile/.metro-health-check*
 **/appsettings.Development.json
 **/.env
 **/.env.local
+backend/src/Alugatek.API/firebase-service-account.json
+mobile/android/app/google-services.json
 
 # IDE
 .idea/
 *.suo
 *.sln.docstates
 
+# Logs
+*.log

@@ -93,3 +93,7 @@ public record ConversationDto(
     DateTime LastMessageTime,
     int UnreadCount);
 
+// Push notifications
+public record RegisterDeviceTokenRequest(string Token, string Platform);
+public record UnregisterDeviceTokenRequest(string Token);
+

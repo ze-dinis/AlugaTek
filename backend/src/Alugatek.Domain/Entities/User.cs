@@ -17,4 +17,5 @@ public class User
     public ICollection<Review> Reviews { get; set; } = [];
     public ICollection<Message> SentMessages { get; set; } = [];
     public ICollection<Message> ReceivedMessages { get; set; } = [];
+    public ICollection<DevicePushToken> DevicePushTokens { get; set; } = [];
 }

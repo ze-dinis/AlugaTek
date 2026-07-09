@@ -1,5 +1,6 @@
 using System.Text;
 using Alugatek.API.Storage;
+using Alugatek.API.Services;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -38,6 +39,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddControllers();
+builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection("PushNotifications"));
+builder.Services.AddSingleton<IPushNotificationService, FirebasePushNotificationService>();
 
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.AddScoped<LocalItemImageStorage>();
@@ -116,6 +119,9 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 }
+
+// Eagerly initialize push notifications so its status is logged at startup.
+_ = app.Services.GetRequiredService<Alugatek.API.Services.IPushNotificationService>();
 
 if (app.Environment.IsDevelopment())
 {

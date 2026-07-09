@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Alugatek.API.DTOs;
+using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +12,7 @@ namespace Alugatek.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ChatController(AppDbContext db) : ControllerBase
+public class ChatController(AppDbContext db, IPushNotificationService pushNotifications) : ControllerBase
 {
     [HttpGet("conversations")]
     public async Task<ActionResult<IEnumerable<ConversationDto>>> GetConversations()
@@ -95,6 +96,33 @@ public class ChatController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         await db.Entry(message).Reference(m => m.Sender).LoadAsync();
         await db.Entry(message).Reference(m => m.Receiver).LoadAsync();
+
+        var receiverTokens = await db.DevicePushTokens
+            .Where(t => t.UserId == request.ReceiverId && t.Platform == "android")
+            .Select(t => t.Token)
+            .ToListAsync();
+
+        if (receiverTokens.Count > 0)
+        {
+            var invalidTokens = await pushNotifications.SendChatMessageAsync(
+                receiverTokens,
+                senderId,
+                message.Sender.Name,
+                message.Content);
+
+            if (invalidTokens.Count > 0)
+            {
+                var staleTokens = await db.DevicePushTokens
+                    .Where(t => invalidTokens.Contains(t.Token))
+                    .ToListAsync();
+
+                if (staleTokens.Count > 0)
+                {
+                    db.DevicePushTokens.RemoveRange(staleTokens);
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
 
         return CreatedAtAction(nameof(GetMessages), new { otherId = request.ReceiverId }, MapToDto(message));
     }

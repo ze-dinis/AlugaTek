@@ -10,7 +10,10 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^2.1.0",
+    "@react-native-firebase/app": "^25.1.0",
+    "@react-native-firebase/messaging": "^25.1.0",
     "@react-native-google-signin/google-signin": "^13.1.0",
     "@react-native-picker/picker": "^2.11.4",
     "@react-navigation/bottom-tabs": "^7.3.10",
