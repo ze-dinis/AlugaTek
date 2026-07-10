@@ -10,6 +10,7 @@ public class User
     public string? OAuthSubject { get; set; }    // external user ID
     public string? AvatarUrl { get; set; }
     public string? Phone { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<TechItem> ListedItems { get; set; } = [];

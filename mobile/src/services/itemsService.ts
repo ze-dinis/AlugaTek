@@ -16,6 +16,7 @@ export const itemsService = {
     description: string;
     district: string;
     dailyRate: number;
+    caucao: number;
     image?: {
       uri: string;
       name?: string;
@@ -28,6 +29,7 @@ export const itemsService = {
     formData.append('description', data.description);
     formData.append('district', data.district);
     formData.append('dailyRate', data.dailyRate.toString());
+    formData.append('caucao', data.caucao.toString());
     formData.append('categoryId', data.categoryId.toString());
 
     if (data.image?.uri) {
@@ -51,6 +53,7 @@ export const itemsService = {
       description: string;
       district: string;
       dailyRate: number;
+      caucao: number;
       imageUrl?: string;
       isAvailable: boolean;
     },

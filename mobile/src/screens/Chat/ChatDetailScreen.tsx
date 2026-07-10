@@ -18,6 +18,7 @@ import {rentalsService} from '../../services/rentalsService';
 import {useAuthStore} from '../../store/authStore';
 import {Message} from '../../types';
 import {i18n} from '../../locales';
+import PaymentModal from '../../components/PaymentModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -34,6 +35,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [handledRequests, setHandledRequests] = useState<string[]>([]);
   const [paidRequests, setPaidRequests] = useState<string[]>([]);
   const [confirmedReturns, setConfirmedReturns] = useState<string[]>([]);
+  const [payTarget, setPayTarget] = useState<{rentalId: string; amount: number; caucaoAmount: number} | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const getRentalRequestId = (content: string): string | null => {
@@ -109,14 +111,21 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const handlePayRental = async (rentalId: string) => {
     setPaymentActionLoading(prev => ({...prev, [rentalId]: true}));
     try {
-      await rentalsService.pay(rentalId);
-      setPaidRequests(prev => [...prev, rentalId]);
-      Alert.alert('Sucesso', 'Pagamento realizado com sucesso.');
+      const {data} = await rentalsService.getById(rentalId);
+      setPayTarget({rentalId, amount: data.totalPrice, caucaoAmount: data.caucaoAmount});
     } catch {
       Alert.alert('Erro', 'Não foi possível processar o pagamento.');
     } finally {
       setPaymentActionLoading(prev => ({...prev, [rentalId]: false}));
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    if (payTarget) {
+      setPaidRequests(prev => [...prev, payTarget.rentalId]);
+    }
+    setPayTarget(null);
+    Alert.alert('Sucesso', 'Pagamento realizado com sucesso.');
   };
 
   const handleReturnAction = async (rentalId: string, action: 'confirm' | 'decline') => {
@@ -263,6 +272,17 @@ export default function ChatDetailScreen({route, navigation}: Props) {
           )}
         </TouchableOpacity>
       </View>
+
+      {payTarget && (
+        <PaymentModal
+          visible={!!payTarget}
+          rentalId={payTarget.rentalId}
+          amount={payTarget.amount}
+          caucaoAmount={payTarget.caucaoAmount}
+          onClose={() => setPayTarget(null)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }

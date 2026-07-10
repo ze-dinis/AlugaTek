@@ -10,6 +10,19 @@ public enum RentalStatus
     Cancelled
 }
 
+public enum PaymentStatus
+{
+    None,
+    /// <summary>Funds are authorized and held (uncaptured PaymentIntent), awaiting capture.</summary>
+    Held,
+    /// <summary>Held funds were captured and transferred to the owner.</summary>
+    Captured,
+    /// <summary>The authorization hold was released without capturing.</summary>
+    Released,
+    /// <summary>The payment failed asynchronously after the hold appeared to succeed.</summary>
+    Failed
+}
+
 public class Rental
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -18,6 +31,27 @@ public class Rental
     public decimal TotalPrice { get; set; }
     public RentalStatus Status { get; set; } = RentalStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // --- Rental price payment (immediate charge) ---
+    public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.None;
+
+    /// <summary>Stripe PaymentIntent id (pi_...) for the immediately captured rental price.</summary>
+    public string? PaymentIntentId { get; set; }
+
+    // --- Caução / security deposit (manual-capture hold, released on confirmed return) ---
+    /// <summary>Security deposit amount copied from the item at rental creation time.</summary>
+    public decimal CaucaoAmount { get; set; } = 0;
+
+    public PaymentStatus CaucaoPaymentStatus { get; set; } = PaymentStatus.None;
+
+    /// <summary>Stripe PaymentIntent id (pi_...) for the caução hold.</summary>
+    public string? CaucaoPaymentIntentId { get; set; }
+
+    /// <summary>The latest time the caução hold can be captured.</summary>
+    public DateTime? CaptureBefore { get; set; }
+
+    /// <summary>Whether Stripe granted the extended authorization window ("enabled"/"disabled").</summary>
+    public string? ExtendedAuthorizationStatus { get; set; }
 
     public Guid ItemId { get; set; }
     public TechItem Item { get; set; } = null!;

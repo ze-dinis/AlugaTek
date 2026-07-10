@@ -15,7 +15,10 @@ export const rentalsService = {
 
   decline: (id: string) => api.patch<Rental>(`/rentals/${id}/decline`),
 
-  pay: (id: string) => api.patch<Rental>(`/rentals/${id}/pay`),
+  // Places a 30-day extended authorization hold on the renter's card via Stripe.
+  // `paymentMethodId` is the Stripe PaymentMethod id (pm_...) collected client-side.
+  pay: (id: string, paymentMethodId: string) =>
+    api.patch<Rental>(`/rentals/${id}/pay`, {paymentMethodId}),
 
   returnRental: (id: string) => api.patch<Rental>(`/rentals/${id}/return`),
 

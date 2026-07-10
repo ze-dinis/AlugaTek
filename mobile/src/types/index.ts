@@ -18,6 +18,7 @@ export interface TechItem {
   description: string;
   district: string;
   dailyRate: number;
+  caucao: number;
   imageUrl?: string;
   isAvailable: boolean;
   categoryName: string;
@@ -28,6 +29,8 @@ export interface TechItem {
 
 export type RentalStatus = 'Pending' | 'Active' | 'Completed' | 'ReturnRequested' | 'Returned' | 'Cancelled';
 
+export type PaymentStatus = 'None' | 'Held' | 'Captured' | 'Released' | 'Failed';
+
 export interface Rental {
   id: string;
   item: TechItem;
@@ -35,8 +38,13 @@ export interface Rental {
   startDate: string;
   endDate: string;
   totalPrice: number;
+  caucaoAmount: number;
   status: RentalStatus;
   createdAt: string;
+  paymentStatus: PaymentStatus;
+  caucaoPaymentStatus: PaymentStatus;
+  captureBefore?: string;
+  extendedAuthorizationStatus?: string;
 }
 
 export interface Review {

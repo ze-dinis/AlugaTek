@@ -38,6 +38,7 @@ export const pt = {
     selectDistrict: 'Selecione um distrito',
     category: 'Categoria',
     dailyRate: 'Taxa Diária (€)',
+    caucao: 'Caução (€)',
     selectCategory: 'Selecione uma categoria',
     selectPhoto: 'Selecionar Foto',
     uploadPhoto: 'Carregar Foto',
@@ -121,6 +122,13 @@ export const pt = {
     name: 'Nome',
     logout: 'Sair',
     signOut: 'Sair',
+    payouts: 'Receber pagamentos',
+    payoutsConnected: 'Conta de pagamentos ativa',
+    payoutsNotConnected: 'Conta de pagamentos n\u00e3o configurada',
+    payoutsSetup: 'Configurar conta de pagamentos',
+    payoutsResume: 'Continuar configura\u00e7\u00e3o',
+    payoutsNote: 'Necess\u00e1rio para receber o valor dos seus alugueres.',
+    payoutsError: 'N\u00e3o foi poss\u00edvel iniciar a configura\u00e7\u00e3o.',
   },
 
   // Navigation
@@ -141,5 +149,16 @@ export const pt = {
     cancel: 'Cancelar',
     loading: 'A carregar...',
     retry: 'Tentar Novamente',
+  },
+
+  // Payment
+  payment: {
+    title: 'Pagamento',
+    confirm: 'Autorizar Pagamento',
+    holdNote: 'O valor será retido no seu cartão e cobrado após a devolução do item.',
+    incompleteCard: 'Por favor, preencha os dados do cartão.',
+    failed: 'Não foi possível processar o pagamento.',
+    successTitle: 'Pagamento autorizado!',
+    successMessage: 'O valor ficará retido até à devolução do item.',
   },
 };

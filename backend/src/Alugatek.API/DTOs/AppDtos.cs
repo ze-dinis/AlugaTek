@@ -16,6 +16,7 @@ public record CreateItemRequest(
     string Description,
     string District,
     decimal DailyRate,
+    decimal Caucao,
     string? ImageUrl,
     int CategoryId);
 
@@ -25,6 +26,7 @@ public class CreateItemWithPhotoRequest
     public string Description { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public decimal DailyRate { get; set; }
+    public decimal Caucao { get; set; } = 0;
     public string? ImageUrl { get; set; }
     public int CategoryId { get; set; }
     public IFormFile? Photo { get; set; }
@@ -35,6 +37,7 @@ public record UpdateItemRequest(
     string Description,
     string District,
     decimal DailyRate,
+    decimal Caucao,
     string? ImageUrl,
     bool IsAvailable);
 
@@ -44,6 +47,7 @@ public record TechItemDto(
     string Description,
     string District,
     decimal DailyRate,
+    decimal Caucao,
     string? ImageUrl,
     bool IsAvailable,
     string CategoryName,
@@ -54,6 +58,10 @@ public record TechItemDto(
 // Rental
 public record CreateRentalRequest(Guid ItemId, DateTime StartDate, DateTime EndDate);
 
+// Payment — the client confirms a card on the Stripe SDK and sends the resulting
+// PaymentMethod id so the server can place an extended authorization hold.
+public record PayRentalRequest(string PaymentMethodId);
+
 public record RentalDto(
     Guid Id,
     TechItemDto Item,
@@ -61,8 +69,13 @@ public record RentalDto(
     DateTime StartDate,
     DateTime EndDate,
     decimal TotalPrice,
+    decimal CaucaoAmount,
     string Status,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string PaymentStatus,
+    string CaucaoPaymentStatus,
+    DateTime? CaptureBefore,
+    string? ExtendedAuthorizationStatus);
 
 // Review
 public record CreateReviewRequest(Guid ItemId, int Rating, string Comment);

@@ -114,6 +114,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.Description,
             request.District,
             request.DailyRate,
+            request.Caucao,
             request.ImageUrl,
             request.CategoryId);
     }
@@ -142,6 +143,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.Description,
             request.District,
             request.DailyRate,
+            request.Caucao,
             imageUrl,
             request.CategoryId);
     }
@@ -151,6 +153,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         string description,
         string district,
         decimal dailyRate,
+        decimal caucao,
         string? imageUrl,
         int categoryId)
     {
@@ -172,6 +175,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             Description = description,
             District = canonicalDistrict,
             DailyRate = dailyRate,
+            Caucao = caucao < 0 ? 0 : caucao,
             ImageUrl = imageUrl,
             CategoryId = categoryId,
             OwnerId = ownerId
@@ -208,6 +212,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         item.Description = request.Description;
         item.District = canonicalDistrict;
         item.DailyRate = request.DailyRate;
+        item.Caucao = request.Caucao < 0 ? 0 : request.Caucao;
         item.ImageUrl = request.ImageUrl;
         item.IsAvailable = request.IsAvailable;
 
@@ -252,7 +257,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         Ok(await db.Categories.Select(c => new { c.Id, c.Name, c.IconUrl }).ToListAsync());
 
     private static TechItemDto MapToDto(TechItem i) => new(
-        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.ImageUrl, i.IsAvailable,
+        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.Caucao, i.ImageUrl, i.IsAvailable,
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,

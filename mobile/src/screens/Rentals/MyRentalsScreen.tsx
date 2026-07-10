@@ -4,6 +4,7 @@ import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {rentalsService} from '../../services/rentalsService';
+import PaymentModal from '../../components/PaymentModal';
 import {Rental} from '../../types';
 import {i18n} from '../../locales';
 
@@ -32,6 +33,7 @@ export default function MyRentalsScreen() {
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [loading, setLoading] = useState(true);
   const [returningRentalId, setReturningRentalId] = useState<string | null>(null);
+  const [payingRental, setPayingRental] = useState<Rental | null>(null);
 
   const loadRentals = () => {
     rentalsService.getMyRentals()
@@ -61,42 +63,64 @@ export default function MyRentalsScreen() {
   if (loading) return <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />;
 
   return (
-    <FlatList
-      data={rentals}
-      keyExtractor={r => r.id}
-      contentContainerStyle={styles.list}
-      renderItem={({item}) => (
-        <TouchableOpacity
-          style={styles.cardTouchable}
-          onPress={() => navigation.navigate('ItemDetail', {itemId: item.item.id})}>
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.itemTitle}>{item.item.title}</Text>
-              <View style={[styles.badge, {backgroundColor: STATUS_COLORS[item.status] ?? '#ccc'}]}>
-                <Text style={styles.badgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+    <>
+      <FlatList
+        data={rentals}
+        keyExtractor={r => r.id}
+        contentContainerStyle={styles.list}
+        renderItem={({item}) => (
+          <TouchableOpacity
+            style={styles.cardTouchable}
+            onPress={() => navigation.navigate('ItemDetail', {itemId: item.item.id})}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.itemTitle}>{item.item.title}</Text>
+                <View style={[styles.badge, {backgroundColor: STATUS_COLORS[item.status] ?? '#ccc'}]}>
+                  <Text style={styles.badgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+                </View>
               </View>
+              <Text style={styles.dates}>
+                {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
+              </Text>
+              <Text style={styles.total}>{i18n.itemDetail.total}: {item.totalPrice.toFixed(2)}€</Text>
+              {item.status === 'Active' && item.paymentStatus === 'None' && (
+                <TouchableOpacity
+                  style={styles.payButton}
+                  onPress={() => setPayingRental(item)}>
+                  <Text style={styles.payButtonText}>💳 {i18n.payment.confirm}</Text>
+                </TouchableOpacity>
+              )}
+              {item.status === 'Completed' && (
+                <TouchableOpacity
+                  style={[styles.returnButton, returningRentalId === item.id && styles.returnButtonDisabled]}
+                  onPress={() => handleReturnRental(item.id)}
+                  disabled={returningRentalId === item.id}>
+                  {returningRentalId === item.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.returnButtonText}>Devolver</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
-            <Text style={styles.dates}>
-              {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
-            </Text>
-            <Text style={styles.total}>{i18n.itemDetail.total}: {item.totalPrice.toFixed(2)}€</Text>
-            {item.status === 'Completed' && (
-              <TouchableOpacity
-                style={[styles.returnButton, returningRentalId === item.id && styles.returnButtonDisabled]}
-                onPress={() => handleReturnRental(item.id)}
-                disabled={returningRentalId === item.id}>
-                {returningRentalId === item.id ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.returnButtonText}>Devolver</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={<Text style={styles.empty}>{i18n.myRentals.noRentals}</Text>}
+      />
+      {payingRental && (
+        <PaymentModal
+          rentalId={payingRental.id}
+          amount={payingRental.totalPrice}
+          visible
+          onClose={() => setPayingRental(null)}
+          onSuccess={() => {
+            setPayingRental(null);
+            Alert.alert(i18n.payment.successTitle, i18n.payment.successMessage);
+            loadRentals();
+          }}
+        />
       )}
-      ListEmptyComponent={<Text style={styles.empty}>{i18n.myRentals.noRentals}</Text>}
-    />
+    </>
   );
 }
 
@@ -120,5 +144,14 @@ const styles = StyleSheet.create({
   },
   returnButtonDisabled: {opacity: 0.7},
   returnButtonText: {color: '#5d4037', fontWeight: '700'},
+  payButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#1a73e8',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  payButtonText: {color: '#fff', fontWeight: '700'},
   empty: {textAlign: 'center', marginTop: 40, color: '#888'},
 });

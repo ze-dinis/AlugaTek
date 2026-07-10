@@ -145,14 +145,36 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("CaptureBefore")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("CaucaoAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("CaucaoPaymentIntentId")
+                        .HasColumnType("text");
+
+                    b.Property<int>("CaucaoPaymentStatus")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExtendedAuthorizationStatus")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PaymentIntentId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid>("RenterId")
                         .HasColumnType("uuid");
@@ -214,6 +236,9 @@ namespace Alugatek.Infrastructure.Data.Migrations
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("Caucao")
+                        .HasColumnType("numeric");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");

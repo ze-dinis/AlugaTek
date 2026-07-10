@@ -20,9 +20,11 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=alugatek;Username=postgres;Password=postgres
 
-      - Jwt__Key=be492a412972bbcecf64d3e7bb7a7424
+      - Jwt__Key=LUZhjIirzwXAzPIBiSNNoZ5ptrwj/U530Kqc/476cGM=
       - Jwt__Issuer=alugatek-api
       - Jwt__Audience=alugatek-app
+      - Stripe__SecretKey=${STRIPE_SECRET_KEY:-}
+      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-}
     depends_on:
       - postgres
 

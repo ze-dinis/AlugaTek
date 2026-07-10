@@ -42,6 +42,9 @@ builder.Services.AddControllers();
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection("PushNotifications"));
 builder.Services.AddSingleton<IPushNotificationService, FirebasePushNotificationService>();
 
+builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));
+builder.Services.AddScoped<IPaymentService, StripePaymentService>();
+
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.AddScoped<LocalItemImageStorage>();
 builder.Services.AddScoped<S3ItemImageStorage>();

@@ -76,7 +76,8 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
     Alert.alert(
       i18n.itemDetail.confirmRental,
-      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.total}: ${totalPrice.toFixed(2)}€`,
+      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.total}: ${totalPrice.toFixed(2)}€`
+        + (item.caucao > 0 ? `\nCau\u00e7\u00e3o: ${item.caucao.toFixed(2)}\u20ac (retida no cart\u00e3o)` : ''),
       [
         {text: i18n.common.cancel, style: 'cancel'},
         {
@@ -127,6 +128,9 @@ export default function ItemDetailScreen({route, navigation}: Props) {
             <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
           )}
         </View>
+        {item.caucao > 0 && (
+          <Text style={styles.caucaoNote}>🔒 Caução: {item.caucao.toFixed(2)}€ (retida no cartão, devolvida no regresso)</Text>
+        )}
 
         {item.isAvailable && user?.id !== item.owner.id ? (
           <View style={styles.rentalSelector}>
@@ -218,6 +222,7 @@ const styles = StyleSheet.create({
   rate: {fontSize: 22, fontWeight: '700', color: '#1a73e8'},
   rateLabel: {fontSize: 14, color: '#888'},
   rating: {fontSize: 16},
+  caucaoNote: {fontSize: 13, color: '#555', marginTop: 6, fontStyle: 'italic'},
   rentalSelector: {marginTop: 20},
   daySelector: {flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 12},
   dayButton: {width: 44, height: 44, borderRadius: 8, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center'},

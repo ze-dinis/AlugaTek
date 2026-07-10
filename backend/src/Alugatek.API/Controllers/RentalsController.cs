@@ -1,17 +1,19 @@
 using System.Security.Claims;
 using Alugatek.API.DTOs;
+using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Stripe;
 
 namespace Alugatek.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class RentalsController(AppDbContext db) : ControllerBase
+public class RentalsController(AppDbContext db, IPaymentService payments, ILogger<RentalsController> logger) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<RentalDto>> Create(CreateRentalRequest request)
@@ -35,7 +37,8 @@ public class RentalsController(AppDbContext db) : ControllerBase
             RenterId = renterId,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            TotalPrice = item.DailyRate * days
+            TotalPrice = item.DailyRate * days,
+            CaucaoAmount = item.Caucao
         };
 
         var rentRequestMessage = new Message
@@ -104,6 +107,32 @@ public class RentalsController(AppDbContext db) : ControllerBase
         if (rental.Status != RentalStatus.Pending && rental.Status != RentalStatus.Active)
             return BadRequest(new { message = "Rental cannot be cancelled." });
 
+        if (rental.PaymentStatus == PaymentStatus.Captured && rental.PaymentIntentId is not null)
+        {
+            try
+            {
+                await payments.RefundAsync(rental.PaymentIntentId);
+                rental.PaymentStatus = PaymentStatus.Released;
+            }
+            catch (StripeException ex)
+            {
+                return BadRequest(new { message = ex.StripeError?.Message ?? "Failed to refund the rental payment." });
+            }
+        }
+
+        if (rental.CaucaoPaymentStatus == PaymentStatus.Held && rental.CaucaoPaymentIntentId is not null)
+        {
+            try
+            {
+                await payments.ReleaseHoldAsync(rental.CaucaoPaymentIntentId);
+                rental.CaucaoPaymentStatus = PaymentStatus.Released;
+            }
+            catch (StripeException ex)
+            {
+                return BadRequest(new { message = ex.StripeError?.Message ?? "Failed to release the cau\u00e7\u00e3o hold." });
+            }
+        }
+
         rental.Status = RentalStatus.Cancelled;
         rental.Item.IsAvailable = true;
         await db.SaveChangesAsync();
@@ -141,7 +170,7 @@ public class RentalsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPatch("{id:guid}/pay")]
-    public async Task<ActionResult<RentalDto>> Pay(Guid id)
+    public async Task<ActionResult<RentalDto>> Pay(Guid id, PayRentalRequest request)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var rental = await db.Rentals
@@ -155,6 +184,47 @@ public class RentalsController(AppDbContext db) : ControllerBase
         if (rental.RenterId != userId) return Forbid();
         if (rental.Status != RentalStatus.Active)
             return BadRequest(new { message = "Only active rentals can be paid." });
+        if (string.IsNullOrWhiteSpace(request.PaymentMethodId))
+            return BadRequest(new { message = "A payment method is required." });
+
+        // 1. Charge the rental price immediately.
+        try
+        {
+            var priceIntentId = await payments.ChargeAsync(
+                rental.TotalPrice, "eur", request.PaymentMethodId, rental.Id.ToString());
+            rental.PaymentIntentId = priceIntentId;
+            rental.PaymentStatus = PaymentStatus.Captured;
+        }
+        catch (StripeException ex)
+        {
+            logger.LogError(ex,
+                "Stripe charge failed for rental {RentalId}. Code: {Code}, Message: {Message}",
+                rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
+            return BadRequest(new { message = ex.StripeError?.Message ?? "Payment failed." });
+        }
+
+        // 2. Place a hold for the caução (if the item has one).
+        if (rental.CaucaoAmount > 0)
+        {
+            try
+            {
+                var hold = await payments.PlaceHoldAsync(
+                    rental.CaucaoAmount, "eur", request.PaymentMethodId, rental.Id.ToString());
+                rental.CaucaoPaymentIntentId = hold.PaymentIntentId;
+                rental.CaucaoPaymentStatus = PaymentStatus.Held;
+                rental.CaptureBefore = hold.CaptureBefore;
+                rental.ExtendedAuthorizationStatus = hold.ExtendedAuthorizationStatus;
+            }
+            catch (StripeException ex)
+            {
+                // The rental price was already charged. Log the failure but do not block
+                // the rental from proceeding — the owner can follow up manually.
+                logger.LogError(ex,
+                    "Stripe caução hold failed for rental {RentalId}. Code: {Code}, Message: {Message}",
+                    rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
+                rental.CaucaoPaymentStatus = PaymentStatus.Failed;
+            }
+        }
 
         rental.Status = RentalStatus.Completed;
 
@@ -162,7 +232,8 @@ public class RentalsController(AppDbContext db) : ControllerBase
         {
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
-            Content = $"O aluguer ({rental.Id}) foi pago às {DateTime.UtcNow:HH:mm}.",
+            Content = $"O pagamento do aluguer ({rental.Id}) foi concluído às {DateTime.UtcNow:HH:mm}."
+                + (rental.CaucaoAmount > 0 ? $" Caução de {rental.CaucaoAmount:F2}€ retida no cartão do arrendatário." : string.Empty),
             IsRead = false
         });
 
@@ -215,6 +286,20 @@ public class RentalsController(AppDbContext db) : ControllerBase
         if (rental.Item.OwnerId != userId) return Forbid();
         if (rental.Status != RentalStatus.ReturnRequested)
             return BadRequest(new { message = "Only requested returns can be confirmed." });
+
+        if (rental.CaucaoPaymentStatus == PaymentStatus.Held && rental.CaucaoPaymentIntentId is not null)
+        {
+            try
+            {
+                // Release the caução hold — item returned in good condition.
+                await payments.ReleaseHoldAsync(rental.CaucaoPaymentIntentId);
+                rental.CaucaoPaymentStatus = PaymentStatus.Released;
+            }
+            catch (StripeException ex)
+            {
+                return BadRequest(new { message = ex.StripeError?.Message ?? "Failed to release the caução hold." });
+            }
+        }
 
         rental.Status = RentalStatus.Returned;
         rental.Item.IsAvailable = true;
@@ -295,7 +380,7 @@ public class RentalsController(AppDbContext db) : ControllerBase
     private static RentalDto MapToDto(Rental r, TechItem item, User renter)
     {
         var itemDto = new TechItemDto(
-            item.Id, item.Title, item.Description, item.District, item.DailyRate, item.ImageUrl,
+            item.Id, item.Title, item.Description, item.District, item.DailyRate, item.Caucao, item.ImageUrl,
             item.IsAvailable, item.Category.Name,
             new UserDto(item.Owner.Id, item.Owner.Name, item.Owner.Email, item.Owner.AvatarUrl, item.Owner.Phone),
             item.Reviews.Count > 0 ? item.Reviews.Average(rev => rev.Rating) : null,
@@ -304,6 +389,7 @@ public class RentalsController(AppDbContext db) : ControllerBase
         return new RentalDto(
             r.Id, itemDto,
             new UserDto(renter.Id, renter.Name, renter.Email, renter.AvatarUrl, renter.Phone),
-            r.StartDate, r.EndDate, r.TotalPrice, r.Status.ToString(), r.CreatedAt);
+            r.StartDate, r.EndDate, r.TotalPrice, r.CaucaoAmount, r.Status.ToString(), r.CreatedAt,
+            r.PaymentStatus.ToString(), r.CaucaoPaymentStatus.ToString(), r.CaptureBefore, r.ExtendedAuthorizationStatus);
     }
 }

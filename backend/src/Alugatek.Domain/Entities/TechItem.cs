@@ -7,6 +7,8 @@ public class TechItem
     public string Description { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public decimal DailyRate { get; set; }
+    /// <summary>Security deposit (caução) held on the renter's card and released on confirmed return.</summary>
+    public decimal Caucao { get; set; } = 0;
     public string? ImageUrl { get; set; }
     public bool IsAvailable { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -23,6 +23,7 @@ export default function CreateItemScreen({route}: Props) {
   const [description, setDescription] = useState('');
   const [district, setDistrict] = useState('');
   const [dailyRate, setDailyRate] = useState('');
+  const [caucao, setCaucao] = useState('');
   const [image, setImage] = useState<{uri: string; type?: string; name?: string} | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -42,6 +43,7 @@ export default function CreateItemScreen({route}: Props) {
           setDescription(item.description);
           setDistrict(item.district ?? '');
           setDailyRate(item.dailyRate.toString());
+          setCaucao(item.caucao.toString());
           setCategoryId(item.categoryName ? categories.find(c => c.name === item.categoryName)?.id || null : null);
           if (item.imageUrl) {
             const resolvedImageUri = resolveApiAssetUrl(item.imageUrl) ?? item.imageUrl;
@@ -99,6 +101,11 @@ export default function CreateItemScreen({route}: Props) {
       Alert.alert(i18n.common.error, 'Enter a valid daily rate.');
       return;
     }
+    const deposit = parseFloat(caucao || '0');
+    if (isNaN(deposit) || deposit < 0) {
+      Alert.alert(i18n.common.error, 'Enter a valid caução amount.');
+      return;
+    }
     setLoading(true);
     try {
       if (isEditing && itemId) {
@@ -107,6 +114,7 @@ export default function CreateItemScreen({route}: Props) {
           description,
           district,
           dailyRate: rate,
+          caucao: deposit,
           imageUrl: image?.uri,
           isAvailable: true,
         });
@@ -119,6 +127,7 @@ export default function CreateItemScreen({route}: Props) {
           description,
           district,
           dailyRate: rate,
+          caucao: deposit,
           image: image ?? undefined,
           categoryId,
         });
@@ -166,6 +175,10 @@ export default function CreateItemScreen({route}: Props) {
 
       <Text style={styles.label}>💶 {i18n.item.dailyRate} *</Text>
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
+        placeholder="0.00" keyboardType="decimal-pad" />
+
+      <Text style={styles.label}>🔒 {i18n.item.caucao}</Text>
+      <TextInput style={styles.input} value={caucao} onChangeText={setCaucao}
         placeholder="0.00" keyboardType="decimal-pad" />
 
       {!isEditing && (

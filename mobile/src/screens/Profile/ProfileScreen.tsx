@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Alert, Image} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Alert, Image, ScrollView} from 'react-native';
 import {getMessaging, getToken} from '@react-native-firebase/messaging';
 import {useAuthStore} from '../../store/authStore';
 import {pushTokenService} from '../../services/pushTokenService';
@@ -14,7 +14,7 @@ export default function ProfileScreen() {
   }, [user?.avatarUrl]);
 
   const handleLogout = () => {
-    Alert.alert(i18n.profile.logout, i18n.common.cancel ? 'Are you sure?' : '', [
+    Alert.alert(i18n.profile.logout, i18n.common.cancel ? 'Tem a certeza?' : '', [
       {text: i18n.common.cancel, style: 'cancel'},
       {
         text: i18n.profile.signOut,
@@ -36,7 +36,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       {user?.avatarUrl && !avatarError ? (
         <Image
           source={{uri: user.avatarUrl}}
@@ -56,12 +56,12 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>{i18n.profile.signOut}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, alignItems: 'center', paddingTop: 60, backgroundColor: '#fff'},
+  container: {alignItems: 'center', paddingTop: 60, paddingBottom: 40, backgroundColor: '#fff', flexGrow: 1},
   avatar: {width: 96, height: 96, borderRadius: 48},
   avatarPlaceholder: {width: 96, height: 96, borderRadius: 48, backgroundColor: '#1a73e8', justifyContent: 'center', alignItems: 'center'},
   avatarInitial: {color: '#fff', fontSize: 36, fontWeight: 'bold'},

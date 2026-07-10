@@ -1,5 +1,6 @@
 import React, {useEffect, useRef} from 'react';
 import {Platform} from 'react-native';
+import {StripeProvider} from '@stripe/stripe-react-native';
 import notifee, {EventType, Notification} from '@notifee/react-native';
 import {
   getMessaging,
@@ -21,6 +22,7 @@ import {
 } from './src/services/notificationService';
 import {chatService} from './src/services/chatService';
 import {pushTokenService} from './src/services/pushTokenService';
+import {STRIPE_PUBLISHABLE_KEY} from './src/config';
 
 type PendingChatRoute = {otherId: string; otherName: string};
 
@@ -230,9 +232,11 @@ export default function App() {
   }, [user]);
 
   return (
-    <SafeAreaProvider>
-      <AppNavigator />
-    </SafeAreaProvider>
+    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} urlScheme="alugatek">
+      <SafeAreaProvider>
+        <AppNavigator />
+      </SafeAreaProvider>
+    </StripeProvider>
   );
 }
 
