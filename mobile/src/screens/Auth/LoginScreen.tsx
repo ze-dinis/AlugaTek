@@ -26,6 +26,10 @@ export default function LoginScreen({navigation}: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const setAuth = useAuthStore(s => s.setAuth);
+  const titleText = i18n.auth.title;
+  const tekMatch = /(tek)$/i.exec(titleText);
+  const tekSuffix = tekMatch ? tekMatch[1] : '';
+  const titlePrefix = tekSuffix ? titleText.slice(0, -tekSuffix.length) : titleText;
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -71,7 +75,10 @@ export default function LoginScreen({navigation}: Props) {
         style={styles.logoIcon}
         resizeMode="contain"
       />
-      <Text style={styles.title}>{i18n.auth.title}</Text>
+      <Text style={styles.title}>
+        {titlePrefix}
+        {tekSuffix ? <Text style={styles.titleTek}>{tekSuffix}</Text> : null}
+      </Text>
       <Image
         source={require('../../../footer.png')}
         style={styles.subtitleImage}
@@ -113,6 +120,7 @@ const styles = StyleSheet.create({
   container: {flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff'},
   logoIcon: {width: 72, height: 72, alignSelf: 'center', marginBottom: 12},
   title: {fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#1a73e8'},
+  titleTek: {color: '#1a99e8'},
   subtitleImage: {width: '100%', height: 120, alignSelf: 'center', marginBottom: 24},
   input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 16},
   button: {backgroundColor: '#1a73e8', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12},
