@@ -9,7 +9,7 @@ public sealed class ExpiringHoldCaptureService(
     IServiceScopeFactory scopeFactory,
     ILogger<ExpiringHoldCaptureService> logger) : BackgroundService
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan CaptureLeadTime = TimeSpan.FromMinutes(120);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
