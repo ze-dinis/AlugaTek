@@ -1,8 +1,7 @@
 export const pt = {
   // Auth screens
   auth: {
-    title: 'Alugatek',
-    subtitle: 'Alugue tech. Simplesmente.',
+    title: 'AlugaTek',
     email: 'Email',
     password: 'Palavra-passe',
     fullName: 'Nome Completo',

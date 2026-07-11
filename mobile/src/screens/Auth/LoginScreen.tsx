@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -65,8 +66,17 @@ export default function LoginScreen({navigation}: Props) {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={require('../../../blue.png')}
+        style={styles.logoIcon}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>{i18n.auth.title}</Text>
-      <Text style={styles.subtitle}>{i18n.auth.subtitle}</Text>
+      <Image
+        source={require('../../../footer.png')}
+        style={styles.subtitleImage}
+        resizeMode="contain"
+      />
 
       <TextInput
         style={styles.input}
@@ -101,8 +111,9 @@ export default function LoginScreen({navigation}: Props) {
 
 const styles = StyleSheet.create({
   container: {flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff'},
+  logoIcon: {width: 72, height: 72, alignSelf: 'center', marginBottom: 12},
   title: {fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#1a73e8'},
-  subtitle: {fontSize: 16, textAlign: 'center', color: '#666', marginBottom: 32},
+  subtitleImage: {width: '100%', height: 120, alignSelf: 'center', marginBottom: 24},
   input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 16},
   button: {backgroundColor: '#1a73e8', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12},
   googleButton: {backgroundColor: '#db4437'},
