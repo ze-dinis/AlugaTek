@@ -1,10 +1,11 @@
-import React from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {Text} from 'react-native';
-import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
+import {NavigationContainer, createNavigationContainerRef, useFocusEffect} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {useAuthStore} from '../store/authStore';
 import {i18n} from '../locales';
+import {chatService} from '../services/chatService';
 
 // Screens
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -23,6 +24,7 @@ export type RootStackParamList = {
   Main: undefined;
   ItemDetail: {itemId: string};
   CreateItem: undefined;
+  MyItems: undefined;
   EditItem: {itemId: string};
   Chat: {otherId: string; otherName: string};
 };
@@ -34,8 +36,8 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  MyItems: undefined;
   MyRentals: undefined;
+  Announce: undefined;
   ChatList: undefined;
   Profile: undefined;
 };
@@ -56,6 +58,29 @@ function AuthNavigator() {
 }
 
 function MainTabNavigator() {
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  const refreshUnreadMessagesCount = useCallback(async () => {
+    try {
+      const {data} = await chatService.getConversations();
+      const unreadCount = data.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
+      setUnreadMessagesCount(unreadCount);
+    } catch {
+      // keep the current badge count on transient API failures
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshUnreadMessagesCount();
+    }, [refreshUnreadMessagesCount]),
+  );
+
+  useEffect(() => {
+    const intervalId = setInterval(refreshUnreadMessagesCount, 30000);
+    return () => clearInterval(intervalId);
+  }, [refreshUnreadMessagesCount]);
+
   return (
     <MainTab.Navigator>
       <MainTab.Screen
@@ -68,14 +93,6 @@ function MainTabNavigator() {
         }}
       />
       <MainTab.Screen
-        name="MyItems"
-        component={MyItemsScreen}
-        options={{
-          title: i18n.navigation.myItems,
-          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'📦'}</Text>,
-        }}
-      />
-      <MainTab.Screen
         name="MyRentals"
         component={MyRentalsScreen}
         options={{
@@ -84,11 +101,26 @@ function MainTabNavigator() {
         }}
       />
       <MainTab.Screen
+        name="Anunciar"
+        component={HomeScreen}
+        listeners={({navigation}) => ({
+          tabPress: e => {
+            e.preventDefault();
+            navigation.getParent()?.navigate('CreateItem');
+          },
+        })}
+        options={{
+          title: i18n.navigation.announce,
+          tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'➕'}</Text>,
+        }}
+      />
+      <MainTab.Screen
         name="ChatList"
         component={ChatListScreen}
         options={{
           title: i18n.navigation.messages,
           tabBarIcon: ({color}) => <Text style={{fontSize: 18, color}}>{'💬'}</Text>,
+          tabBarBadge: unreadMessagesCount > 0 ? (unreadMessagesCount > 99 ? '99+' : unreadMessagesCount) : undefined,
         }}
       />
       <MainTab.Screen
@@ -121,6 +153,11 @@ export default function AppNavigator() {
               name="CreateItem"
               component={CreateItemScreen}
               options={{headerShown: true, title: i18n.navigation.createItem}}
+            />
+            <RootStack.Screen
+              name="MyItems"
+              component={MyItemsScreen}
+              options={{headerShown: true, title: i18n.navigation.myItems}}
             />
             <RootStack.Screen
               name="EditItem"

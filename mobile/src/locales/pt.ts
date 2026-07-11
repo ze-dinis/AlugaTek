@@ -138,6 +138,7 @@ export const pt = {
     home: 'Início',
     myItems: 'Anúncios',
     myRentals: 'Alugueres',
+    announce: 'Anunciar',
     messages: 'Mensagens',
     profile: 'Perfil',
     createItem: 'Novo Item',
