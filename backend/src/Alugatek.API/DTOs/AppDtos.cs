@@ -96,7 +96,9 @@ public record MessageDto(
     UserDto Sender,
     UserDto Receiver,
     DateTime CreatedAt,
-    bool IsRead);
+    bool IsRead,
+    Guid? RentalId,
+    string MessageType);
 
 public record ConversationDto(
     Guid OtherId,

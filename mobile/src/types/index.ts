@@ -67,6 +67,8 @@ export interface Message {
   receiver: User;
   createdAt: string;
   isRead: boolean;
+  rentalId?: string;
+  messageType: string;
 }
 
 export interface Conversation {

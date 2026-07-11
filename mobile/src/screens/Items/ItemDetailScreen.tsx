@@ -21,6 +21,9 @@ import SafeImage from '../../components/SafeImage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetail'>;
 
+const PLATFORM_BASE_COMMISSION = 3.0;
+const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
+
 export default function ItemDetailScreen({route, navigation}: Props) {
   const {itemId} = route.params;
   const {user} = useAuthStore();
@@ -72,11 +75,13 @@ export default function ItemDetailScreen({route, navigation}: Props) {
     const start = new Date();
     const end = new Date();
     end.setDate(end.getDate() + rentalDays);
-    const totalPrice = item.dailyRate * rentalDays;
+    const rentPrice = item.dailyRate * rentalDays;
+    const platformCommission = PLATFORM_BASE_COMMISSION + (rentPrice * PLATFORM_PERCENTAGE_COMMISSION_RATE);
+    const totalPrice = rentPrice + platformCommission;
 
     Alert.alert(
       i18n.itemDetail.confirmRental,
-      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.total}: ${totalPrice.toFixed(2)}€`
+      `${i18n.itemDetail.rentNow.replace('Alugar Agora', 'Alugar')} "${item.title}" ${i18n.itemDetail.for} ${rentalDays} ${rentalDays === 1 ? i18n.itemDetail.days : i18n.itemDetail.daysPlural}?\n${i18n.itemDetail.rentAmount}: ${rentPrice.toFixed(2)}€\n${i18n.itemDetail.platformCommission}: ${platformCommission.toFixed(2)}€\n${i18n.itemDetail.total}: ${totalPrice.toFixed(2)}€`
         + (item.caucao > 0 ? `\nCau\u00e7\u00e3o: ${item.caucao.toFixed(2)}\u20ac (retida no cart\u00e3o)` : ''),
       [
         {text: i18n.common.cancel, style: 'cancel'},
@@ -153,7 +158,9 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 <Text style={styles.dayButtonText}>+</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.totalPrice}>💰 {i18n.itemDetail.total}: {(item.dailyRate * rentalDays).toFixed(2)}€</Text>
+            <Text style={styles.totalPrice}>💰 {i18n.itemDetail.rentAmount}: {(item.dailyRate * rentalDays).toFixed(2)}€</Text>
+            <Text style={styles.totalPrice}>🧾 {i18n.itemDetail.platformCommission}: {(PLATFORM_BASE_COMMISSION + ((item.dailyRate * rentalDays) * PLATFORM_PERCENTAGE_COMMISSION_RATE)).toFixed(2)}€</Text>
+            <Text style={styles.totalPrice}>💳 {i18n.itemDetail.total}: {((item.dailyRate * rentalDays) + PLATFORM_BASE_COMMISSION + ((item.dailyRate * rentalDays) * PLATFORM_PERCENTAGE_COMMISSION_RATE)).toFixed(2)}€</Text>
           </View>
         ) : null}
 

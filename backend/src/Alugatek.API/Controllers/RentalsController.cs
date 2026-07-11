@@ -15,6 +15,9 @@ namespace Alugatek.API.Controllers;
 [Authorize]
 public class RentalsController(AppDbContext db, IPaymentService payments, ILogger<RentalsController> logger) : ControllerBase
 {
+    private const decimal PlatformBaseCommission = 3.0m;
+    private const decimal PlatformPercentageCommissionRate = 0.10m;
+
     [HttpPost]
     public async Task<ActionResult<RentalDto>> Create(CreateRentalRequest request)
     {
@@ -33,6 +36,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         var days = (request.EndDate - request.StartDate).Days;
         var rental = new Rental
         {
+            Id = Guid.NewGuid(),
             ItemId = request.ItemId,
             RenterId = renterId,
             StartDate = request.StartDate,
@@ -46,7 +50,9 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             SenderId = renterId,
             ReceiverId = item.OwnerId,
             Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
-            IsRead = false
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "RentalRequest"
         };
 
         item.IsAvailable = false;
@@ -161,8 +167,10 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"O seu pedido de aluguer foi confirmado às {DateTime.UtcNow:HH:mm}. Toque em Pagar para concluir.",
-            IsRead = false
+            Content = $"O seu pedido de aluguer foi confirmado. Toque em Pagar para concluir.",
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "RentalConfirmed"
         });
 
         await db.SaveChangesAsync();
@@ -202,11 +210,14 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             return BadRequest(new { message = ex.StripeError?.Message ?? "Payment failed." });
         }
 
-        // 1. Charge the rental price immediately.
+        var platformCommission = PlatformBaseCommission + (rental.TotalPrice * PlatformPercentageCommissionRate);
+        var totalChargeAmount = rental.TotalPrice + platformCommission;
+
+        // 1. Charge the rental price + platform commission immediately.
         try
         {
             var priceIntentId = await payments.ChargeAsync(
-                rental.TotalPrice, "eur", request.PaymentMethodId, customerId, rental.Id.ToString());
+                totalChargeAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString());
             rental.PaymentIntentId = priceIntentId;
             rental.PaymentStatus = PaymentStatus.Captured;
         }
@@ -248,6 +259,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
             Content = $"O pagamento do aluguer foi concluído às {DateTime.UtcNow:HH:mm}."
+                + $" Comissão da plataforma: {platformCommission:F2}€."
                 + (rental.CaucaoAmount > 0 ? $" Caução de {rental.CaucaoAmount:F2}€ retida no cartão do arrendatário." : string.Empty),
             IsRead = false
         });
@@ -278,8 +290,10 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
-            Content = $"Pedido de devolução enviado às {DateTime.UtcNow:HH:mm}. Confirme a devolução.",
-            IsRead = false
+            Content = "Pedido de devolução enviado. Confirme a devolução.",
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "ReturnRequest"
         });
 
         await db.SaveChangesAsync();
@@ -323,8 +337,10 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"A devolução do aluguer foi confirmada às {DateTime.UtcNow:HH:mm}.",
-            IsRead = false
+            Content = "A devolução do aluguer foi confirmada.",
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "ReturnConfirmed"
         });
 
         await db.SaveChangesAsync();
@@ -353,8 +369,10 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"A devolução do aluguer foi recusada às {DateTime.UtcNow:HH:mm}.",
-            IsRead = false
+            Content = "A devolução do aluguer foi recusada.",
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "ReturnDeclined"
         });
 
         await db.SaveChangesAsync();
@@ -384,8 +402,10 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"O seu pedido de aluguer foi cancelado às {DateTime.UtcNow:HH:mm}.",
-            IsRead = false
+            Content = "O seu pedido de aluguer foi cancelado.",
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "RentalDeclined"
         });
 
         await db.SaveChangesAsync();

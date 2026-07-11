@@ -133,5 +133,7 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         new UserDto(m.Sender.Id, m.Sender.Name, m.Sender.Email, m.Sender.AvatarUrl, m.Sender.Phone),
         new UserDto(m.Receiver.Id, m.Receiver.Name, m.Receiver.Email, m.Receiver.AvatarUrl, m.Receiver.Phone),
         m.CreatedAt,
-        m.IsRead);
+        m.IsRead,
+        m.RentalId,
+        m.MessageType);
 }

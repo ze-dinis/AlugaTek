@@ -65,6 +65,8 @@ export const pt = {
     days: 'dia',
     daysPlural: 'dias',
     for: 'para',
+    rentAmount: 'Valor do aluguer',
+    platformCommission: 'Comissão da plataforma',
     total: 'Total',
     rentNow: 'Alugar Agora',
     unavailable: 'Alugado',

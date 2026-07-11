@@ -7,6 +7,9 @@ public class Message
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsRead { get; set; }
 
+    public Guid? RentalId { get; set; }
+    public string MessageType { get; set; } = "None";
+
     public Guid SenderId { get; set; }
     public User Sender { get; set; } = null!;
 

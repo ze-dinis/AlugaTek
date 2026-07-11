@@ -22,6 +22,9 @@ import PaymentModal from '../../components/PaymentModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
+const PLATFORM_BASE_COMMISSION = 3.0;
+const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
+
 export default function ChatDetailScreen({route, navigation}: Props) {
   const {otherId, otherName} = route.params;
   const {user} = useAuthStore();
@@ -38,22 +41,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [payTarget, setPayTarget] = useState<{rentalId: string; amount: number; caucaoAmount: number} | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
-  const getRentalRequestId = (content: string): string | null => {
-    const match = content.match(/pedido de aluguer \(([0-9a-fA-F-]{36})\) para/i);
-    return match?.[1] ?? null;
-  };
-
-  const getAcceptedRentalId = (content: string): string | null => {
-    const match = content.match(/pedido de aluguer \(([0-9a-fA-F-]{36})\) foi confirmado/i);
-    return match?.[1] ?? null;
-  };
-
-  const getReturnRequestId = (content: string): string | null => {
-    const match = content.match(/pedido de devolução \(([0-9a-fA-F-]{36})\)/i);
-    return match?.[1] ?? null;
-  };
-
-  useEffect(() => {
+useEffect(() => {
     navigation.setOptions({title: otherName});
   }, [otherName, navigation]);
 
@@ -112,7 +100,9 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     setPaymentActionLoading(prev => ({...prev, [rentalId]: true}));
     try {
       const {data} = await rentalsService.getById(rentalId);
-      setPayTarget({rentalId, amount: data.totalPrice, caucaoAmount: data.caucaoAmount});
+      const platformCommission = PLATFORM_BASE_COMMISSION + (data.totalPrice * PLATFORM_PERCENTAGE_COMMISSION_RATE);
+      const totalChargeAmount = data.totalPrice + platformCommission;
+      setPayTarget({rentalId, amount: totalChargeAmount, caucaoAmount: data.caucaoAmount});
     } catch {
       Alert.alert('Erro', 'Não foi possível processar o pagamento.');
     } finally {
@@ -145,22 +135,11 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     }
   };
 
-  const latestRentalRequestMessageId = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i];
-      if (message.sender.id === user?.id) continue;
-      const rentalRequestId = getRentalRequestId(message.content);
-      const acceptedRentalId = getAcceptedRentalId(message.content);
-      if (rentalRequestId && !acceptedRentalId) return message.id;
-    }
-    return null;
-  }, [messages, user?.id]);
-
   const latestAcceptedRentalMessageId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
       if (message.sender.id === user?.id) continue;
-      if (getAcceptedRentalId(message.content)) return message.id;
+      if (message.messageType === 'RentalConfirmed') return message.id;
     }
     return null;
   }, [messages, user?.id]);
@@ -169,24 +148,21 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
       if (message.sender.id === user?.id) continue;
-      if (getReturnRequestId(message.content)) return message.id;
+      if (message.messageType === 'ReturnRequest') return message.id;
     }
     return null;
   }, [messages, user?.id]);
 
   const renderMessage = ({item, index}: {item: Message; index: number}) => {
     const isOwn = user?.id === item.sender.id;
-    const isLastMessage = index === messages.length - 1;
-    const rentalRequestId = getRentalRequestId(item.content);
-    const acceptedRentalId = getAcceptedRentalId(item.content);
-    const returnRequestId = getReturnRequestId(item.content);
-    const showActions = isLastMessage
-      && !isOwn
-      && item.id === latestRentalRequestMessageId
+    const rentalRequestId = item.messageType === 'RentalRequest' ? item.rentalId : null;
+    const acceptedRentalId = item.messageType === 'RentalConfirmed' ? item.rentalId : null;
+    const returnRequestId = item.messageType === 'ReturnRequest' ? item.rentalId : null;
+    const showActions = !isOwn
       && !!rentalRequestId
-      && !acceptedRentalId
       && !handledRequests.includes(rentalRequestId);
     const isActionLoading = rentalRequestId ? !!requestActionLoading[rentalRequestId] : false;
+    const isLastMessage = index === messages.length - 1;
     const showPayAction = isLastMessage
       && !isOwn
       && item.id === latestAcceptedRentalMessageId
