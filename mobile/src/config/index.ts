@@ -89,7 +89,7 @@ export function resolveApiAssetUrl(url?: string | null): string | undefined {
   return `${API_ORIGIN}/${url.replace(/^\/+/, '')}`;
 }
 
-export const GOOGLE_WEB_CLIENT_ID = 'YOUR_GOOGLE_WEB_CLIENT_ID';
+export const GOOGLE_WEB_CLIENT_ID = '973689934720-j9gq5oacbmdlav92utmicqj3lltbmmlk.apps.googleusercontent.com';
 
 // Stripe publishable key — safe to commit (public key, not the secret key).
 export const STRIPE_PUBLISHABLE_KEY = __DEV__

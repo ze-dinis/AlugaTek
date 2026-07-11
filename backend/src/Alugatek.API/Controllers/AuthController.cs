@@ -60,21 +60,41 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
         var payload = await response.Content.ReadFromJsonAsync<GoogleTokenInfo>();
         if (payload is null) return Unauthorized();
 
+        var normalizedEmail = payload.Email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+            return Unauthorized(new { message = "Google account did not provide an email." });
+
         var user = await db.Users.SingleOrDefaultAsync(u =>
             u.OAuthProvider == "Google" && u.OAuthSubject == payload.Sub);
 
         if (user is null)
         {
-            user = new User
+            // If the user already exists with the same email (e.g. password account),
+            // link the existing account instead of violating the unique email index.
+            user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+
+            if (user is null)
             {
-                Name = payload.Name ?? payload.Email,
-                Email = payload.Email.Trim().ToLowerInvariant(),
-                OAuthProvider = "Google",
-                OAuthSubject = payload.Sub,
-                AvatarUrl = payload.Picture
-            };
-            db.Users.Add(user);
-            await db.SaveChangesAsync();
+                user = new User
+                {
+                    Name = payload.Name ?? normalizedEmail,
+                    Email = normalizedEmail,
+                    OAuthProvider = "Google",
+                    OAuthSubject = payload.Sub,
+                    AvatarUrl = payload.Picture
+                };
+                db.Users.Add(user);
+                await db.SaveChangesAsync();
+            }
+            else
+            {
+                user.OAuthProvider = "Google";
+                user.OAuthSubject = payload.Sub;
+                if (!string.IsNullOrWhiteSpace(payload.Picture))
+                    user.AvatarUrl = payload.Picture;
+
+                await db.SaveChangesAsync();
+            }
         }
 
         return Ok(BuildAuthResponse(user));

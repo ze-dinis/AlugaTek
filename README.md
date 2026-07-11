@@ -107,6 +107,9 @@ npm install
 
 # Android
 npm run android
+adb devices
+adb -s <device_number> reverse tcp:8081 tcp:8081
+adb -s <device_number> reverse tcp:5000 tcp:5000
 
 # iOS (macOS only)
 cd ios && pod install && cd ..

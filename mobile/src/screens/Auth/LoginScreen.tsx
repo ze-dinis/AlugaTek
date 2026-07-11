@@ -57,6 +57,12 @@ export default function LoginScreen({navigation}: Props) {
     setLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
+      // Ensure user can pick an account every time instead of reusing cached session.
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Ignore when there is no previous session.
+      }
       const userInfo = await GoogleSignin.signIn();
       const tokens = await GoogleSignin.getTokens();
       const {data} = await authService.googleOAuth(tokens.idToken);
