@@ -107,7 +107,7 @@ export default function MyItemsScreen() {
             <Text style={styles.emptyIcon}>📦</Text>
             <Text style={styles.emptyTitle}>{i18n.myAdvertisements.noItems}</Text>
             <Text style={styles.emptySubtitle}>
-              Carregue no botão + na Home para listar o seu primeiro item.
+              Carregue no botão + ("Anunciar") para listar o seu primeiro item.
             </Text>
           </View>
         }

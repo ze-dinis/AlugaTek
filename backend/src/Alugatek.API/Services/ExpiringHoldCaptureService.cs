@@ -11,6 +11,7 @@ public sealed class ExpiringHoldCaptureService(
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan CaptureLeadTime = TimeSpan.FromMinutes(120);
+    private const string RentalExpiringReminderMessageType = "RentalExpiringReminder24h";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -21,6 +22,7 @@ public sealed class ExpiringHoldCaptureService(
             try
             {
                 await CaptureExpiringHoldsAsync(stoppingToken);
+                await SendExpiringRentalRemindersAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -91,5 +93,74 @@ public sealed class ExpiringHoldCaptureService(
 
         if (rentals.Count > 0)
             await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SendExpiringRentalRemindersAsync(CancellationToken cancellationToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var pushNotifications = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
+
+        var now = DateTime.UtcNow;
+        var reminderWindowStart = now.AddHours(24).Subtract(PollInterval);
+        var reminderWindowEnd = now.AddHours(24);
+
+        var rentalsToNotify = await db.Rentals
+            .Include(r => r.Item)
+            .Where(r => r.Status == RentalStatus.Completed)
+            .Where(r => r.EndDate > now)
+            .Where(r => r.EndDate > reminderWindowStart && r.EndDate <= reminderWindowEnd)
+            .ToListAsync(cancellationToken);
+
+        if (rentalsToNotify.Count == 0)
+            return;
+
+        var rentalIds = rentalsToNotify.Select(r => r.Id).ToList();
+        var alreadyNotified = await db.Messages
+            .Where(m => m.RentalId != null && rentalIds.Contains(m.RentalId.Value))
+            .Where(m => m.MessageType == RentalExpiringReminderMessageType)
+            .Select(m => m.RentalId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var rental in rentalsToNotify.Where(r => !alreadyNotified.Contains(r.Id)))
+        {
+            var receiverTokens = await db.DevicePushTokens
+                .Where(t => t.UserId == rental.RenterId && t.Platform == "android")
+                .Select(t => t.Token)
+                .ToListAsync(cancellationToken);
+
+            if (receiverTokens.Count > 0)
+            {
+                var invalidTokens = await pushNotifications.SendRentalExpiryReminderAsync(
+                    receiverTokens,
+                    rental.Id,
+                    rental.Item.Title,
+                    rental.EndDate,
+                    cancellationToken);
+
+                if (invalidTokens.Count > 0)
+                {
+                    var staleTokens = await db.DevicePushTokens
+                        .Where(t => invalidTokens.Contains(t.Token))
+                        .ToListAsync(cancellationToken);
+
+                    if (staleTokens.Count > 0)
+                        db.DevicePushTokens.RemoveRange(staleTokens);
+                }
+            }
+
+            db.Messages.Add(new Message
+            {
+                SenderId = rental.Item.OwnerId,
+                ReceiverId = rental.RenterId,
+                Content = $"O seu aluguer de '{rental.Item.Title}' termina em 24h. Pode renovar o aluguer na secção dos seus alugueres.",
+                IsRead = false,
+                RentalId = rental.Id,
+                MessageType = RentalExpiringReminderMessageType
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 }

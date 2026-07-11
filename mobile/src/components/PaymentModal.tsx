@@ -16,13 +16,28 @@ import {i18n} from '../locales';
 interface Props {
   rentalId: string;
   amount: number;
-  caucaoAmount: number;
+  caucaoAmount?: number;
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onAuthorizePaymentMethod?: (paymentMethodId: string) => Promise<void>;
+  confirmLabel?: string;
+  noteText?: string;
+  breakdownRows?: Array<{label: string; value: number}>;
 }
 
-export default function PaymentModal({rentalId, amount, caucaoAmount, visible, onClose, onSuccess}: Props) {
+export default function PaymentModal({
+  rentalId,
+  amount,
+  caucaoAmount = 0,
+  visible,
+  onClose,
+  onSuccess,
+  onAuthorizePaymentMethod,
+  confirmLabel,
+  noteText,
+  breakdownRows,
+}: Props) {
   const {createPaymentMethod} = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,7 +64,11 @@ export default function PaymentModal({rentalId, amount, caucaoAmount, visible, o
         return;
       }
 
-      await rentalsService.pay(rentalId, paymentMethod.id);
+      if (onAuthorizePaymentMethod) {
+        await onAuthorizePaymentMethod(paymentMethod.id);
+      } else {
+        await rentalsService.pay(rentalId, paymentMethod.id);
+      }
       onSuccess();
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? e?.message ?? i18n.payment.failed;
@@ -71,7 +90,17 @@ export default function PaymentModal({rentalId, amount, caucaoAmount, visible, o
           {caucaoAmount > 0 && (
             <Text style={styles.caucaoNote}>🔒 Caução retida no cartão: {caucaoAmount.toFixed(2)}€</Text>
           )}
-          <Text style={styles.holdNote}>{i18n.payment.holdNote}</Text>
+          {breakdownRows && breakdownRows.length > 0 && (
+            <View style={styles.breakdownCard}>
+              {breakdownRows.map((row, index) => (
+                <View key={`${row.label}-${index}`} style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>{row.label}</Text>
+                  <Text style={styles.breakdownValue}>{row.value.toFixed(2)}€</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={styles.holdNote}>{noteText ?? i18n.payment.holdNote}</Text>
 
           <CardField
             postalCodeEnabled={false}
@@ -87,7 +116,7 @@ export default function PaymentModal({rentalId, amount, caucaoAmount, visible, o
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.payButtonText}>{i18n.payment.confirm}</Text>
+              <Text style={styles.payButtonText}>{confirmLabel ?? i18n.payment.confirm}</Text>
             )}
           </TouchableOpacity>
 
@@ -116,6 +145,24 @@ const styles = StyleSheet.create({
   },
   title: {fontSize: 18, fontWeight: '700', marginBottom: 4},
   amount: {fontSize: 28, fontWeight: '800', color: '#1a73e8', marginBottom: 4},
+  breakdownCard: {
+    marginTop: 8,
+    marginBottom: 10,
+    backgroundColor: '#f7faff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#dbe8ff',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  breakdownLabel: {fontSize: 13, color: '#3b3b3b'},
+  breakdownValue: {fontSize: 13, color: '#1a73e8', fontWeight: '700'},
   holdNote: {fontSize: 12, color: '#888', marginBottom: 20},
   caucaoNote: {fontSize: 13, color: '#e65100', fontWeight: '600', marginBottom: 6},
   cardField: {height: 50, marginBottom: 20},

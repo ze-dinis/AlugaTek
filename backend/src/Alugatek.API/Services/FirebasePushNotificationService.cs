@@ -134,4 +134,77 @@ public class FirebasePushNotificationService : IPushNotificationService
             "Chat push send complete. invalidTokens={Count}.", invalidTokens.Count);
         return invalidTokens;
     }
+
+    public async Task<IReadOnlyCollection<string>> SendRentalExpiryReminderAsync(
+        IReadOnlyCollection<string> deviceTokens,
+        Guid rentalId,
+        string itemTitle,
+        DateTime endDateUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (_messaging is null || deviceTokens.Count == 0)
+        {
+            _logger.LogInformation(
+                "Rental expiry push skipped (messagingInitialized={Initialized}, tokenCount={Count}).",
+                _messaging is not null, deviceTokens.Count);
+            return Array.Empty<string>();
+        }
+
+        _logger.LogInformation("Sending rental expiry push to {Count} device token(s).", deviceTokens.Count);
+
+        var invalidTokens = new List<string>();
+        var endDateText = endDateUtc.ToString("yyyy-MM-dd HH:mm");
+        var messageTasks = deviceTokens.Select(async token =>
+        {
+            var message = new Message
+            {
+                Token = token,
+                Notification = new Notification
+                {
+                    Title = "Aluguer a expirar em 24h",
+                    Body = $"{itemTitle} termina a {endDateText}. Renove para continuar com o item."
+                },
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "rental_expiring_24h",
+                    ["rentalId"] = rentalId.ToString(),
+                    ["itemTitle"] = itemTitle,
+                    ["endDateUtc"] = endDateUtc.ToString("o")
+                },
+                Android = new AndroidConfig
+                {
+                    Priority = Priority.High,
+                    Notification = new AndroidNotification
+                    {
+                        ChannelId = "chat-messages-v2",
+                        DefaultSound = true,
+                        DefaultVibrateTimings = true,
+                    }
+                }
+            };
+
+            try
+            {
+                await _messaging.SendAsync(message, cancellationToken);
+            }
+            catch (FirebaseMessagingException ex) when (
+                ex.ErrorCode == ErrorCode.NotFound ||
+                ex.ErrorCode == ErrorCode.InvalidArgument)
+            {
+                lock (invalidTokens)
+                {
+                    invalidTokens.Add(token);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send rental expiry push notification.");
+            }
+        });
+
+        await Task.WhenAll(messageTasks);
+        _logger.LogInformation(
+            "Rental expiry push send complete. invalidTokens={Count}.", invalidTokens.Count);
+        return invalidTokens;
+    }
 }

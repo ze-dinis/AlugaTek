@@ -62,6 +62,10 @@ public record CreateRentalRequest(Guid ItemId, DateTime StartDate, DateTime EndD
 // PaymentMethod id so the server can place an extended authorization hold.
 public record PayRentalRequest(string PaymentMethodId);
 
+public record RenewRentalRequest(int ExtraDays, string PaymentMethodId);
+
+public record RenewQuoteDto(decimal AdditionalAmount, decimal PlatformCommission, decimal TotalCharge);
+
 public record RentalDto(
     Guid Id,
     TechItemDto Item,

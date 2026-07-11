@@ -1,5 +1,5 @@
 import React, {useCallback, useState} from 'react';
-import {View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert} from 'react-native';
+import {View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Modal} from 'react-native';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
@@ -33,6 +33,16 @@ export default function MyRentalsScreen() {
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [loading, setLoading] = useState(true);
   const [returningRentalId, setReturningRentalId] = useState<string | null>(null);
+  const [quotingRenewalRentalId, setQuotingRenewalRentalId] = useState<string | null>(null);
+  const [renewingRentalId, setRenewingRentalId] = useState<string | null>(null);
+  const [renewDayPickerRental, setRenewDayPickerRental] = useState<Rental | null>(null);
+  const [renewPaymentTarget, setRenewPaymentTarget] = useState<{
+    rental: Rental;
+    extraDays: number;
+    additionalAmount: number;
+    platformCommission: number;
+    totalCharge: number;
+  } | null>(null);
   const [payingRental, setPayingRental] = useState<Rental | null>(null);
 
   const loadRentals = () => {
@@ -60,52 +70,171 @@ export default function MyRentalsScreen() {
     }
   };
 
+  const renewByDays = async (rental: Rental, extraDays: number) => {
+    setQuotingRenewalRentalId(rental.id);
+    try {
+      const quote = await rentalsService.getRenewQuote(rental.id, extraDays);
+      setRenewPaymentTarget({
+        rental,
+        extraDays,
+        additionalAmount: quote.data.additionalAmount,
+        platformCommission: quote.data.platformCommission,
+        totalCharge: quote.data.totalCharge,
+      });
+    } catch {
+      Alert.alert(i18n.common.error, i18n.myRentals.renewFailed);
+    } finally {
+      setQuotingRenewalRentalId(null);
+    }
+  };
+
+  const handleRenewRental = (rental: Rental) => {
+    setRenewDayPickerRental(rental);
+  };
+
   if (loading) return <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />;
 
   return (
     <>
+      {renewPaymentTarget && (
+        <PaymentModal
+          rentalId={renewPaymentTarget.rental.id}
+          amount={renewPaymentTarget.totalCharge}
+          caucaoAmount={0}
+          visible
+          confirmLabel={i18n.payment.renewConfirm}
+          noteText={i18n.payment.renewHoldNote}
+          breakdownRows={[
+            {label: i18n.myRentals.renewBreakdownAdditional, value: renewPaymentTarget.additionalAmount},
+            {label: i18n.myRentals.renewBreakdownCommission, value: renewPaymentTarget.platformCommission},
+            {label: i18n.myRentals.renewBreakdownTotal, value: renewPaymentTarget.totalCharge},
+          ]}
+          onClose={() => {
+            if (!renewingRentalId) {
+              setRenewPaymentTarget(null);
+            }
+          }}
+          onAuthorizePaymentMethod={async paymentMethodId => {
+            setRenewingRentalId(renewPaymentTarget.rental.id);
+            try {
+              await rentalsService.renew(
+                renewPaymentTarget.rental.id,
+                renewPaymentTarget.extraDays,
+                paymentMethodId,
+              );
+            } finally {
+              setRenewingRentalId(null);
+            }
+          }}
+          onSuccess={() => {
+            setRenewPaymentTarget(null);
+            Alert.alert(i18n.common.success, i18n.myRentals.renewSuccess);
+            loadRentals();
+          }}
+        />
+      )}
+      <Modal
+        visible={!!renewDayPickerRental}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenewDayPickerRental(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.dayPickerCard}>
+            <Text style={styles.dayPickerTitle}>{i18n.myRentals.renewTitle}</Text>
+            <Text style={styles.dayPickerMessage}>{i18n.myRentals.renewMessage}</Text>
+
+            {Array.from({length: 6}, (_, i) => {
+              const day = i + 1;
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={styles.dayOptionButton}
+                  onPress={() => {
+                    if (!renewDayPickerRental) return;
+                    const selectedRental = renewDayPickerRental;
+                    setRenewDayPickerRental(null);
+                    void renewByDays(selectedRental, day);
+                  }}>
+                  <Text style={styles.dayOptionText}>
+                    {day} {day === 1 ? i18n.myRentals.day : i18n.myRentals.days}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              style={styles.dayOptionCancelButton}
+              onPress={() => setRenewDayPickerRental(null)}>
+              <Text style={styles.dayOptionCancelText}>{i18n.common.cancel}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <FlatList
         data={rentals}
         keyExtractor={r => r.id}
         contentContainerStyle={styles.list}
         renderItem={({item}) => (
-          <TouchableOpacity
-            style={styles.cardTouchable}
-            onPress={() => navigation.navigate('ItemDetail', {itemId: item.item.id})}>
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.itemTitle}>{item.item.title}</Text>
-                <View style={[styles.badge, {backgroundColor: STATUS_COLORS[item.status] ?? '#ccc'}]}>
-                  <Text style={styles.badgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
-                </View>
-              </View>
-              {(item.status === 'Completed' || item.status === 'Returned') && (
-                <Text style={styles.dates}>
-                  {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
-                </Text>
-              )}
-              <Text style={styles.total}>{i18n.itemDetail.total}: {item.totalPrice.toFixed(2)}€</Text>
-              {item.status === 'Active' && item.paymentStatus === 'None' && (
-                <TouchableOpacity
-                  style={styles.payButton}
-                  onPress={() => setPayingRental(item)}>
-                  <Text style={styles.payButtonText}>💳 {i18n.payment.confirm}</Text>
-                </TouchableOpacity>
-              )}
-              {item.status === 'Completed' && (
-                <TouchableOpacity
-                  style={[styles.returnButton, returningRentalId === item.id && styles.returnButtonDisabled]}
-                  onPress={() => handleReturnRental(item.id)}
-                  disabled={returningRentalId === item.id}>
-                  {returningRentalId === item.id ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.returnButtonText}>Devolver</Text>
+          (() => {
+            const endDateMs = new Date(item.endDate).getTime();
+            const hoursUntilExpiry = (endDateMs - Date.now()) / (1000 * 60 * 60);
+            const isExpiringIn24h = item.status === 'Completed' && hoursUntilExpiry > 0 && hoursUntilExpiry <= 24;
+
+            return (
+              <TouchableOpacity
+                style={styles.cardTouchable}
+                onPress={() => navigation.navigate('ItemDetail', {itemId: item.item.id})}>
+                <View style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.itemTitle}>{item.item.title}</Text>
+                    <View style={[styles.badge, {backgroundColor: STATUS_COLORS[item.status] ?? '#ccc'}]}>
+                      <Text style={styles.badgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+                    </View>
+                  </View>
+                  {(item.status === 'Completed' || item.status === 'Returned') && (
+                    <Text style={styles.dates}>
+                      {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
+                    </Text>
                   )}
-                </TouchableOpacity>
-              )}
-            </View>
-          </TouchableOpacity>
+                  {isExpiringIn24h && (
+                    <Text style={styles.expiryWarning}>{i18n.myRentals.expiresIn24h}</Text>
+                  )}
+                  <Text style={styles.total}>{i18n.itemDetail.total}: {item.totalPrice.toFixed(2)}€</Text>
+                  {item.status === 'Active' && item.paymentStatus === 'None' && (
+                    <TouchableOpacity
+                      style={styles.payButton}
+                      onPress={() => setPayingRental(item)}>
+                      <Text style={styles.payButtonText}>💳 {i18n.payment.confirm}</Text>
+                    </TouchableOpacity>
+                  )}
+                  {isExpiringIn24h && (
+                    <TouchableOpacity
+                      style={[styles.renewButton, (renewingRentalId === item.id || quotingRenewalRentalId === item.id) && styles.returnButtonDisabled]}
+                      onPress={() => handleRenewRental(item)}
+                      disabled={renewingRentalId === item.id || quotingRenewalRentalId === item.id}>
+                      {renewingRentalId === item.id || quotingRenewalRentalId === item.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.renewButtonText}>{i18n.myRentals.renew}</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  {item.status === 'Completed' && (
+                    <TouchableOpacity
+                      style={[styles.returnButton, returningRentalId === item.id && styles.returnButtonDisabled]}
+                      onPress={() => handleReturnRental(item.id)}
+                      disabled={returningRentalId === item.id}>
+                      {returningRentalId === item.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.returnButtonText}>Devolver</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })()
         )}
         ListEmptyComponent={<Text style={styles.empty}>{i18n.myRentals.noRentals}</Text>}
       />
@@ -155,5 +284,64 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   payButtonText: {color: '#fff', fontWeight: '700'},
+  renewButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#1a73e8',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  renewButtonText: {color: '#fff', fontWeight: '700'},
+  expiryWarning: {
+    marginTop: 8,
+    color: '#d32f2f',
+    fontWeight: '600',
+  },
   empty: {textAlign: 'center', marginTop: 40, color: '#888'},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  dayPickerCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  dayPickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f1f1f',
+  },
+  dayPickerMessage: {
+    marginTop: 6,
+    marginBottom: 12,
+    color: '#555',
+  },
+  dayOptionButton: {
+    backgroundColor: '#f3f7ff',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  dayOptionText: {
+    color: '#1a73e8',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  dayOptionCancelButton: {
+    marginTop: 6,
+    paddingVertical: 10,
+  },
+  dayOptionCancelText: {
+    color: '#666',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
 });

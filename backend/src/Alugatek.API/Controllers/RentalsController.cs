@@ -30,10 +30,33 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (item is null) return NotFound(new { message = "Item not found." });
         if (!item.IsAvailable) return BadRequest(new { message = "Item is not available." });
         if (item.OwnerId == renterId) return BadRequest(new { message = "You cannot rent your own item." });
+
+        var alreadyReservedByRenter = await db.Rentals
+            .AnyAsync(r => r.ItemId == request.ItemId
+                && r.RenterId == renterId
+                && (r.Status == RentalStatus.Pending
+                    || r.Status == RentalStatus.Active
+                    || r.Status == RentalStatus.Completed
+                    || r.Status == RentalStatus.ReturnRequested));
+
+        if (alreadyReservedByRenter)
+            return BadRequest(new { message = "You already have an active reservation for this item." });
+
+        var hasConfirmedReservation = await db.Rentals
+            .AnyAsync(r => r.ItemId == request.ItemId
+                && (r.Status == RentalStatus.Active
+                    || r.Status == RentalStatus.Completed
+                    || r.Status == RentalStatus.ReturnRequested));
+
+        if (hasConfirmedReservation)
+            return BadRequest(new { message = "This item already has a confirmed reservation." });
+
         if (request.StartDate >= request.EndDate) return BadRequest(new { message = "Invalid date range." });
         if (request.StartDate < DateTime.UtcNow.Date) return BadRequest(new { message = "Start date cannot be in the past." });
 
         var days = (request.EndDate - request.StartDate).Days;
+        if (days > 6) return BadRequest(new { message = "Maximum rental duration is 6 days." });
+
         var rental = new Rental
         {
             Id = Guid.NewGuid(),
@@ -138,6 +161,9 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             }
         }
 
+        if (rental.Status == RentalStatus.Active)
+            rental.Item.IsAvailable = true;
+
         rental.Status = RentalStatus.Cancelled;
         await db.SaveChangesAsync();
         return Ok(MapToDto(rental, rental.Item, rental.Renter));
@@ -159,7 +185,18 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (rental.Status != RentalStatus.Pending)
             return BadRequest(new { message = "Only pending rentals can be confirmed." });
 
+        var hasAnotherConfirmedReservation = await db.Rentals
+            .AnyAsync(r => r.ItemId == rental.ItemId
+                && r.Id != rental.Id
+                && (r.Status == RentalStatus.Active
+                    || r.Status == RentalStatus.Completed
+                    || r.Status == RentalStatus.ReturnRequested));
+
+        if (hasAnotherConfirmedReservation)
+            return BadRequest(new { message = "Another reservation for this item is already confirmed." });
+
         rental.Status = RentalStatus.Active;
+        rental.Item.IsAvailable = false;
 
         db.Messages.Add(new Message
         {
@@ -190,8 +227,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (rental.RenterId != userId) return Forbid();
         if (rental.Status != RentalStatus.Active)
             return BadRequest(new { message = "Only active rentals can be paid." });
-        if (!rental.Item.IsAvailable)
-            return BadRequest(new { message = "Item is no longer available." });
         if (string.IsNullOrWhiteSpace(request.PaymentMethodId))
             return BadRequest(new { message = "A payment method is required." });
 
@@ -266,6 +301,154 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
 
         await db.SaveChangesAsync();
         return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpPatch("{id:guid}/renew")]
+    public async Task<ActionResult<RentalDto>> Renew(Guid id, RenewRentalRequest request)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (request.ExtraDays <= 0)
+            return BadRequest(new { message = "Extra days must be greater than zero." });
+
+        if (request.ExtraDays > 6)
+            return BadRequest(new { message = "You can renew at most 6 days at a time." });
+
+        if (string.IsNullOrWhiteSpace(request.PaymentMethodId))
+            return BadRequest(new { message = "A payment method is required to renew." });
+
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Item).ThenInclude(i => i.Reviews)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.RenterId != userId) return Forbid();
+        if (rental.Status != RentalStatus.Completed)
+            return BadRequest(new { message = "Only rentals in progress can be renewed." });
+        if (rental.EndDate <= DateTime.UtcNow)
+            return BadRequest(new { message = "This rental has already expired and cannot be renewed." });
+
+        var quote = BuildRenewQuote(rental.Item.DailyRate, request.ExtraDays);
+        var previousHoldIntentId = rental.CaucaoPaymentIntentId;
+        var hadPreviousActiveHold = rental.CaucaoPaymentStatus == PaymentStatus.Held && !string.IsNullOrWhiteSpace(previousHoldIntentId);
+        string? renewalChargeIntentId = null;
+        PaymentHoldResult? newHold = null;
+
+        try
+        {
+            var renewalCustomerId = await payments.CreateCustomerForPaymentAsync(
+                request.PaymentMethodId,
+                rental.Id.ToString());
+
+            renewalChargeIntentId = await payments.ChargeAsync(
+                quote.TotalCharge,
+                "eur",
+                request.PaymentMethodId,
+                renewalCustomerId,
+                rental.Id.ToString());
+
+            if (rental.CaucaoAmount > 0)
+            {
+                newHold = await payments.PlaceHoldAsync(
+                    rental.CaucaoAmount,
+                    "eur",
+                    request.PaymentMethodId,
+                    renewalCustomerId,
+                    rental.Id.ToString());
+            }
+
+            if (hadPreviousActiveHold)
+                await payments.ReleaseHoldAsync(previousHoldIntentId!);
+        }
+        catch (StripeException ex)
+        {
+            // Best-effort rollback: if a new hold was created but old hold release/renew failed,
+            // release the new hold and refund the renewal charge.
+            if (newHold is not null)
+            {
+                try
+                {
+                    await payments.ReleaseHoldAsync(newHold.PaymentIntentId);
+                }
+                catch (StripeException releaseEx)
+                {
+                    logger.LogError(releaseEx,
+                        "Rollback failed while releasing new renewal hold for rental {RentalId}. Intent: {IntentId}",
+                        rental.Id, newHold.PaymentIntentId);
+                }
+            }
+
+            if (renewalChargeIntentId is not null)
+            {
+                try
+                {
+                    await payments.RefundAsync(renewalChargeIntentId);
+                }
+                catch (StripeException refundEx)
+                {
+                    logger.LogError(refundEx,
+                        "Rollback failed while refunding renewal charge for rental {RentalId}. Intent: {IntentId}",
+                        rental.Id, renewalChargeIntentId);
+                }
+            }
+
+            logger.LogError(ex,
+                "Stripe renewal charge failed for rental {RentalId}. Code: {Code}, Message: {Message}",
+                rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
+            return BadRequest(new { message = ex.StripeError?.Message ?? "Renewal failed while updating payment hold." });
+        }
+
+        if (newHold is not null)
+        {
+            rental.CaucaoPaymentIntentId = newHold.PaymentIntentId;
+            rental.CaucaoPaymentStatus = PaymentStatus.Held;
+            rental.CaptureBefore = newHold.CaptureBefore;
+            rental.ExtendedAuthorizationStatus = newHold.ExtendedAuthorizationStatus;
+        }
+
+        rental.EndDate = rental.EndDate.AddDays(request.ExtraDays);
+        rental.TotalPrice += quote.AdditionalAmount;
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = rental.Item.OwnerId,
+            Content = $"O arrendatário renovou o aluguer por {request.ExtraDays} {(request.ExtraDays == 1 ? "dia" : "dias")}. Valor cobrado: {quote.TotalCharge:F2}€. Nova data de fim: {rental.EndDate:yyyy-MM-dd}.",
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "RentalRenewed"
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    [HttpGet("{id:guid}/renew-quote")]
+    public async Task<ActionResult<RenewQuoteDto>> GetRenewQuote(Guid id, [FromQuery] int extraDays)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (extraDays <= 0)
+            return BadRequest(new { message = "Extra days must be greater than zero." });
+
+        if (extraDays > 6)
+            return BadRequest(new { message = "You can renew at most 6 days at a time." });
+
+        var rental = await db.Rentals
+            .Include(r => r.Item)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.RenterId != userId) return Forbid();
+        if (rental.Status != RentalStatus.Completed)
+            return BadRequest(new { message = "Only rentals in progress can be renewed." });
+        if (rental.EndDate <= DateTime.UtcNow)
+            return BadRequest(new { message = "This rental has already expired and cannot be renewed." });
+
+        return Ok(BuildRenewQuote(rental.Item.DailyRate, extraDays));
     }
 
     [HttpPatch("{id:guid}/return")]
@@ -425,5 +608,13 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             new UserDto(renter.Id, renter.Name, renter.Email, renter.AvatarUrl, renter.Phone),
             r.StartDate, r.EndDate, r.TotalPrice, r.CaucaoAmount, r.Status.ToString(), r.CreatedAt,
             r.PaymentStatus.ToString(), r.CaucaoPaymentStatus.ToString(), r.CaptureBefore, r.ExtendedAuthorizationStatus);
+    }
+
+    private static RenewQuoteDto BuildRenewQuote(decimal dailyRate, int extraDays)
+    {
+        var additionalAmount = dailyRate * extraDays;
+        var platformCommission = PlatformBaseCommission + (additionalAmount * PlatformPercentageCommissionRate);
+        var totalCharge = additionalAmount + platformCommission;
+        return new RenewQuoteDto(additionalAmount, platformCommission, totalCharge);
     }
 }

@@ -13,7 +13,8 @@ import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
-import {TechItem, Category} from '../../types';
+import {rentalsService} from '../../services/rentalsService';
+import {TechItem, Category, Rental} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 import {Picker} from '@react-native-picker/picker';
@@ -43,6 +44,19 @@ export default function HomeScreen() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [myOpenRentalItemIds, setMyOpenRentalItemIds] = useState<string[]>([]);
+
+  const fetchMyRentals = useCallback(async () => {
+    try {
+      const response = await rentalsService.getMyRentals();
+      const openItemIds = (response.data as Rental[])
+        .filter(r => ['Pending', 'Active', 'Completed', 'ReturnRequested'].includes(r.status))
+        .map(r => r.item.id);
+      setMyOpenRentalItemIds(Array.from(new Set(openItemIds)));
+    } catch {
+      // silently ignore — items will fall back to isAvailable flag
+    }
+  }, []);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -77,26 +91,32 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      fetchItems();
-    }, [fetchItems]),
+      void fetchItems();
+      void fetchMyRentals();
+    }, [fetchItems, fetchMyRentals]),
   );
 
   const renderItem = ({item}: {item: TechItem}) => (
     (() => {
       const imageUri = resolveApiAssetUrl(item.imageUrl);
+      const isInProgress = !item.isAvailable || myOpenRentalItemIds.includes(item.id);
 
       return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, isInProgress && styles.cardDisabled]}
       onPress={() => navigation.navigate('ItemDetail', {itemId: item.id})}>
-      <SafeImage uri={imageUri} style={styles.cardImage} />
+      <View style={styles.cardImageContainer}>
+        <SafeImage uri={imageUri} style={styles.cardImage} />
+        {isInProgress && <View style={styles.cardImageOverlay} />}
+      </View>
       <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.cardCategory}>🏷️ {item.categoryName}</Text>
-        <Text style={styles.cardDistrict}>📍 {item.district}</Text>
-        <Text style={styles.cardRate}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
+        <Text style={[styles.cardTitle, isInProgress && styles.textDisabled]} numberOfLines={1}>{item.title}</Text>
+        <Text style={[styles.cardCategory, isInProgress && styles.textDisabled]}>🏷️ {item.categoryName}</Text>
+        <Text style={[styles.cardDistrict, isInProgress && styles.textDisabled]}>📍 {item.district}</Text>
+        <Text style={[styles.cardRate, isInProgress && styles.textDisabled]}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
+        {isInProgress && <Text style={styles.inProgressTag}>⏳ {i18n.itemDetail.rentalInProgress}</Text>}
         {item.averageRating && (
-          <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
+          <Text style={[styles.rating, isInProgress && styles.textDisabled]}>⭐ {item.averageRating.toFixed(1)}</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -231,12 +251,24 @@ const styles = StyleSheet.create({
   grid: {padding: 8},
   gridEmpty: {flexGrow: 1, padding: 16, justifyContent: 'center'},
   card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.12, shadowRadius: 6},
+  cardDisabled: {backgroundColor: '#e5e7eb', elevation: 0, shadowOpacity: 0},
+  textDisabled: {color: '#9ca3af'},
+  cardImageContainer: {position: 'relative'},
   cardImage: {width: '100%', height: 130},
+  cardImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(120,120,120,0.45)',
+  },
   cardContent: {padding: 8},
   cardTitle: {fontWeight: '600', fontSize: 14},
   cardCategory: {color: '#888', fontSize: 12, marginTop: 2},
   cardDistrict: {color: '#666', fontSize: 12, marginTop: 2},
   cardRate: {color: '#1a73e8', fontWeight: '700', marginTop: 4},
+  inProgressTag: {marginTop: 4, color: '#5f6368', fontWeight: '700', fontSize: 12},
   rating: {fontSize: 12, marginTop: 2},
   emptyState: {alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20},
   emptyIcon: {fontSize: 42, marginBottom: 10},

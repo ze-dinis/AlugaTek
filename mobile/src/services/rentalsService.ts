@@ -1,6 +1,12 @@
 import api from './api';
 import {Rental} from '../types';
 
+export interface RenewQuote {
+  additionalAmount: number;
+  platformCommission: number;
+  totalCharge: number;
+}
+
 export const rentalsService = {
   create: (itemId: string, startDate: string, endDate: string) =>
     api.post<Rental>('/rentals', {itemId, startDate, endDate}),
@@ -19,6 +25,12 @@ export const rentalsService = {
   // `paymentMethodId` is the Stripe PaymentMethod id (pm_...) collected client-side.
   pay: (id: string, paymentMethodId: string) =>
     api.patch<Rental>(`/rentals/${id}/pay`, {paymentMethodId}),
+
+  renew: (id: string, extraDays: number, paymentMethodId: string) =>
+    api.patch<Rental>(`/rentals/${id}/renew`, {extraDays, paymentMethodId}),
+
+  getRenewQuote: (id: string, extraDays: number) =>
+    api.get<RenewQuote>(`/rentals/${id}/renew-quote`, {params: {extraDays}}),
 
   returnRental: (id: string) => api.patch<Rental>(`/rentals/${id}/return`),
 

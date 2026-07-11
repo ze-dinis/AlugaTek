@@ -56,7 +56,6 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             .Include(i => i.Category)
             .Include(i => i.Owner)
             .Include(i => i.Reviews)
-            .Where(i => i.IsAvailable)
             .AsQueryable();
 
         if (categoryId.HasValue)
@@ -86,7 +85,15 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             .Take(pageSize)
             .ToListAsync();
 
-        return Ok(items.Select(MapToDto));
+        var inProgressItemIds = await db.Rentals
+            .Where(r => r.Status == RentalStatus.Active
+                || r.Status == RentalStatus.Completed
+                || r.Status == RentalStatus.ReturnRequested)
+            .Select(r => r.ItemId)
+            .Distinct()
+            .ToListAsync();
+
+        return Ok(items.Select(i => MapToDto(i, i.IsAvailable && !inProgressItemIds.Contains(i.Id))));
     }
 
     [HttpGet("{id:guid}")]
@@ -98,7 +105,16 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             .Include(i => i.Reviews).ThenInclude(r => r.Author)
             .FirstOrDefaultAsync(i => i.Id == id);
 
-        return item is null ? NotFound() : Ok(MapToDto(item));
+        if (item is null)
+            return NotFound();
+
+        var hasConfirmedReservation = await db.Rentals
+            .AnyAsync(r => r.ItemId == id
+                && (r.Status == RentalStatus.Active
+                    || r.Status == RentalStatus.Completed
+                    || r.Status == RentalStatus.ReturnRequested));
+
+        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation));
     }
 
     [Authorize]
@@ -249,15 +265,15 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
 
-        return Ok(items.Select(MapToDto));
+        return Ok(items.Select(i => MapToDto(i)));
     }
 
     [HttpGet("categories")]
     public async Task<ActionResult<IEnumerable<object>>> GetCategories() =>
         Ok(await db.Categories.Select(c => new { c.Id, c.Name, c.IconUrl }).ToListAsync());
 
-    private static TechItemDto MapToDto(TechItem i) => new(
-        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.Caucao, i.ImageUrl, i.IsAvailable,
+    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null) => new(
+        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.Caucao, i.ImageUrl, isAvailableOverride ?? i.IsAvailable,
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,

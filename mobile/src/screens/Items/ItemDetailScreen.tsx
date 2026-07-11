@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useFocusEffect} from '@react-navigation/native';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
 import {rentalsService} from '../../services/rentalsService';
-import {TechItem, Review} from '../../types';
+import {TechItem, Review, Rental} from '../../types';
 import api from '../../services/api';
 import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
@@ -31,18 +32,33 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [renting, setRenting] = useState(false);
+  const [reservedByCurrentUser, setReservedByCurrentUser] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [rentalDays, setRentalDays] = useState(3);
 
-  useEffect(() => {
+  const loadItemData = useCallback(() => {
+    setLoading(true);
     Promise.all([
       itemsService.getById(itemId),
       api.get<Review[]>(`/reviews/item/${itemId}`),
-    ]).then(([itemRes, reviewRes]) => {
+      rentalsService.getMyRentals(),
+    ]).then(([itemRes, reviewRes, rentalsRes]) => {
       setItem(itemRes.data);
       setReviews(reviewRes.data);
+      const myRentals = rentalsRes.data as Rental[];
+      const hasExistingReservation = myRentals.some(r =>
+        r.item.id === itemId &&
+        r.status === 'Pending',
+      );
+      setReservedByCurrentUser(hasExistingReservation);
     }).finally(() => setLoading(false));
   }, [itemId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadItemData();
+    }, [loadItemData]),
+  );
 
   const handleDelete = () => {
     if (!item) return;
@@ -95,9 +111,15 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 start.toISOString(),
                 end.toISOString(),
               );
+              setReservedByCurrentUser(true);
+              setItem(prev => prev ? { ...prev, isAvailable: false } : prev);
               Alert.alert(i18n.common.success, i18n.itemDetail.rentalSuccess);
             } catch (e: any) {
-              Alert.alert(i18n.common.error, e.response?.data?.message ?? i18n.itemDetail.rentalFailed);
+              const backendMessage = e.response?.data?.message as string | undefined;
+              if (backendMessage?.toLowerCase().includes('confirmed reservation')) {
+                setItem(prev => prev ? { ...prev, isAvailable: false } : prev);
+              }
+              Alert.alert(i18n.common.error, backendMessage ?? i18n.itemDetail.rentalFailed);
             } finally {
               setRenting(false);
             }
@@ -116,10 +138,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   }
 
   const imageUri = resolveApiAssetUrl(item.imageUrl);
+  const isRentalInProgress = !item.isAvailable && !reservedByCurrentUser;
 
   return (
     <ScrollView style={styles.container}>
-      <SafeImage uri={imageUri} style={styles.image} />
+      <View style={styles.imageContainer}>
+        <SafeImage uri={imageUri} style={styles.image} />
+        {isRentalInProgress && <View style={styles.imageGreyOverlay} />}
+      </View>
 
       <View style={styles.content}>
         <Text style={styles.title}>✨ {item.title}</Text>
@@ -136,7 +162,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
           <Text style={styles.caucaoNote}>🔒 Caução: {item.caucao.toFixed(2)}€ (retida no cartão, devolvida no regresso)</Text>
         )}
 
-        {item.isAvailable && user?.id !== item.owner.id ? (
+        {item.isAvailable && !reservedByCurrentUser && user?.id !== item.owner.id ? (
           <View style={styles.rentalSelector}>
             <Text style={styles.sectionTitle}>🗓️ {i18n.itemDetail.rentalDuration}</Text>
             <View style={styles.daySelector}>
@@ -152,8 +178,8 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               </View>
               <TouchableOpacity
                 style={styles.dayButton}
-                onPress={() => setRentalDays(prev => Math.min(30, prev + 1))}
-                disabled={rentalDays >= 30}>
+                onPress={() => setRentalDays(prev => Math.min(6, prev + 1))}
+                disabled={rentalDays >= 6}>
                 <Text style={styles.dayButtonText}>+</Text>
               </TouchableOpacity>
             </View>
@@ -182,13 +208,20 @@ export default function ItemDetailScreen({route, navigation}: Props) {
           </TouchableOpacity>
         ) : (
           <View style={styles.buttonRow}>
-            {item.isAvailable ? (
+            {item.isAvailable && !reservedByCurrentUser ? (
               <TouchableOpacity style={[styles.rentButton, styles.halfButton]} onPress={handleRent} disabled={renting}>
                 {renting ? <ActivityIndicator color="#fff" /> : <Text style={styles.rentButtonText}>🚀 {i18n.itemDetail.rentNow}</Text>}
               </TouchableOpacity>
             ) : (
-              <View style={[styles.unavailableButton, styles.halfButton, styles.secondaryActionButton]}>
-                <Text style={styles.unavailableText}>✅ {i18n.itemDetail.unavailable}</Text>
+              <View
+                style={[
+                  reservedByCurrentUser ? styles.reservedButton : styles.unavailableButton,
+                  styles.halfButton,
+                  styles.secondaryActionButton,
+                ]}>
+                <Text style={styles.unavailableText}>
+                  ✅ {reservedByCurrentUser ? i18n.itemDetail.reserved : i18n.itemDetail.rentalInProgress}
+                </Text>
               </View>
             )}
             <TouchableOpacity
@@ -219,7 +252,16 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f3f6fb'},
+  imageContainer: {position: 'relative'},
   image: {width: '100%', height: 260},
+  imageGreyOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(120,120,120,0.45)',
+  },
   content: {padding: 20, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -18},
   title: {fontSize: 24, fontWeight: 'bold'},
   category: {color: '#888', marginTop: 4},
@@ -246,6 +288,7 @@ const styles = StyleSheet.create({
   rentButton: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   rentButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   unavailableButton: {backgroundColor: '#fbc02d'},
+  reservedButton: {backgroundColor: '#9e9e9e'},
   unavailableText: {color: '#5d4037', fontWeight: '600', fontSize: 16},
   messageButton: {backgroundColor: '#34a853'},
   messageButtonText: {color: '#fff', fontWeight: '600', fontSize: 16},
