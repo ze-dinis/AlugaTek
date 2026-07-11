@@ -259,7 +259,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
             Content = $"O pagamento do aluguer foi concluído às {DateTime.UtcNow:HH:mm}."
-                + $" Comissão da plataforma: {platformCommission:F2}€."
                 + (rental.CaucaoAmount > 0 ? $" Caução de {rental.CaucaoAmount:F2}€ retida no cartão do arrendatário." : string.Empty),
             IsRead = false
         });
