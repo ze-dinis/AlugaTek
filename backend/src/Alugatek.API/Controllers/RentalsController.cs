@@ -45,7 +45,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = renterId,
             ReceiverId = item.OwnerId,
-            Content = $"Pedido de aluguer ({rental.Id}) para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
+            Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
             IsRead = false
         };
 
@@ -161,7 +161,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"O seu pedido de aluguer ({rental.Id}) foi confirmado às {DateTime.UtcNow:HH:mm}. Toque em Pagar para concluir.",
+            Content = $"O seu pedido de aluguer foi confirmado às {DateTime.UtcNow:HH:mm}. Toque em Pagar para concluir.",
             IsRead = false
         });
 
@@ -247,7 +247,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
-            Content = $"O pagamento do aluguer ({rental.Id}) foi concluído às {DateTime.UtcNow:HH:mm}."
+            Content = $"O pagamento do aluguer foi concluído às {DateTime.UtcNow:HH:mm}."
                 + (rental.CaucaoAmount > 0 ? $" Caução de {rental.CaucaoAmount:F2}€ retida no cartão do arrendatário." : string.Empty),
             IsRead = false
         });
@@ -278,7 +278,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
-            Content = $"Pedido de devolução ({rental.Id}) enviado às {DateTime.UtcNow:HH:mm}. Confirme a devolução.",
+            Content = $"Pedido de devolução enviado às {DateTime.UtcNow:HH:mm}. Confirme a devolução.",
             IsRead = false
         });
 
@@ -323,7 +323,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"A devolução do aluguer ({rental.Id}) foi confirmada às {DateTime.UtcNow:HH:mm}.",
+            Content = $"A devolução do aluguer foi confirmada às {DateTime.UtcNow:HH:mm}.",
             IsRead = false
         });
 
@@ -353,7 +353,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"A devolução do aluguer ({rental.Id}) foi recusada às {DateTime.UtcNow:HH:mm}.",
+            Content = $"A devolução do aluguer foi recusada às {DateTime.UtcNow:HH:mm}.",
             IsRead = false
         });
 
@@ -384,7 +384,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"O seu pedido de aluguer ({rental.Id}) foi cancelado às {DateTime.UtcNow:HH:mm}.",
+            Content = $"O seu pedido de aluguer foi cancelado às {DateTime.UtcNow:HH:mm}.",
             IsRead = false
         });
 

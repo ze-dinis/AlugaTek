@@ -101,7 +101,7 @@ public class StripeWebhookController(
             {
                 SenderId = rental.RenterId,
                 ReceiverId = rental.RenterId,   // self-notification
-                Content = $"O pagamento do aluguer ({rental.Id}) falhou. Por favor, tente novamente.",
+                Content = $"O pagamento do aluguer falhou. Por favor, tente novamente.",
                 IsRead = false
             });
             logger.LogInformation("Rental {RentalId} payment marked as failed.", rental.Id);
