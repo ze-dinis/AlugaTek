@@ -96,7 +96,6 @@ export default function ItemDetailScreen({route, navigation}: Props) {
                 end.toISOString(),
               );
               Alert.alert(i18n.common.success, i18n.itemDetail.rentalSuccess);
-              setItem(prev => prev ? {...prev, isAvailable: false} : null);
             } catch (e: any) {
               Alert.alert(i18n.common.error, e.response?.data?.message ?? i18n.itemDetail.rentalFailed);
             } finally {

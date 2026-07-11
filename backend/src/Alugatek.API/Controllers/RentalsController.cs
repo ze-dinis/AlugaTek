@@ -55,7 +55,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             MessageType = "RentalRequest"
         };
 
-        item.IsAvailable = false;
         db.Rentals.Add(rental);
         db.Messages.Add(rentRequestMessage);
         await db.SaveChangesAsync();
@@ -140,7 +139,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         }
 
         rental.Status = RentalStatus.Cancelled;
-        rental.Item.IsAvailable = true;
         await db.SaveChangesAsync();
         return Ok(MapToDto(rental, rental.Item, rental.Renter));
     }
@@ -192,6 +190,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (rental.RenterId != userId) return Forbid();
         if (rental.Status != RentalStatus.Active)
             return BadRequest(new { message = "Only active rentals can be paid." });
+        if (!rental.Item.IsAvailable)
+            return BadRequest(new { message = "Item is no longer available." });
         if (string.IsNullOrWhiteSpace(request.PaymentMethodId))
             return BadRequest(new { message = "A payment method is required." });
 
@@ -252,6 +252,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             }
         }
 
+        rental.Item.IsAvailable = false;
         rental.Status = RentalStatus.Completed;
 
         db.Messages.Add(new Message
@@ -395,7 +396,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             return BadRequest(new { message = "Only pending rentals can be declined." });
 
         rental.Status = RentalStatus.Cancelled;
-        rental.Item.IsAvailable = true;
 
         db.Messages.Add(new Message
         {

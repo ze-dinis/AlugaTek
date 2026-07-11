@@ -95,7 +95,10 @@ public class StripeWebhookController(
             rental.PaymentStatus = PaymentStatus.Failed;
             // Allow the renter to retry by reverting to Active.
             if (rental.Status == RentalStatus.Completed)
+            {
                 rental.Status = RentalStatus.Active;
+                rental.Item.IsAvailable = true;
+            }
 
             db.Messages.Add(new Message
             {

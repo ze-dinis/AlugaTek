@@ -79,9 +79,11 @@ export default function MyRentalsScreen() {
                   <Text style={styles.badgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
                 </View>
               </View>
-              <Text style={styles.dates}>
-                {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
-              </Text>
+              {(item.status === 'Completed' || item.status === 'Returned') && (
+                <Text style={styles.dates}>
+                  {new Date(item.startDate).toLocaleDateString()} → {new Date(item.endDate).toLocaleDateString()}
+                </Text>
+              )}
               <Text style={styles.total}>{i18n.itemDetail.total}: {item.totalPrice.toFixed(2)}€</Text>
               {item.status === 'Active' && item.paymentStatus === 'None' && (
                 <TouchableOpacity
