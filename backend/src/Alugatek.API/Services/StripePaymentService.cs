@@ -8,6 +8,8 @@ public class StripePaymentService : IPaymentService
     private readonly StripeOptions _options;
     private readonly ILogger<StripePaymentService> _logger;
     private readonly PaymentIntentService _paymentIntents = new();
+    private readonly CustomerService _customers = new();
+    private readonly PaymentMethodService _paymentMethods = new();
 
     public StripePaymentService(IOptions<StripeOptions> options, ILogger<StripePaymentService> logger)
     {
@@ -24,10 +26,34 @@ public class StripePaymentService : IPaymentService
         }
     }
 
+    public async Task<string> CreateCustomerForPaymentAsync(
+        string paymentMethodId,
+        string rentalId,
+        CancellationToken cancellationToken = default)
+    {
+        var customer = await _customers.CreateAsync(
+            new CustomerCreateOptions
+            {
+                Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId },
+            },
+            cancellationToken: cancellationToken);
+
+        // Attach the client-collected PaymentMethod to the customer so it can be
+        // reused for both the rental charge and the caução hold.
+        await _paymentMethods.AttachAsync(
+            paymentMethodId,
+            new PaymentMethodAttachOptions { Customer = customer.Id },
+            cancellationToken: cancellationToken);
+
+        _logger.LogInformation("Created Stripe customer {CustomerId} for rental {RentalId}.", customer.Id, rentalId);
+        return customer.Id;
+    }
+
     public async Task<string> ChargeAsync(
         decimal amount,
         string currency,
         string paymentMethodId,
+        string customerId,
         string rentalId,
         CancellationToken cancellationToken = default)
     {
@@ -37,6 +63,7 @@ public class StripePaymentService : IPaymentService
         {
             Amount = amountInMinorUnits,
             Currency = currency.ToLowerInvariant(),
+            Customer = customerId,
             PaymentMethod = paymentMethodId,
             Confirm = true,
             PaymentMethodTypes = ["card"],
@@ -53,6 +80,7 @@ public class StripePaymentService : IPaymentService
         decimal amount,
         string currency,
         string paymentMethodId,
+        string customerId,
         string rentalId,
         CancellationToken cancellationToken = default)
     {
@@ -62,8 +90,10 @@ public class StripePaymentService : IPaymentService
         {
             Amount = amountInMinorUnits,
             Currency = currency.ToLowerInvariant(),
+            Customer = customerId,
             PaymentMethod = paymentMethodId,
             Confirm = true,
+            OffSession = true,
             CaptureMethod = "manual",
             PaymentMethodTypes = ["card"],
             Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId, ["type"] = "caucao" },

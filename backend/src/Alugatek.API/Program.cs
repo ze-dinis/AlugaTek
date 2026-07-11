@@ -44,6 +44,7 @@ builder.Services.AddSingleton<IPushNotificationService, FirebasePushNotification
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
+builder.Services.AddHostedService<ExpiringHoldCaptureService>();
 
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.AddScoped<LocalItemImageStorage>();

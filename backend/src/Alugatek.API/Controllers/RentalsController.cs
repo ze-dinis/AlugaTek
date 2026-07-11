@@ -187,11 +187,26 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (string.IsNullOrWhiteSpace(request.PaymentMethodId))
             return BadRequest(new { message = "A payment method is required." });
 
+        // Create a Stripe customer with the card attached so the same card can be used
+        // for both the rental charge and the caução hold.
+        string customerId;
+        try
+        {
+            customerId = await payments.CreateCustomerForPaymentAsync(request.PaymentMethodId, rental.Id.ToString());
+        }
+        catch (StripeException ex)
+        {
+            logger.LogError(ex,
+                "Stripe customer setup failed for rental {RentalId}. Code: {Code}, Message: {Message}",
+                rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
+            return BadRequest(new { message = ex.StripeError?.Message ?? "Payment failed." });
+        }
+
         // 1. Charge the rental price immediately.
         try
         {
             var priceIntentId = await payments.ChargeAsync(
-                rental.TotalPrice, "eur", request.PaymentMethodId, rental.Id.ToString());
+                rental.TotalPrice, "eur", request.PaymentMethodId, customerId, rental.Id.ToString());
             rental.PaymentIntentId = priceIntentId;
             rental.PaymentStatus = PaymentStatus.Captured;
         }
@@ -209,7 +224,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             try
             {
                 var hold = await payments.PlaceHoldAsync(
-                    rental.CaucaoAmount, "eur", request.PaymentMethodId, rental.Id.ToString());
+                    rental.CaucaoAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString());
                 rental.CaucaoPaymentIntentId = hold.PaymentIntentId;
                 rental.CaucaoPaymentStatus = PaymentStatus.Held;
                 rental.CaptureBefore = hold.CaptureBefore;

@@ -10,6 +10,15 @@ public record PaymentHoldResult(
 public interface IPaymentService
 {
     /// <summary>
+    /// Creates a Stripe Customer and attaches the given PaymentMethod to it, so the same
+    /// card can be charged more than once (rental price + caução hold). Returns the customer id.
+    /// </summary>
+    Task<string> CreateCustomerForPaymentAsync(
+        string paymentMethodId,
+        string rentalId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates and immediately captures a PaymentIntent for the rental price.
     /// Returns the PaymentIntent id.
     /// </summary>
@@ -17,6 +26,7 @@ public interface IPaymentService
         decimal amount,
         string currency,
         string paymentMethodId,
+        string customerId,
         string rentalId,
         CancellationToken cancellationToken = default);
 
@@ -28,6 +38,7 @@ public interface IPaymentService
         decimal amount,
         string currency,
         string paymentMethodId,
+        string customerId,
         string rentalId,
         CancellationToken cancellationToken = default);
 

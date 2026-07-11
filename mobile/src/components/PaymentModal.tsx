@@ -7,8 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
 } from 'react-native';
 import {CardField, useStripe} from '@stripe/stripe-react-native';
 import {rentalsService} from '../services/rentalsService';
@@ -62,10 +61,11 @@ export default function PaymentModal({rentalId, amount, caucaoAmount, visible, o
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={styles.sheet}>
+      <View style={styles.overlay}>
+        <ScrollView
+          contentContainerStyle={styles.sheet}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}>
           <Text style={styles.title}>{i18n.payment.title}</Text>
           <Text style={styles.amount}>{amount.toFixed(2)}€</Text>
           {caucaoAmount > 0 && (
@@ -94,8 +94,8 @@ export default function PaymentModal({rentalId, amount, caucaoAmount, visible, o
           <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={loading}>
             <Text style={styles.cancelButtonText}>{i18n.common.cancel}</Text>
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+        </ScrollView>
+      </View>
     </Modal>
   );
 }
@@ -112,6 +112,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 24,
     paddingBottom: 36,
+    flexGrow: 1,
   },
   title: {fontSize: 18, fontWeight: '700', marginBottom: 4},
   amount: {fontSize: 28, fontWeight: '800', color: '#1a73e8', marginBottom: 4},
