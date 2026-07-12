@@ -170,8 +170,15 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     }
 
     [HttpPatch("{id:guid}/confirm")]
-    public async Task<ActionResult<RentalDto>> Confirm(Guid id)
+    public async Task<ActionResult<RentalDto>> Confirm(Guid id, ConfirmRentalRequest? request)
     {
+        string? normalizedPayoutDestination = null;
+        if (!string.IsNullOrWhiteSpace(request?.PaymentDescription)
+            && !PaymentDestinationValidator.TryNormalize(request.PaymentDescription, out normalizedPayoutDestination))
+        {
+            return BadRequest(new { message = "Invalid IBAN/MB WAY. Please provide a valid payout destination." });
+        }
+
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
@@ -195,6 +202,9 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (hasAnotherConfirmedReservation)
             return BadRequest(new { message = "Another reservation for this item is already confirmed." });
 
+        if (!string.IsNullOrWhiteSpace(normalizedPayoutDestination))
+            rental.SellerPaymentDestination = normalizedPayoutDestination;
+
         rental.Status = RentalStatus.Active;
         rental.Item.IsAvailable = false;
 
@@ -215,6 +225,12 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     [HttpPatch("{id:guid}/pay")]
     public async Task<ActionResult<RentalDto>> Pay(Guid id, PayRentalRequest request)
     {
+        if (!string.IsNullOrWhiteSpace(request.PaymentDescription)
+            && !PaymentDestinationValidator.TryNormalize(request.PaymentDescription, out _))
+        {
+            return BadRequest(new { message = "Invalid IBAN/MB WAY. Please provide a valid payout destination." });
+        }
+
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
@@ -247,12 +263,17 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
 
         var platformCommission = PlatformBaseCommission + (rental.TotalPrice * PlatformPercentageCommissionRate);
         var totalChargeAmount = rental.TotalPrice + platformCommission;
+        var sellerPayoutDestination = ResolveSellerPayoutDestination(rental, request.PaymentDescription);
+        if (sellerPayoutDestination is null)
+            return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before payment." });
+
+        var captureDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
 
         // 1. Charge the rental price + platform commission immediately.
         try
         {
             var priceIntentId = await payments.ChargeAsync(
-                totalChargeAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString());
+                totalChargeAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), captureDescription);
             rental.PaymentIntentId = priceIntentId;
             rental.PaymentStatus = PaymentStatus.Captured;
         }
@@ -270,7 +291,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             try
             {
                 var hold = await payments.PlaceHoldAsync(
-                    rental.CaucaoAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString());
+                    rental.CaucaoAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), captureDescription);
                 rental.CaucaoPaymentIntentId = hold.PaymentIntentId;
                 rental.CaucaoPaymentStatus = PaymentStatus.Held;
                 rental.CaptureBefore = hold.CaptureBefore;
@@ -285,6 +306,17 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                     rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
                 rental.CaucaoPaymentStatus = PaymentStatus.Failed;
             }
+        }
+
+        // If payment happens after the originally requested start date,
+        // shift the rental window forward so it starts on payment day.
+        var paymentDay = DateTime.UtcNow.Date;
+        var originalStartDay = rental.StartDate.Date;
+        if (originalStartDay < paymentDay)
+        {
+            var rentalDurationDays = (rental.EndDate.Date - originalStartDay).Days;
+            rental.StartDate = paymentDay;
+            rental.EndDate = paymentDay.AddDays(rentalDurationDays);
         }
 
         rental.Item.IsAvailable = false;
@@ -306,6 +338,12 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     [HttpPatch("{id:guid}/renew")]
     public async Task<ActionResult<RentalDto>> Renew(Guid id, RenewRentalRequest request)
     {
+        if (!string.IsNullOrWhiteSpace(request.PaymentDescription)
+            && !PaymentDestinationValidator.TryNormalize(request.PaymentDescription, out _))
+        {
+            return BadRequest(new { message = "Invalid IBAN/MB WAY. Please provide a valid payout destination." });
+        }
+
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         if (request.ExtraDays <= 0)
@@ -332,6 +370,11 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             return BadRequest(new { message = "This rental has already expired and cannot be renewed." });
 
         var quote = BuildRenewQuote(rental.Item.DailyRate, request.ExtraDays);
+        var sellerPayoutDestination = ResolveSellerPayoutDestination(rental, request.PaymentDescription);
+        if (sellerPayoutDestination is null)
+            return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before renewal payment." });
+
+        var captureDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
         var previousHoldIntentId = rental.CaucaoPaymentIntentId;
         var hadPreviousActiveHold = rental.CaucaoPaymentStatus == PaymentStatus.Held && !string.IsNullOrWhiteSpace(previousHoldIntentId);
         string? renewalChargeIntentId = null;
@@ -348,7 +391,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                 "eur",
                 request.PaymentMethodId,
                 renewalCustomerId,
-                rental.Id.ToString());
+                rental.Id.ToString(),
+                captureDescription);
 
             if (rental.CaucaoAmount > 0)
             {
@@ -357,7 +401,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                     "eur",
                     request.PaymentMethodId,
                     renewalCustomerId,
-                    rental.Id.ToString());
+                    rental.Id.ToString(),
+                    captureDescription);
             }
 
             if (hadPreviousActiveHold)
@@ -616,5 +661,30 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         var platformCommission = PlatformBaseCommission + (additionalAmount * PlatformPercentageCommissionRate);
         var totalCharge = additionalAmount + platformCommission;
         return new RenewQuoteDto(additionalAmount, platformCommission, totalCharge);
+    }
+
+    private static string? ResolveSellerPayoutDestination(Rental rental, string? requestPaymentDescription)
+    {
+        if (!string.IsNullOrWhiteSpace(rental.SellerPaymentDestination)
+            && PaymentDestinationValidator.TryNormalize(rental.SellerPaymentDestination, out var normalizedFromRental))
+        {
+            return normalizedFromRental;
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestPaymentDescription)
+            && PaymentDestinationValidator.TryNormalize(requestPaymentDescription, out var normalizedFromRequest))
+        {
+            return normalizedFromRequest;
+        }
+
+        return null;
+    }
+
+    private static string BuildCaptureDescription(Rental rental, string sellerPayoutDestination)
+    {
+        var sellerEmail = rental.Item.Owner.Email.Trim().ToLowerInvariant();
+        var buyerEmail = rental.Renter.Email.Trim().ToLowerInvariant();
+
+        return $"rental={rental.Id}; seller_payout={sellerPayoutDestination}; seller_email={sellerEmail}; buyer_email={buyerEmail}";
     }
 }

@@ -28,6 +28,7 @@ public interface IPaymentService
         string paymentMethodId,
         string customerId,
         string rentalId,
+        string? paymentDescription = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -40,6 +41,7 @@ public interface IPaymentService
         string paymentMethodId,
         string customerId,
         string rentalId,
+        string? paymentDescription = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Captures the held caução funds, completing the transfer to the owner.</summary>

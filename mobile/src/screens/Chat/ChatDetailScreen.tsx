@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
@@ -19,6 +20,8 @@ import {useAuthStore} from '../../store/authStore';
 import {Message} from '../../types';
 import {i18n} from '../../locales';
 import PaymentModal from '../../components/PaymentModal';
+import {payoutPreferenceService} from '../../services/payoutPreferenceService';
+import {parsePaymentDestination} from '../../utils/paymentDestinationValidation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -39,6 +42,9 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [paidRequests, setPaidRequests] = useState<string[]>([]);
   const [confirmedReturns, setConfirmedReturns] = useState<string[]>([]);
   const [payTarget, setPayTarget] = useState<{rentalId: string; amount: number; caucaoAmount: number} | null>(null);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [draftPayoutDescription, setDraftPayoutDescription] = useState('');
+  const [pendingConfirmRentalId, setPendingConfirmRentalId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
 useEffect(() => {
@@ -80,10 +86,27 @@ useEffect(() => {
   };
 
   const handleRentalRequestAction = async (rentalId: string, action: 'confirm' | 'decline') => {
+    if (action === 'confirm') {
+      const savedPayoutDestination = await payoutPreferenceService.getPaymentDescription();
+      const parsedSavedDestination = savedPayoutDestination
+        ? parsePaymentDestination(savedPayoutDestination)
+        : null;
+      if (!parsedSavedDestination) {
+        setPendingConfirmRentalId(rentalId);
+        setDraftPayoutDescription(savedPayoutDestination ?? '');
+        setShowPayoutModal(true);
+        return;
+      }
+    }
+
     setRequestActionLoading(prev => ({...prev, [rentalId]: true}));
     try {
       if (action === 'confirm') {
-        await rentalsService.confirm(rentalId);
+        const savedPayoutDestination = await payoutPreferenceService.getPaymentDescription();
+        const parsedSavedDestination = savedPayoutDestination
+          ? parsePaymentDestination(savedPayoutDestination)
+          : null;
+        await rentalsService.confirm(rentalId, parsedSavedDestination?.description);
       } else {
         await rentalsService.decline(rentalId);
       }
@@ -93,6 +116,24 @@ useEffect(() => {
       Alert.alert('Erro', 'Não foi possível processar o pedido.');
     } finally {
       setRequestActionLoading(prev => ({...prev, [rentalId]: false}));
+    }
+  };
+
+  const handleSavePayoutAndConfirm = async () => {
+    const trimmed = draftPayoutDescription.trim();
+    const parsed = parsePaymentDestination(trimmed);
+    if (!parsed) {
+      Alert.alert(i18n.common.error, i18n.profile.invalidIbanMbway);
+      return;
+    }
+
+    await payoutPreferenceService.setPaymentDescription(parsed.description);
+    setShowPayoutModal(false);
+
+    if (pendingConfirmRentalId) {
+      const rentalId = pendingConfirmRentalId;
+      setPendingConfirmRentalId(null);
+      await handleRentalRequestAction(rentalId, 'confirm');
     }
   };
 
@@ -302,6 +343,41 @@ useEffect(() => {
           onSuccess={handlePaymentSuccess}
         />
       )}
+
+      <Modal
+        visible={showPayoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setShowPayoutModal(false);
+          setPendingConfirmRentalId(null);
+        }}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{i18n.profile.addIbanMbway}</Text>
+            <TextInput
+              value={draftPayoutDescription}
+              onChangeText={setDraftPayoutDescription}
+              placeholder={i18n.profile.ibanMbwayPlaceholder}
+              style={styles.modalInput}
+              autoCapitalize="characters"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setShowPayoutModal(false);
+                  setPendingConfirmRentalId(null);
+                }}>
+                <Text style={styles.modalCancelText}>{i18n.common.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={handleSavePayoutAndConfirm}>
+                <Text style={styles.modalSaveText}>{i18n.common.ok}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -351,4 +427,51 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {backgroundColor: '#ccc'},
   sendButtonText: {color: '#fff', fontWeight: '600', fontSize: 14},
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  modalCancelButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalCancelText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    backgroundColor: '#00796b',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  modalSaveText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
 });

@@ -57,12 +57,13 @@ public record TechItemDto(
 
 // Rental
 public record CreateRentalRequest(Guid ItemId, DateTime StartDate, DateTime EndDate);
+public record ConfirmRentalRequest(string? PaymentDescription);
 
 // Payment — the client confirms a card on the Stripe SDK and sends the resulting
 // PaymentMethod id so the server can place an extended authorization hold.
-public record PayRentalRequest(string PaymentMethodId);
+public record PayRentalRequest(string PaymentMethodId, string? PaymentDescription);
 
-public record RenewRentalRequest(int ExtraDays, string PaymentMethodId);
+public record RenewRentalRequest(int ExtraDays, string PaymentMethodId, string? PaymentDescription);
 
 public record RenewQuoteDto(decimal AdditionalAmount, decimal PlatformCommission, decimal TotalCharge);
 

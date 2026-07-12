@@ -53,6 +53,9 @@ public class Rental
     /// <summary>Whether Stripe granted the extended authorization window ("enabled"/"disabled").</summary>
     public string? ExtendedAuthorizationStatus { get; set; }
 
+    /// <summary>Seller payout destination captured at rental confirmation (IBAN or MB WAY).</summary>
+    public string? SellerPaymentDestination { get; set; }
+
     public Guid ItemId { get; set; }
     public TechItem Item { get; set; } = null!;
 

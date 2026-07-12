@@ -55,9 +55,11 @@ public class StripePaymentService : IPaymentService
         string paymentMethodId,
         string customerId,
         string rentalId,
+        string? paymentDescription = null,
         CancellationToken cancellationToken = default)
     {
         var amountInMinorUnits = ToMinorUnits(amount);
+        var description = BuildChargeDescription(rentalId, paymentDescription);
 
         var options = new PaymentIntentCreateOptions
         {
@@ -67,6 +69,7 @@ public class StripePaymentService : IPaymentService
             PaymentMethod = paymentMethodId,
             Confirm = true,
             PaymentMethodTypes = ["card"],
+            Description = description,
             Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId, ["type"] = "rental_price" },
         };
 
@@ -82,9 +85,11 @@ public class StripePaymentService : IPaymentService
         string paymentMethodId,
         string customerId,
         string rentalId,
+        string? paymentDescription = null,
         CancellationToken cancellationToken = default)
     {
         var amountInMinorUnits = ToMinorUnits(amount);
+        var description = BuildChargeDescription(rentalId, paymentDescription);
 
         var createOptions = new PaymentIntentCreateOptions
         {
@@ -96,6 +101,7 @@ public class StripePaymentService : IPaymentService
             OffSession = true,
             CaptureMethod = "manual",
             PaymentMethodTypes = ["card"],
+            Description = description,
             Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId, ["type"] = "caucao" },
             Expand = ["latest_charge"]
         };
@@ -141,4 +147,17 @@ public class StripePaymentService : IPaymentService
 
     private static long ToMinorUnits(decimal amount) =>
         (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
+
+    private static string BuildChargeDescription(string rentalId, string? paymentDescription)
+    {
+        if (string.IsNullOrWhiteSpace(paymentDescription))
+            return $"Alugatek rental {rentalId}";
+
+        var normalized = paymentDescription.Trim();
+
+        if (normalized.Length > 500)
+            normalized = normalized[..500];
+
+        return normalized;
+    }
 }

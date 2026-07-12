@@ -1,5 +1,6 @@
 import api from './api';
 import {Rental} from '../types';
+import {payoutPreferenceService} from './payoutPreferenceService';
 
 export interface RenewQuote {
   additionalAmount: number;
@@ -17,17 +18,22 @@ export const rentalsService = {
 
   cancel: (id: string) => api.patch<Rental>(`/rentals/${id}/cancel`),
 
-  confirm: (id: string) => api.patch<Rental>(`/rentals/${id}/confirm`),
+  confirm: (id: string, paymentDescription?: string) =>
+    api.patch<Rental>(`/rentals/${id}/confirm`, {paymentDescription}),
 
   decline: (id: string) => api.patch<Rental>(`/rentals/${id}/decline`),
 
   // Places a 30-day extended authorization hold on the renter's card via Stripe.
   // `paymentMethodId` is the Stripe PaymentMethod id (pm_...) collected client-side.
-  pay: (id: string, paymentMethodId: string) =>
-    api.patch<Rental>(`/rentals/${id}/pay`, {paymentMethodId}),
+  pay: async (id: string, paymentMethodId: string) => {
+    const paymentDescription = await payoutPreferenceService.getPaymentDescription();
+    return api.patch<Rental>(`/rentals/${id}/pay`, {paymentMethodId, paymentDescription});
+  },
 
-  renew: (id: string, extraDays: number, paymentMethodId: string) =>
-    api.patch<Rental>(`/rentals/${id}/renew`, {extraDays, paymentMethodId}),
+  renew: async (id: string, extraDays: number, paymentMethodId: string) => {
+    const paymentDescription = await payoutPreferenceService.getPaymentDescription();
+    return api.patch<Rental>(`/rentals/${id}/renew`, {extraDays, paymentMethodId, paymentDescription});
+  },
 
   getRenewQuote: (id: string, extraDays: number) =>
     api.get<RenewQuote>(`/rentals/${id}/renew-quote`, {params: {extraDays}}),
