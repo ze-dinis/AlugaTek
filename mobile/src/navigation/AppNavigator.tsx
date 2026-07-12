@@ -26,7 +26,7 @@ export type RootStackParamList = {
   CreateItem: undefined;
   MyItems: undefined;
   EditItem: {itemId: string};
-  Chat: {otherId: string; otherName: string};
+  Chat: {itemId: string; itemTitle: string};
 };
 
 export type AuthStackParamList = {

@@ -20,24 +20,39 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         var conversations = await db.Messages
-            .Where(m => m.SenderId == userId || m.ReceiverId == userId)
-            .GroupBy(m => m.SenderId == userId ? m.ReceiverId : m.SenderId)
+            .Include(m => m.Sender)
+            .Include(m => m.Receiver)
+            .Where(m => m.ItemId != null && (m.SenderId == userId || m.ReceiverId == userId))
+            .GroupBy(m => m.ItemId!.Value)
             .Select(g => new
             {
-                OtherId = g.Key,
+                ItemId = g.Key,
                 LastMessage = g.OrderByDescending(m => m.CreatedAt).First(),
                 UnreadCount = g.Count(m => m.ReceiverId == userId && !m.IsRead)
             })
             .ToListAsync();
 
+        var itemIds = conversations.Select(c => c.ItemId).ToList();
+        var items = await db.TechItems
+            .Include(i => i.Owner)
+            .Where(i => itemIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id);
+
         var result = new List<ConversationDto>();
         foreach (var conv in conversations)
         {
-            var otherUser = await db.Users.FindAsync(conv.OtherId);
+            if (!items.TryGetValue(conv.ItemId, out var item))
+                continue;
+
+            var lastMessage = conv.LastMessage;
+            var otherUserId = lastMessage.SenderId == userId ? lastMessage.ReceiverId : lastMessage.SenderId;
+            var otherUser = await db.Users.FindAsync(otherUserId);
             if (otherUser != null)
             {
                 result.Add(new ConversationDto(
-                    conv.OtherId,
+                    item.Id,
+                    item.Title,
+                    item.ImageUrl,
                     otherUser.Name,
                     otherUser.AvatarUrl,
                     conv.LastMessage.Content,
@@ -49,16 +64,26 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         return Ok(result.OrderByDescending(c => c.LastMessageTime));
     }
 
-    [HttpGet("{otherId:guid}")]
-    public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessages(Guid otherId)
+    [HttpGet("{itemId:guid}")]
+    public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessages(Guid itemId)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var item = await db.TechItems
+            .Select(i => new { i.Id, i.OwnerId })
+            .FirstOrDefaultAsync(i => i.Id == itemId);
+
+        if (item is null)
+            return NotFound(new { message = "Item not found." });
 
         var messages = await db.Messages
             .Include(m => m.Sender)
             .Include(m => m.Receiver)
-            .Where(m => (m.SenderId == userId && m.ReceiverId == otherId) ||
-                        (m.SenderId == otherId && m.ReceiverId == userId))
+            .Where(m =>
+                (m.ItemId == itemId ||
+                 (m.ItemId == null &&
+                  ((m.SenderId == userId && m.ReceiverId == item.OwnerId) ||
+                   (m.SenderId == item.OwnerId && m.ReceiverId == userId)))))
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
@@ -80,16 +105,44 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         if (string.IsNullOrWhiteSpace(request.Content))
             return BadRequest(new { message = "Message cannot be empty." });
 
-        var receiver = await db.Users.FindAsync(request.ReceiverId);
-        if (receiver is null)
-            return NotFound(new { message = "Recipient not found." });
+        var item = await db.TechItems
+            .Include(i => i.Owner)
+            .FirstOrDefaultAsync(i => i.Id == request.ItemId);
+        if (item is null)
+            return NotFound(new { message = "Item not found." });
+
+        Guid receiverId;
+        if (senderId == item.OwnerId)
+        {
+            var latestRentalRecipient = await db.Rentals
+                .Where(r => r.ItemId == request.ItemId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => (Guid?)r.RenterId)
+                .FirstOrDefaultAsync();
+
+            var lastCounterparty = await db.Messages
+                .Where(m => m.ItemId == request.ItemId && m.SenderId != senderId)
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => (Guid?)m.SenderId)
+                .FirstOrDefaultAsync();
+
+            if (latestRentalRecipient is null && lastCounterparty is null)
+                return BadRequest(new { message = "No recipient available for this item conversation." });
+
+            receiverId = latestRentalRecipient ?? lastCounterparty!.Value;
+        }
+        else
+        {
+            receiverId = item.OwnerId;
+        }
 
         var message = new Message
         {
             SenderId = senderId,
-            ReceiverId = request.ReceiverId,
+            ReceiverId = receiverId,
             Content = request.Content,
-            IsRead = false
+            IsRead = false,
+            ItemId = request.ItemId
         };
 
         db.Messages.Add(message);
@@ -98,7 +151,7 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         await db.Entry(message).Reference(m => m.Receiver).LoadAsync();
 
         var receiverTokens = await db.DevicePushTokens
-            .Where(t => t.UserId == request.ReceiverId && t.Platform == "android")
+            .Where(t => t.UserId == receiverId && t.Platform == "android")
             .Select(t => t.Token)
             .ToListAsync();
 
@@ -124,7 +177,7 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
             }
         }
 
-        return CreatedAtAction(nameof(GetMessages), new { otherId = request.ReceiverId }, MapToDto(message));
+        return CreatedAtAction(nameof(GetMessages), new { itemId = request.ItemId }, MapToDto(message));
     }
 
     private static MessageDto MapToDto(Message m) => new(
@@ -134,6 +187,7 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         new UserDto(m.Receiver.Id, m.Receiver.Name, m.Receiver.Email, m.Receiver.AvatarUrl, m.Receiver.Phone),
         m.CreatedAt,
         m.IsRead,
+        m.ItemId,
         m.RentalId,
         m.MessageType);
 }

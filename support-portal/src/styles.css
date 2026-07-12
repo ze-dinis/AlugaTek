@@ -181,6 +181,14 @@ th {
   border: 1px solid #e0e8f1;
   border-radius: 10px;
   padding: 10px;
+  background: #ffffff;
+}
+
+.message-item.support-message {
+  background: #dcfce7;
+  border-color: #16a34a;
+  align-self: flex-end;
+  width: min(100%, 84%);
 }
 
 .message-meta {

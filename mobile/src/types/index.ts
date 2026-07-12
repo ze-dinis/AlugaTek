@@ -72,7 +72,9 @@ export interface Message {
 }
 
 export interface Conversation {
-  otherId: string;
+  itemId: string;
+  itemTitle: string;
+  itemImageUrl?: string;
   otherName: string;
   otherAvatarUrl?: string;
   lastMessage: string;

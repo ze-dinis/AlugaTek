@@ -124,6 +124,9 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("ItemId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("MessageType")
                         .IsRequired()
                         .HasColumnType("text");
@@ -138,6 +141,8 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ItemId");
 
                     b.HasIndex("ReceiverId");
 

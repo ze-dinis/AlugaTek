@@ -74,6 +74,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = item.OwnerId,
             Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
             IsRead = false,
+            ItemId = item.Id,
             RentalId = rental.Id,
             MessageType = "RentalRequest"
         };
@@ -219,6 +220,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.RenterId,
             Content = $"O seu pedido de aluguer foi confirmado. Tem 10 minutos para pagar. Toque em Pagar para concluir.",
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "RentalConfirmed"
         });
@@ -261,6 +263,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                 ReceiverId = rental.RenterId,
                 Content = "O prazo de 10 minutos para pagar expirou. O pedido foi cancelado.",
                 IsRead = false,
+                ItemId = rental.ItemId,
                 RentalId = rental.Id,
                 MessageType = "RentalPaymentExpired"
             });
@@ -353,7 +356,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.Item.OwnerId,
             Content = $"O pagamento do aluguer foi concluído às {DateTime.UtcNow:HH:mm}."
                 + (rental.CaucaoAmount > 0 ? $" Caução de {rental.CaucaoAmount:F2}€ retida no cartão do arrendatário." : string.Empty),
-            IsRead = false
+            IsRead = false,
+            ItemId = rental.ItemId
         });
 
         await db.SaveChangesAsync();
@@ -488,6 +492,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.Item.OwnerId,
             Content = $"O arrendatário renovou o aluguer por {request.ExtraDays} {(request.ExtraDays == 1 ? "dia" : "dias")}. Valor cobrado: {quote.TotalCharge:F2}€. Nova data de fim: {rental.EndDate:yyyy-MM-dd}.",
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "RentalRenewed"
         });
@@ -545,6 +550,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.Item.OwnerId,
             Content = "Pedido de devolução enviado. Confirme a devolução.",
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "ReturnRequest"
         });
@@ -576,6 +582,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = receiverId,
             Content = disputeContent,
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "DisputeOpened"
         });
@@ -623,6 +630,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.RenterId,
             Content = "A devolução do aluguer foi confirmada.",
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "ReturnConfirmed"
         });
@@ -655,6 +663,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.RenterId,
             Content = "A devolução do aluguer foi recusada.",
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "ReturnDeclined"
         });
@@ -687,6 +696,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             ReceiverId = rental.RenterId,
             Content = "O seu pedido de aluguer foi cancelado.",
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "RentalDeclined"
         });
@@ -779,6 +789,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                     ReceiverId = rental.RenterId,
                     Content = "O prazo de 24 horas para pagar expirou. O pedido foi cancelado.",
                     IsRead = false,
+                    ItemId = rental.ItemId,
                     RentalId = rental.Id,
                     MessageType = "RentalPaymentExpired"
                 });

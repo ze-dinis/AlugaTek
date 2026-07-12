@@ -96,7 +96,7 @@ public record ReviewDto(
     DateTime CreatedAt);
 
 // Message
-public record SendMessageRequest(Guid ReceiverId, string Content);
+public record SendMessageRequest(Guid ItemId, string Content);
 
 public record MessageDto(
     Guid Id,
@@ -105,11 +105,14 @@ public record MessageDto(
     UserDto Receiver,
     DateTime CreatedAt,
     bool IsRead,
+    Guid? ItemId,
     Guid? RentalId,
     string MessageType);
 
 public record ConversationDto(
-    Guid OtherId,
+    Guid ItemId,
+    string ItemTitle,
+    string? ItemImageUrl,
     string OtherName,
     string? OtherAvatarUrl,
     string LastMessage,

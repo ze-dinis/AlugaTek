@@ -15,6 +15,7 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
 import {Conversation} from '../../types';
 import {i18n} from '../../locales';
+import {resolveApiAssetUrl} from '../../config';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -77,10 +78,11 @@ export default function ChatListScreen() {
     return (
       <TouchableOpacity
         style={styles.conversationItem}
-        onPress={() => navigation.navigate('Chat', {otherId: item.otherId, otherName: item.otherName})}>
-        <ConversationAvatar avatarUrl={item.otherAvatarUrl} name={item.otherName} />
+        onPress={() => navigation.navigate('Chat', {itemId: item.itemId, itemTitle: item.itemTitle})}>
+        <ConversationAvatar avatarUrl={resolveApiAssetUrl(item.itemImageUrl)} name={item.itemTitle} />
         <View style={styles.content}>
-          <Text style={styles.name}>{item.otherName}</Text>
+          <Text style={styles.name}>{item.itemTitle}</Text>
+          <Text style={styles.subtitle}>{item.otherName}</Text>
           <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage}</Text>
         </View>
         <View style={styles.rightSection}>
@@ -107,7 +109,7 @@ export default function ChatListScreen() {
     <View style={styles.container}>
       <FlatList
         data={conversations}
-        keyExtractor={c => c.otherId}
+        keyExtractor={c => c.itemId}
         renderItem={renderItem}
         contentContainerStyle={conversations.length === 0 ? styles.emptyContainer : undefined}
         refreshControl={
@@ -153,6 +155,7 @@ const styles = StyleSheet.create({
   avatarInitial: {color: '#fff', fontSize: 18, fontWeight: 'bold'},
   content: {flex: 1, marginLeft: 12},
   name: {fontSize: 16, fontWeight: '600', color: '#333'},
+  subtitle: {fontSize: 13, color: '#666', marginTop: 2},
   lastMessage: {fontSize: 14, color: '#888', marginTop: 2},
   rightSection: {alignItems: 'flex-end'},
   time: {fontSize: 12, color: '#aaa'},

@@ -61,6 +61,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<Message>(e =>
         {
+            e.HasIndex(m => m.ItemId);
+
             e.HasOne(m => m.Sender)
              .WithMany(u => u.SentMessages)
              .HasForeignKey(m => m.SenderId)

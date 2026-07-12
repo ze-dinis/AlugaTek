@@ -227,7 +227,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
             <TouchableOpacity
               style={[styles.messageButton, styles.halfButton, styles.secondaryActionButton]}
               onPress={() =>
-                navigation.navigate('Chat', {otherId: item.owner.id, otherName: item.owner.name})
+                navigation.navigate('Chat', {itemId: item.id, itemTitle: item.title})
               }>
               <Text style={styles.messageButtonText}>💬 {i18n.itemDetail.message}</Text>
             </TouchableOpacity>

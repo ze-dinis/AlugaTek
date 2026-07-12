@@ -30,7 +30,7 @@ const PLATFORM_BASE_COMMISSION = 3.0;
 const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
 
 export default function ChatDetailScreen({route, navigation}: Props) {
-  const {otherId, otherName} = route.params;
+  const {itemId, itemTitle} = route.params;
   const {user} = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +62,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
 
   useEffect(() => {
     navigation.setOptions({
-      title: otherName,
+      title: itemTitle,
       headerRight: () =>
         latestDisputableRentalId ? (
           <TouchableOpacity
@@ -73,12 +73,12 @@ export default function ChatDetailScreen({route, navigation}: Props) {
           </TouchableOpacity>
         ) : null,
     });
-  }, [latestDisputableRentalId, navigation, otherName, submittingDispute]);
+  }, [latestDisputableRentalId, navigation, itemTitle, submittingDispute]);
 
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const {data} = await chatService.getMessages(otherId);
+        const {data} = await chatService.getMessages(itemId);
         setMessages(data);
         setTimeout(() => flatListRef.current?.scrollToEnd({animated: false}), 100);
       } catch {
@@ -89,7 +89,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     };
 
     loadMessages();
-  }, [otherId]);
+  }, [itemId]);
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -99,7 +99,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     setSending(true);
 
     try {
-      const {data} = await chatService.sendMessage(otherId, messageText);
+      const {data} = await chatService.sendMessage(itemId, messageText);
       setMessages(prev => [...prev, data]);
       setTimeout(() => flatListRef.current?.scrollToEnd({animated: true}), 100);
     } catch {
@@ -266,6 +266,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
 
   const renderMessage = ({item, index}: {item: Message; index: number}) => {
     const isOwn = user?.id === item.sender.id;
+    const isSupport = item.messageType === 'SupportReply' || item.messageType === 'SupportResolution';
     const rentalRequestId = item.messageType === 'RentalRequest' ? item.rentalId : null;
     const acceptedRentalId = item.messageType === 'RentalConfirmed' ? item.rentalId : null;
     const returnRequestId = item.messageType === 'ReturnRequest' ? item.rentalId : null;
@@ -291,15 +292,18 @@ export default function ChatDetailScreen({route, navigation}: Props) {
         <View
           style={[
             styles.messageBubble,
-            isOwn ? styles.ownBubble : styles.otherBubble,
+            isOwn ? styles.ownBubble : isSupport ? styles.supportBubble : styles.otherBubble,
           ]}>
-          <Text style={[styles.messageText, isOwn ? styles.ownText : styles.otherText]}>
+          {isSupport && (
+            <Text style={styles.supportLabel}>Suporte</Text>
+          )}
+          <Text style={[styles.messageText, isOwn ? styles.ownText : isSupport ? styles.supportText : styles.otherText]}>
             {item.content}
           </Text>
           <Text
             style={[
               styles.timestamp,
-              isOwn ? styles.ownTimestamp : styles.otherTimestamp,
+              isOwn ? styles.ownTimestamp : isSupport ? styles.supportTimestamp : styles.otherTimestamp,
             ]}>
             {new Date(item.createdAt).toLocaleTimeString([], {
               hour: '2-digit',
@@ -474,12 +478,16 @@ const styles = StyleSheet.create({
   messageBubble: {maxWidth: '75%', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12},
   ownBubble: {backgroundColor: '#1a73e8'},
   otherBubble: {backgroundColor: '#e0e0e0'},
+  supportBubble: {backgroundColor: '#2e7d32'},
   messageText: {fontSize: 15},
   ownText: {color: '#fff'},
   otherText: {color: '#333'},
+  supportText: {color: '#fff'},
+  supportLabel: {fontSize: 11, fontWeight: '700', color: '#a5d6a7', marginBottom: 2},
   timestamp: {fontSize: 11, marginTop: 4},
   ownTimestamp: {color: '#b3d9ff'},
   otherTimestamp: {color: '#999'},
+  supportTimestamp: {color: '#a5d6a7'},
   actionRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8},
   actionButton: {borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6},
   confirmButton: {backgroundColor: '#2e7d32'},

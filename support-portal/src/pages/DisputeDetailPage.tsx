@@ -139,15 +139,28 @@ export function DisputeDetailPage() {
       <article className="card">
         <h3>Histórico de mensagens</h3>
         <div className="message-list">
-          {data.messages.map(msg => (
-            <div className="message-item" key={msg.id}>
-              <div className="message-meta">
-                <strong>{msg.senderName}</strong> ({msg.senderRole})
-                <span>{new Date(msg.createdAt).toLocaleString('pt-PT')}</span>
+          {data.messages.map(msg => {
+            const isSupport = msg.senderRole === 'Support';
+            return (
+              <div
+                key={msg.id}
+                style={{
+                  border: isSupport ? '1px solid #16a34a' : '1px solid #e0e8f1',
+                  background: isSupport ? '#dcfce7' : '#ffffff',
+                  borderRadius: '10px',
+                  padding: '10px',
+                  alignSelf: isSupport ? 'flex-end' : 'flex-start',
+                  width: isSupport ? '84%' : '100%',
+                }}
+              >
+                <div className="message-meta">
+                  <strong>{msg.senderName}</strong> ({msg.senderRole})
+                  <span>{new Date(msg.createdAt).toLocaleString('pt-PT')}</span>
+                </div>
+                <p style={{ margin: '6px 0 0' }}>{msg.content}</p>
               </div>
-              <p>{msg.content}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </article>
 

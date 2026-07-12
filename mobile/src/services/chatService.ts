@@ -4,8 +4,8 @@ import {Message, Conversation} from '../types';
 export const chatService = {
   getConversations: () => api.get<Conversation[]>('/chat/conversations'),
 
-  getMessages: (otherId: string) => api.get<Message[]>(`/chat/${otherId}`),
+  getMessages: (itemId: string) => api.get<Message[]>(`/chat/${itemId}`),
 
-  sendMessage: (receiverId: string, content: string) =>
-    api.post<Message>('/chat', {receiverId, content}),
+  sendMessage: (itemId: string, content: string) =>
+    api.post<Message>('/chat', {itemId, content}),
 };

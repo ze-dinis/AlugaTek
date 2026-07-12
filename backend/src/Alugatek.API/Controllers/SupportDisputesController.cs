@@ -69,7 +69,7 @@ public class SupportDisputesController(AppDbContext db) : ControllerBase
 
         var messages = await db.Messages
             .Include(m => m.Sender)
-            .Where(m => m.RentalId == id)
+            .Where(m => m.RentalId == id || m.ItemId == rental.ItemId)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
@@ -134,6 +134,7 @@ public class SupportDisputesController(AppDbContext db) : ControllerBase
             ReceiverId = targetUserId,
             Content = request.Content.Trim(),
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = id,
             MessageType = "SupportReply"
         });
@@ -176,6 +177,7 @@ public class SupportDisputesController(AppDbContext db) : ControllerBase
             ReceiverId = rental.RenterId,
             Content = request.ResolutionNote.Trim(),
             IsRead = false,
+            ItemId = rental.ItemId,
             RentalId = id,
             MessageType = "SupportResolution"
         });
