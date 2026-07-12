@@ -2,6 +2,10 @@ namespace Alugatek.Domain.Entities;
 
 public class User
 {
+    public const string RoleUser = "User";
+    public const string RoleSupport = "Support";
+    public const string RoleAdmin = "Admin";
+
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
@@ -10,6 +14,11 @@ public class User
     public string? OAuthSubject { get; set; }    // external user ID
     public string? AvatarUrl { get; set; }
     public string? Phone { get; set; }
+    public string Role { get; set; } = RoleUser;
+    public bool IsBanned { get; set; }
+    public DateTime? BannedAt { get; set; }
+    public DateTime? BannedUntil { get; set; }
+    public string? BanReason { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

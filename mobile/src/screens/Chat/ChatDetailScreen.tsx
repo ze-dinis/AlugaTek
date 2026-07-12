@@ -20,6 +20,7 @@ import {useAuthStore} from '../../store/authStore';
 import {Message} from '../../types';
 import {i18n} from '../../locales';
 import PaymentModal from '../../components/PaymentModal';
+import DisputeModal from '../../components/DisputeModal';
 import {payoutPreferenceService} from '../../services/payoutPreferenceService';
 import {parsePaymentDestination} from '../../utils/paymentDestinationValidation';
 
@@ -45,11 +46,34 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [draftPayoutDescription, setDraftPayoutDescription] = useState('');
   const [pendingConfirmRentalId, setPendingConfirmRentalId] = useState<string | null>(null);
+  const [disputeRentalId, setDisputeRentalId] = useState<string | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
+  const [submittingDispute, setSubmittingDispute] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-useEffect(() => {
-    navigation.setOptions({title: otherName});
-  }, [otherName, navigation]);
+  const latestDisputableRentalId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.rentalId) return message.rentalId;
+    }
+    return null;
+  }, [messages]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: otherName,
+      headerRight: () =>
+        latestDisputableRentalId ? (
+          <TouchableOpacity
+            style={[styles.headerActionButton, submittingDispute && styles.actionButtonDisabled]}
+            onPress={() => handleOpenDispute(latestDisputableRentalId)}
+            disabled={submittingDispute}>
+            <Text style={styles.headerActionText}>Abrir disputa</Text>
+          </TouchableOpacity>
+        ) : null,
+    });
+  }, [latestDisputableRentalId, navigation, otherName, submittingDispute]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -193,6 +217,35 @@ useEffect(() => {
     );
   };
 
+  const handleOpenDispute = (rentalId: string) => {
+    setDisputeRentalId(rentalId);
+    setDisputeReason('');
+    setDisputeDescription('');
+  };
+
+  const handleSubmitDispute = async () => {
+    if (!disputeRentalId) return;
+    if (!disputeReason.trim() || !disputeDescription.trim()) {
+      Alert.alert('Erro', 'Preencha motivo e descrição da disputa.');
+      return;
+    }
+
+    setSubmittingDispute(true);
+    try {
+      await rentalsService.openDispute(disputeRentalId, {
+        reason: disputeReason.trim(),
+        description: disputeDescription.trim(),
+      });
+
+      setDisputeRentalId(null);
+      Alert.alert('Sucesso', 'Disputa enviada para análise da equipa de suporte.');
+    } catch {
+      Alert.alert('Erro', 'Não foi possível abrir a disputa.');
+    } finally {
+      setSubmittingDispute(false);
+    }
+  };
+
   const latestAcceptedRentalMessageId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
@@ -227,8 +280,7 @@ useEffect(() => {
       && !!acceptedRentalId
       && !paidRequests.includes(acceptedRentalId);
     const isPayLoading = acceptedRentalId ? !!paymentActionLoading[acceptedRentalId] : false;
-    const showReturnConfirm = isLastMessage
-      && !isOwn
+    const showReturnConfirm = !isOwn
       && item.id === latestReturnRequestMessageId
       && !!returnRequestId
       && !confirmedReturns.includes(returnRequestId);
@@ -361,6 +413,17 @@ useEffect(() => {
         />
       )}
 
+      <DisputeModal
+        visible={!!disputeRentalId}
+        reason={disputeReason}
+        description={disputeDescription}
+        submitting={submittingDispute}
+        onChangeReason={setDisputeReason}
+        onChangeDescription={setDisputeDescription}
+        onSubmit={() => void handleSubmitDispute()}
+        onClose={() => setDisputeRentalId(null)}
+      />
+
       <Modal
         visible={showPayoutModal}
         transparent
@@ -424,6 +487,18 @@ const styles = StyleSheet.create({
   payButton: {backgroundColor: '#1565c0'},
   actionButtonDisabled: {opacity: 0.6},
   actionButtonText: {color: '#fff', fontSize: 12, fontWeight: '600'},
+  headerActionButton: {
+    backgroundColor: '#d84315',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  headerActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   inputContainer: {
     flexDirection: 'row',
     padding: 12,

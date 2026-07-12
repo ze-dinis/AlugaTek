@@ -20,6 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<User>(e =>
         {
             e.Property(u => u.Email).HasColumnType("text");
+            e.Property(u => u.Role).HasColumnType("text").HasDefaultValue(User.RoleUser);
+            e.Property(u => u.BanReason).HasColumnType("text");
             e.HasIndex(u => u.Email).IsUnique();
         });
 

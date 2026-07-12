@@ -5,6 +5,7 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {rentalsService} from '../../services/rentalsService';
 import PaymentModal from '../../components/PaymentModal';
+import DisputeModal from '../../components/DisputeModal';
 import {Rental} from '../../types';
 import {i18n} from '../../locales';
 
@@ -44,6 +45,10 @@ export default function MyRentalsScreen() {
     totalCharge: number;
   } | null>(null);
   const [payingRental, setPayingRental] = useState<Rental | null>(null);
+  const [disputeRental, setDisputeRental] = useState<Rental | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
+  const [submittingDispute, setSubmittingDispute] = useState(false);
 
   const loadRentals = () => {
     rentalsService.getMyRentals()
@@ -90,6 +95,35 @@ export default function MyRentalsScreen() {
 
   const handleRenewRental = (rental: Rental) => {
     setRenewDayPickerRental(rental);
+  };
+
+  const handleOpenDispute = (rental: Rental) => {
+    setDisputeRental(rental);
+    setDisputeReason('');
+    setDisputeDescription('');
+  };
+
+  const handleSubmitDispute = async () => {
+    if (!disputeRental) return;
+    if (!disputeReason.trim() || !disputeDescription.trim()) {
+      Alert.alert('Erro', 'Preencha motivo e descrição da disputa.');
+      return;
+    }
+
+    setSubmittingDispute(true);
+    try {
+      await rentalsService.openDispute(disputeRental.id, {
+        reason: disputeReason.trim(),
+        description: disputeDescription.trim(),
+      });
+      setDisputeRental(null);
+      Alert.alert('Sucesso', 'Disputa aberta. A equipa de suporte irá analisar.');
+      loadRentals();
+    } catch {
+      Alert.alert('Erro', 'Não foi possível abrir a disputa.');
+    } finally {
+      setSubmittingDispute(false);
+    }
   };
 
   if (loading) return <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />;
@@ -170,6 +204,18 @@ export default function MyRentalsScreen() {
           </View>
         </View>
       </Modal>
+
+      <DisputeModal
+        visible={!!disputeRental}
+        reason={disputeReason}
+        description={disputeDescription}
+        submitting={submittingDispute}
+        onChangeReason={setDisputeReason}
+        onChangeDescription={setDisputeDescription}
+        onSubmit={() => void handleSubmitDispute()}
+        onClose={() => setDisputeRental(null)}
+      />
+
       <FlatList
         data={rentals}
         keyExtractor={r => r.id}
@@ -229,6 +275,13 @@ export default function MyRentalsScreen() {
                       ) : (
                         <Text style={styles.returnButtonText}>Devolver</Text>
                       )}
+                    </TouchableOpacity>
+                  )}
+                  {(item.status === 'Completed' || item.status === 'ReturnRequested') && (
+                    <TouchableOpacity
+                      style={styles.disputeButton}
+                      onPress={() => handleOpenDispute(item)}>
+                      <Text style={styles.disputeButtonText}>Abrir disputa</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -343,5 +396,17 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     fontWeight: '600',
+  },
+  disputeButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#d84315',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  disputeButtonText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 public record RegisterRequest(string Name, string Email, string Password);
 public record LoginRequest(string Email, string Password);
 public record AuthResponse(string Token, UserDto User);
+public record SupportAuthResponse(string Token, string Name, string Role);
 
 // User
 public record UserDto(Guid Id, string Name, string Email, string? AvatarUrl, string? Phone);
@@ -64,6 +65,7 @@ public record ConfirmRentalRequest(string? PaymentDescription);
 public record PayRentalRequest(string PaymentMethodId, string? PaymentDescription);
 
 public record RenewRentalRequest(int ExtraDays, string PaymentMethodId, string? PaymentDescription);
+public record OpenDisputeRequest(string Reason, string Description);
 
 public record RenewQuoteDto(decimal AdditionalAmount, decimal PlatformCommission, decimal TotalCharge);
 
@@ -117,4 +119,7 @@ public record ConversationDto(
 // Push notifications
 public record RegisterDeviceTokenRequest(string Token, string Platform);
 public record UnregisterDeviceTokenRequest(string Token);
+
+// Support moderation
+public record BanUserRequest(string Reason, int? DurationDays);
 

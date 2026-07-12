@@ -553,6 +553,37 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         return Ok(MapToDto(rental, rental.Item, rental.Renter));
     }
 
+    [HttpPost("{id:guid}/dispute")]
+    public async Task<IActionResult> OpenDispute(Guid id, OpenDisputeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason) || string.IsNullOrWhiteSpace(request.Description))
+            return BadRequest(new { message = "Reason and description are required." });
+
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.RenterId != userId && rental.Item.OwnerId != userId) return Forbid();
+
+        var receiverId = rental.RenterId == userId ? rental.Item.OwnerId : rental.RenterId;
+        var disputeContent = $"[DISPUTA] Motivo: {request.Reason.Trim()}. Detalhes: {request.Description.Trim()}";
+
+        db.Messages.Add(new Message
+        {
+            SenderId = userId,
+            ReceiverId = receiverId,
+            Content = disputeContent,
+            IsRead = false,
+            RentalId = rental.Id,
+            MessageType = "DisputeOpened"
+        });
+
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Dispute opened successfully." });
+    }
+
     [HttpPatch("{id:guid}/confirm-return")]
     public async Task<ActionResult<RentalDto>> ConfirmReturn(Guid id)
     {

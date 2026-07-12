@@ -8,6 +8,11 @@ export interface RenewQuote {
   totalCharge: number;
 }
 
+export interface OpenDisputePayload {
+  reason: string;
+  description: string;
+}
+
 export const rentalsService = {
   create: (itemId: string, startDate: string, endDate: string) =>
     api.post<Rental>('/rentals', {itemId, startDate, endDate}),
@@ -43,4 +48,7 @@ export const rentalsService = {
   confirmReturn: (id: string) => api.patch<Rental>(`/rentals/${id}/confirm-return`),
 
   declineReturn: (id: string) => api.patch<Rental>(`/rentals/${id}/decline-return`),
+
+  openDispute: (id: string, payload: OpenDisputePayload) =>
+    api.post(`/rentals/${id}/dispute`, payload),
 };

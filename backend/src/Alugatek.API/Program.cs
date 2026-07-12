@@ -36,7 +36,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SupportAccess", policy =>
+        policy.RequireRole(Alugatek.Domain.Entities.User.RoleSupport, Alugatek.Domain.Entities.User.RoleAdmin));
+
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole(Alugatek.Domain.Entities.User.RoleAdmin));
+});
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddControllers();
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection("PushNotifications"));
