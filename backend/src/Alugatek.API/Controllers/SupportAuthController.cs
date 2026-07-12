@@ -21,7 +21,7 @@ public class SupportAuthController(AppDbContext db, JwtService jwt) : Controller
         if (user is null || user.PasswordHash is null ||
             !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            return Unauthorized(new { message = "Invalid credentials." });
+            return Unauthorized(new { message = "Credenciais inválidas." });
         }
 
         if (RefreshExpiredBan(user))
@@ -32,7 +32,7 @@ public class SupportAuthController(AppDbContext db, JwtService jwt) : Controller
             return StatusCode(StatusCodes.Status403Forbidden, new { message = banMessage });
 
         if (user.Role is not Alugatek.Domain.Entities.User.RoleSupport and not Alugatek.Domain.Entities.User.RoleAdmin)
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Support access required." });
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Acesso de suporte obrigatório." });
 
         return Ok(new SupportAuthResponse(jwt.GenerateToken(user), user.Name, user.Role));
     }
@@ -55,8 +55,8 @@ public class SupportAuthController(AppDbContext db, JwtService jwt) : Controller
             return null;
 
         if (user.BannedUntil is not null)
-            return $"Account suspended until {user.BannedUntil.Value:yyyy-MM-dd HH:mm} UTC.";
+            return $"Conta suspensa até {user.BannedUntil.Value:yyyy-MM-dd HH:mm} UTC.";
 
-        return "Account suspended. Contact support.";
+        return "Conta suspensa. Contacte o suporte.";
     }
 }

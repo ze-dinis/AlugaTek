@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Http;
 
 // Auth
 public record RegisterRequest(string Name, string Email, string Password);
+public record RegisterResponse(string Message);
 public record LoginRequest(string Email, string Password);
 public record AuthResponse(string Token, UserDto User);
+public record VerifyEmailRequest(string Email, string Token);
+public record ResendVerificationEmailRequest(string Email);
 public record SupportAuthResponse(string Token, string Name, string Role);
 
 // User

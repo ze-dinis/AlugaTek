@@ -48,6 +48,8 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddControllers();
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection("PushNotifications"));
 builder.Services.AddSingleton<IPushNotificationService, FirebasePushNotificationService>();
+builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection("EmailVerification"));
+builder.Services.AddScoped<EmailVerificationService>();
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();

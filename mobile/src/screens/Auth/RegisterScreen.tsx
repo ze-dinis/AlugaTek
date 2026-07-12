@@ -3,7 +3,6 @@ import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndi
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AuthStackParamList} from '../../navigation/AppNavigator';
 import {authService} from '../../services/authService';
-import {useAuthStore} from '../../store/authStore';
 import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
@@ -13,7 +12,6 @@ export default function RegisterScreen({navigation}: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const setAuth = useAuthStore(s => s.setAuth);
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -27,7 +25,12 @@ export default function RegisterScreen({navigation}: Props) {
     setLoading(true);
     try {
       const {data} = await authService.register(name, email, password);
-      await setAuth(data.user, data.token);
+      Alert.alert(i18n.common.success, data.message ?? i18n.auth.verificationEmailSent, [
+        {
+          text: i18n.common.ok,
+          onPress: () => navigation.navigate('Login'),
+        },
+      ]);
     } catch (e: any) {
       Alert.alert(i18n.auth.registrationFailed, e.response?.data?.message ?? i18n.auth.tryAgain);
     } finally {

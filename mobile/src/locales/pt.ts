@@ -12,6 +12,7 @@ export const pt = {
     hasAccount: 'Já tem uma conta? Entre',
     loginFailed: 'Falha no login',
     registrationFailed: 'Falha no registo',
+    verificationEmailSent: 'Conta criada. Verifique o seu email antes de entrar.',
     errorFillFields: 'Por favor, preencha todos os campos.',
     errorPasswordMinLength: 'A palavra-passe deve ter pelo menos 6 caracteres.',
     errorNetworkDetail: 'A aplicação não conseguiu alcançar a API. Certifique-se de que o backend está ligado e a URL da API aponta para o IP da LAN da sua máquina.',

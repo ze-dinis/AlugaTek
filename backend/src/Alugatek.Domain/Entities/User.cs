@@ -9,6 +9,10 @@ public class User
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public bool EmailVerified { get; set; }
+    public DateTime? EmailVerifiedAt { get; set; }
+    public string? EmailVerificationTokenHash { get; set; }
+    public DateTime? EmailVerificationTokenExpiresAt { get; set; }
     public string? PasswordHash { get; set; }
     public string? OAuthProvider { get; set; }   // "Google", "Facebook", etc.
     public string? OAuthSubject { get; set; }    // external user ID

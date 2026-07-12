@@ -60,6 +60,10 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface RegisterResponse {
+  message: string;
+}
+
 export interface Message {
   id: string;
   content: string;

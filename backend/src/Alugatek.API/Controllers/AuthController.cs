@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Alugatek.API.DTOs;
+using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
 using Alugatek.Infrastructure.Services;
@@ -11,27 +12,73 @@ namespace Alugatek.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
+public class AuthController(AppDbContext db, JwtService jwt, EmailVerificationService emailVerification, ILogger<AuthController> logger) : ControllerBase
 {
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+    public async Task<ActionResult<RegisterResponse>> Register(RegisterRequest request)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+        var isNewUser = false;
 
-        if (await db.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail))
-            return Conflict(new { message = "Email already in use." });
+        if (user is not null && user.EmailVerified)
+            return Conflict(new { message = "Email já está em uso." });
 
-        var user = new User
+        if (user is null)
         {
-            Name = request.Name,
-            Email = normalizedEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
-        };
+            user = new User
+            {
+                Name = request.Name,
+                Email = normalizedEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                EmailVerified = false
+            };
 
-        db.Users.Add(user);
+            db.Users.Add(user);
+            isNewUser = true;
+        }
+        else
+        {
+            // Reuse an existing pending account so users can retry registration.
+            user.Name = request.Name;
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            user.EmailVerified = false;
+            user.EmailVerifiedAt = null;
+        }
+
         await db.SaveChangesAsync();
 
-        return Ok(BuildAuthResponse(user));
+        var token = emailVerification.GenerateToken(user);
+        await db.SaveChangesAsync();
+
+        try
+        {
+            await emailVerification.SendVerificationEmailAsync(user, token);
+        }
+        catch (InvalidOperationException)
+        {
+            logger.LogError("Email verification configuration is invalid while registering {Email}.", normalizedEmail);
+            if (isNewUser)
+            {
+                db.Users.Remove(user);
+                await db.SaveChangesAsync();
+            }
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "A verificação de email não está configurada no servidor." });
+        }
+        catch
+        {
+            logger.LogError("Email verification delivery failed while registering {Email}.", normalizedEmail);
+            if (isNewUser)
+            {
+                db.Users.Remove(user);
+                await db.SaveChangesAsync();
+            }
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "Não foi possível enviar o email de verificação. Por favor, tente novamente." });
+        }
+
+        return Ok(new RegisterResponse("Conta criada. Verifique o seu email antes de iniciar sessão."));
     }
 
     [HttpPost("login")]
@@ -41,7 +88,10 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
         var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
         if (user is null || user.PasswordHash is null ||
             !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return Unauthorized(new { message = "Invalid credentials." });
+            return Unauthorized(new { message = "Credenciais inválidas." });
+
+        if (!user.EmailVerified)
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Email não verificado. Verifique a sua caixa de entrada antes de iniciar sessão." });
 
         if (RefreshExpiredBan(user))
             await db.SaveChangesAsync();
@@ -51,6 +101,67 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { message = banMessage });
 
         return Ok(BuildAuthResponse(user));
+    }
+
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromQuery] string email, [FromQuery] string token)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+        if (user is null)
+            return BadRequest(new { message = "Link de verificação inválido." });
+
+        if (!emailVerification.TryVerify(user, token))
+            return BadRequest(new { message = "Token de verificação inválido ou expirado." });
+
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Email verificado. Já pode iniciar sessão." });
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
+    {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+        if (user is null)
+            return BadRequest(new { message = "Pedido de verificação inválido." });
+
+        if (!emailVerification.TryVerify(user, request.Token))
+            return BadRequest(new { message = "Token de verificação inválido ou expirado." });
+
+        await db.SaveChangesAsync();
+        return Ok(new { message = "Email verificado. Já pode iniciar sessão." });
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationEmailRequest request)
+    {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+
+        if (user is null || user.EmailVerified)
+            return Ok(new { message = "Se a conta existir e não estiver verificada, foi enviado um novo email de verificação." });
+
+        var token = emailVerification.GenerateToken(user);
+        await db.SaveChangesAsync();
+        try
+        {
+            await emailVerification.SendVerificationEmailAsync(user, token);
+        }
+        catch (InvalidOperationException)
+        {
+            logger.LogError("Email verification configuration is invalid while resending for {Email}.", normalizedEmail);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "A verificação de email não está configurada no servidor." });
+        }
+        catch
+        {
+            logger.LogError("Email verification delivery failed while resending for {Email}.", normalizedEmail);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "Não foi possível enviar o email de verificação. Por favor, tente novamente." });
+        }
+
+        return Ok(new { message = "Se a conta existir e não estiver verificada, foi enviado um novo email de verificação." });
     }
 
     // OAuth callback — frontend exchanges Google ID token for an app JWT
@@ -63,14 +174,14 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
             $"https://oauth2.googleapis.com/tokeninfo?id_token={idToken}");
 
         if (!response.IsSuccessStatusCode)
-            return Unauthorized(new { message = "Invalid Google token." });
+            return Unauthorized(new { message = "Token Google inválido." });
 
         var payload = await response.Content.ReadFromJsonAsync<GoogleTokenInfo>();
         if (payload is null) return Unauthorized();
 
         var normalizedEmail = payload.Email?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(normalizedEmail))
-            return Unauthorized(new { message = "Google account did not provide an email." });
+            return Unauthorized(new { message = "A conta Google não forneceu um email." });
 
         var user = await db.Users.SingleOrDefaultAsync(u =>
             u.OAuthProvider == "Google" && u.OAuthSubject == payload.Sub);
@@ -87,6 +198,8 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
                 {
                     Name = payload.Name ?? normalizedEmail,
                     Email = normalizedEmail,
+                    EmailVerified = true,
+                    EmailVerifiedAt = DateTime.UtcNow,
                     OAuthProvider = "Google",
                     OAuthSubject = payload.Sub,
                     AvatarUrl = payload.Picture
@@ -96,6 +209,10 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
             }
             else
             {
+                user.EmailVerified = true;
+                user.EmailVerifiedAt ??= DateTime.UtcNow;
+                user.EmailVerificationTokenHash = null;
+                user.EmailVerificationTokenExpiresAt = null;
                 user.OAuthProvider = "Google";
                 user.OAuthSubject = payload.Sub;
                 if (!string.IsNullOrWhiteSpace(payload.Picture))
@@ -137,9 +254,9 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
             return null;
 
         if (user.BannedUntil is not null)
-            return $"Account suspended until {user.BannedUntil.Value:yyyy-MM-dd HH:mm} UTC.";
+            return $"Conta suspensa até {user.BannedUntil.Value:yyyy-MM-dd HH:mm} UTC.";
 
-        return "Account suspended. Contact support.";
+        return "Conta suspensa. Contacte o suporte.";
     }
 
     private record GoogleTokenInfo(string Sub, string Email, string? Name, string? Picture);

@@ -23,6 +23,16 @@ services:
       - Jwt__Key=LUZhjIirzwXAzPIBiSNNoZ5ptrwj/U530Kqc/476cGM=
       - Jwt__Issuer=alugatek-api
       - Jwt__Audience=alugatek-app
+      - EmailVerification__Enabled=${EMAIL_VERIFICATION_ENABLED:-true}
+      - EmailVerification__VerificationEndpoint=${EMAIL_VERIFICATION_ENDPOINT:-http://localhost:5000/api/auth/verify-email}
+      - EmailVerification__TokenTtlMinutes=${EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:-60}
+      - EmailVerification__FromEmail=${EMAIL_VERIFICATION_FROM_EMAIL:-no-reply@alugatek.pt}
+      - EmailVerification__FromName=${EMAIL_VERIFICATION_FROM_NAME:-Alugatek}
+      - EmailVerification__SmtpHost=${EMAIL_VERIFICATION_SMTP_HOST:-smtp.zoho.eu}
+      - EmailVerification__SmtpPort=${EMAIL_VERIFICATION_SMTP_PORT:-587}
+      - EmailVerification__UseSsl=${EMAIL_VERIFICATION_USE_SSL:-true}
+      - EmailVerification__SmtpUsername=${EMAIL_VERIFICATION_SMTP_USERNAME:-no-reply@alugatek.pt}
+      - EmailVerification__SmtpPassword=${EMAIL_VERIFICATION_SMTP_PASSWORD:-}
       - Stripe__SecretKey=${STRIPE_SECRET_KEY:-}
       - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-}
     depends_on:
