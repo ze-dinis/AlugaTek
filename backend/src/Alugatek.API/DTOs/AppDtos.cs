@@ -125,4 +125,8 @@ public record UnregisterDeviceTokenRequest(string Token);
 
 // Support moderation
 public record BanUserRequest(string Reason, int? DurationDays);
+public record BanUserByEmailRequest(string Email, string Reason, int? DurationDays);
+
+// User reports
+public record CreateReportRequest(Guid ReportedUserId, Guid ItemId, string Reason);
 

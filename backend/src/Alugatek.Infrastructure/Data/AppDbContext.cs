@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
+    public DbSet<UserReport> UserReports => Set<UserReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +73,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany(u => u.ReceivedMessages)
              .HasForeignKey(m => m.ReceiverId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UserReport>(e =>
+        {
+            e.Property(r => r.Reason).HasColumnType("text").IsRequired();
+
+            e.HasOne(r => r.Reporter)
+             .WithMany()
+             .HasForeignKey(r => r.ReporterId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(r => r.ReportedUser)
+             .WithMany()
+             .HasForeignKey(r => r.ReportedUserId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(r => r.Item)
+             .WithMany()
+             .HasForeignKey(r => r.ItemId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<DevicePushToken>(e =>

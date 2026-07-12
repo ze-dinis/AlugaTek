@@ -60,4 +60,7 @@ export const itemsService = {
   ) => api.put<TechItem>(`/items/${id}`, data),
 
   delete: (id: string) => api.delete(`/items/${id}`),
+
+  reportUser: (reportedUserId: string, itemId: string, reason: string) =>
+    api.post('/reports', {reportedUserId, itemId, reason}),
 };

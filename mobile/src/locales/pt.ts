@@ -82,6 +82,13 @@ export const pt = {
     rentalFailed: 'Não foi possível criar o aluguer.',
     deleteSuccess: 'Item apagado!',
     deleteFailed: 'Não foi possível apagar o item.',
+    reportUser: 'Denunciar utilizador',
+    reportTitle: 'Motivo da denúncia',
+    reportPlaceholder: 'Descreve brevemente o motivo...',
+    reportSuccess: 'Denúncia enviada. Obrigado pelo teu feedback.',
+    reportFailed: 'Não foi possível enviar a denúncia.',
+    reportAlreadySent: 'Já denunciaste este utilizador neste anúncio.',
+    reportReasons: ['Fraude ou burla', 'Comportamento abusivo', 'Anúncio enganoso', 'Outro'],
   },
 
   // My Advertisements screen

@@ -35,6 +35,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [reservedByCurrentUser, setReservedByCurrentUser] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [rentalDays, setRentalDays] = useState(3);
+  const [reporting, setReporting] = useState(false);
 
   const loadItemData = useCallback(() => {
     setLoading(true);
@@ -59,6 +60,37 @@ export default function ItemDetailScreen({route, navigation}: Props) {
       loadItemData();
     }, [loadItemData]),
   );
+
+  const handleReport = () => {
+    if (!item) return;
+
+    Alert.alert(
+      i18n.itemDetail.reportTitle,
+      undefined,
+      [
+        ...i18n.itemDetail.reportReasons.map(reason => ({
+          text: reason,
+          onPress: async () => {
+            setReporting(true);
+            try {
+              await itemsService.reportUser(item.owner.id, item.id, reason);
+              Alert.alert(i18n.common.success, i18n.itemDetail.reportSuccess);
+            } catch (e: any) {
+              const status = e.response?.status as number | undefined;
+              if (status === 409) {
+                Alert.alert(i18n.common.error, i18n.itemDetail.reportAlreadySent);
+              } else {
+                Alert.alert(i18n.common.error, i18n.itemDetail.reportFailed);
+              }
+            } finally {
+              setReporting(false);
+            }
+          },
+        })),
+        {text: i18n.common.cancel, style: 'cancel'},
+      ],
+    );
+  };
 
   const handleDelete = () => {
     if (!item) return;
@@ -234,6 +266,15 @@ export default function ItemDetailScreen({route, navigation}: Props) {
           </View>
         )}
 
+        {user?.id !== item.owner.id && (
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={handleReport}
+            disabled={reporting}>
+            <Text style={styles.reportButtonText}>🚩 {i18n.itemDetail.reportUser}</Text>
+          </TouchableOpacity>
+        )}
+
         {reviews.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>⭐ {i18n.itemDetail.reviews} ({reviews.length})</Text>
@@ -294,6 +335,8 @@ const styles = StyleSheet.create({
   messageButtonText: {color: '#fff', fontWeight: '600', fontSize: 16},
   deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
   deleteButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
+  reportButton: {marginTop: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e57373', alignItems: 'center'},
+  reportButtonText: {color: '#c62828', fontWeight: '600', fontSize: 14},
   review: {borderTopWidth: 1, borderColor: '#f0f0f0', paddingTop: 12, marginTop: 12},
   reviewAuthor: {fontWeight: '600', marginBottom: 4},
   reviewComment: {color: '#444'},

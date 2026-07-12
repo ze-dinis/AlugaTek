@@ -18,6 +18,18 @@ export function AppShell() {
           >
             Disputas
           </NavLink>
+          <NavLink
+            to="/users/ban"
+            className={({ isActive }) => (isActive ? 'menu-item active' : 'menu-item')}
+          >
+            Banir conta
+          </NavLink>
+          <NavLink
+            to="/reports"
+            className={({ isActive }) => (isActive ? 'menu-item active' : 'menu-item')}
+          >
+            Denúncias
+          </NavLink>
         </nav>
 
         <div className="user-box">
