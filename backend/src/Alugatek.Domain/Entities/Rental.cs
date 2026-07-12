@@ -56,6 +56,9 @@ public class Rental
     /// <summary>Seller payout destination captured at rental confirmation (IBAN or MB WAY).</summary>
     public string? SellerPaymentDestination { get; set; }
 
+    /// <summary>UTC deadline by which the buyer must complete payment after the owner confirms. Null until confirmed.</summary>
+    public DateTime? PaymentDeadline { get; set; }
+
     public Guid ItemId { get; set; }
     public TechItem Item { get; set; } = null!;
 

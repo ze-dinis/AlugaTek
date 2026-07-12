@@ -80,7 +80,8 @@ public record RentalDto(
     string PaymentStatus,
     string CaucaoPaymentStatus,
     DateTime? CaptureBefore,
-    string? ExtendedAuthorizationStatus);
+    string? ExtendedAuthorizationStatus,
+    DateTime? PaymentDeadline);
 
 // Review
 public record CreateReviewRequest(Guid ItemId, int Rating, string Comment);

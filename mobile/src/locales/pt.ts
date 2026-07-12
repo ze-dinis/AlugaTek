@@ -63,7 +63,7 @@ export const pt = {
     rentalDuration: 'Duração do Aluguer',
     days: 'dia',
     daysPlural: 'dias',
-    for: 'para',
+    for: 'por',
     rentAmount: 'Valor do aluguer',
     platformCommission: 'Comissão da plataforma',
     total: 'Total',

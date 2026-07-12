@@ -12,6 +12,7 @@ public sealed class ExpiringHoldCaptureService(
     private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan CaptureLeadTime = TimeSpan.FromMinutes(120);
     private const string RentalExpiringReminderMessageType = "RentalExpiringReminder24h";
+    private const string RentalPaymentExpiredMessageType = "RentalPaymentExpired";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -21,6 +22,7 @@ public sealed class ExpiringHoldCaptureService(
         {
             try
             {
+                await CancelExpiredPaymentDeadlinesAsync(stoppingToken);
                 await CaptureExpiringHoldsAsync(stoppingToken);
                 await SendExpiringRentalRemindersAsync(stoppingToken);
             }
@@ -38,6 +40,46 @@ public sealed class ExpiringHoldCaptureService(
                 break;
             }
         }
+    }
+
+    private async Task CancelExpiredPaymentDeadlinesAsync(CancellationToken cancellationToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var now = DateTime.UtcNow;
+        var expiredRentals = await db.Rentals
+            .Include(r => r.Item)
+            .Where(r => r.Status == RentalStatus.Active)
+            .Where(r => r.PaymentStatus == PaymentStatus.None)
+            .Where(r => r.PaymentDeadline != null && r.PaymentDeadline <= now)
+            .ToListAsync(cancellationToken);
+
+        if (expiredRentals.Count == 0)
+            return;
+
+        foreach (var rental in expiredRentals)
+        {
+            rental.Status = RentalStatus.Cancelled;
+            rental.Item.IsAvailable = true;
+
+            db.Messages.Add(new Message
+            {
+                SenderId = rental.Item.OwnerId,
+                ReceiverId = rental.RenterId,
+                Content = "O prazo de 10 minutos para pagar expirou. O pedido foi cancelado.",
+                IsRead = false,
+                RentalId = rental.Id,
+                MessageType = RentalPaymentExpiredMessageType
+            });
+
+            logger.LogInformation(
+                "Cancelled unpaid rental {RentalId} because payment deadline expired at {PaymentDeadline}.",
+                rental.Id,
+                rental.PaymentDeadline);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task CaptureExpiringHoldsAsync(CancellationToken cancellationToken)

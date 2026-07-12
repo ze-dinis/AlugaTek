@@ -176,6 +176,9 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("PaymentDeadline")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PaymentIntentId")
                         .HasColumnType("text");
 

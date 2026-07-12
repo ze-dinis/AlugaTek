@@ -90,6 +90,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     public async Task<ActionResult<RentalDto>> GetById(Guid id)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await ExpireOverdueUnpaidRentalsAsync();
+
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
@@ -107,6 +109,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     public async Task<ActionResult<IEnumerable<RentalDto>>> GetMyRentals()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await ExpireOverdueUnpaidRentalsAsync();
+
         var rentals = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
@@ -207,12 +211,13 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
 
         rental.Status = RentalStatus.Active;
         rental.Item.IsAvailable = false;
+        rental.PaymentDeadline = DateTime.UtcNow.AddMinutes(10);
 
         db.Messages.Add(new Message
         {
             SenderId = userId,
             ReceiverId = rental.RenterId,
-            Content = $"O seu pedido de aluguer foi confirmado. Toque em Pagar para concluir.",
+            Content = $"O seu pedido de aluguer foi confirmado. Tem 10 minutos para pagar. Toque em Pagar para concluir.",
             IsRead = false,
             RentalId = rental.Id,
             MessageType = "RentalConfirmed"
@@ -225,6 +230,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     [HttpPatch("{id:guid}/pay")]
     public async Task<ActionResult<RentalDto>> Pay(Guid id, PayRentalRequest request)
     {
+        await ExpireOverdueUnpaidRentalsAsync();
+
         if (!string.IsNullOrWhiteSpace(request.PaymentDescription)
             && !PaymentDestinationValidator.TryNormalize(request.PaymentDescription, out _))
         {
@@ -243,6 +250,24 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (rental.RenterId != userId) return Forbid();
         if (rental.Status != RentalStatus.Active)
             return BadRequest(new { message = "Only active rentals can be paid." });
+        if (rental.PaymentDeadline.HasValue && DateTime.UtcNow > rental.PaymentDeadline.Value)
+        {
+            rental.Status = RentalStatus.Cancelled;
+            rental.Item.IsAvailable = true;
+
+            db.Messages.Add(new Message
+            {
+                SenderId = rental.Item.OwnerId,
+                ReceiverId = rental.RenterId,
+                Content = "O prazo de 10 minutos para pagar expirou. O pedido foi cancelado.",
+                IsRead = false,
+                RentalId = rental.Id,
+                MessageType = "RentalPaymentExpired"
+            });
+
+            await db.SaveChangesAsync();
+            return BadRequest(new { message = "O prazo de 24 horas para pagar expirou. O aluguer foi cancelado automaticamente." });
+        }
         if (string.IsNullOrWhiteSpace(request.PaymentMethodId))
             return BadRequest(new { message = "A payment method is required." });
 
@@ -652,7 +677,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             r.Id, itemDto,
             new UserDto(renter.Id, renter.Name, renter.Email, renter.AvatarUrl, renter.Phone),
             r.StartDate, r.EndDate, r.TotalPrice, r.CaucaoAmount, r.Status.ToString(), r.CreatedAt,
-            r.PaymentStatus.ToString(), r.CaucaoPaymentStatus.ToString(), r.CaptureBefore, r.ExtendedAuthorizationStatus);
+            r.PaymentStatus.ToString(), r.CaucaoPaymentStatus.ToString(), r.CaptureBefore, r.ExtendedAuthorizationStatus,
+            r.PaymentDeadline);
     }
 
     private static RenewQuoteDto BuildRenewQuote(decimal dailyRate, int extraDays)
@@ -686,5 +712,53 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         var buyerEmail = rental.Renter.Email.Trim().ToLowerInvariant();
 
         return $"rental={rental.Id}; seller_payout={sellerPayoutDestination}; seller_email={sellerEmail}; buyer_email={buyerEmail}";
+    }
+
+    private async Task ExpireOverdueUnpaidRentalsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var overdueRentals = await db.Rentals
+            .Include(r => r.Item)
+            .Where(r => r.Status == RentalStatus.Active)
+            .Where(r => r.PaymentStatus == PaymentStatus.None)
+            .Where(r => r.PaymentDeadline != null && r.PaymentDeadline <= now)
+            .ToListAsync();
+
+        if (overdueRentals.Count == 0)
+            return;
+
+        var overdueRentalIds = overdueRentals.Select(r => r.Id).ToList();
+        var notifiedRentalIds = await db.Messages
+            .Where(m => m.RentalId != null && overdueRentalIds.Contains(m.RentalId.Value))
+            .Where(m => m.MessageType == "RentalPaymentExpired")
+            .Select(m => m.RentalId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        foreach (var rental in overdueRentals)
+        {
+            rental.Status = RentalStatus.Cancelled;
+            rental.Item.IsAvailable = true;
+
+            if (!notifiedRentalIds.Contains(rental.Id))
+            {
+                db.Messages.Add(new Message
+                {
+                    SenderId = rental.Item.OwnerId,
+                    ReceiverId = rental.RenterId,
+                    Content = "O prazo de 24 horas para pagar expirou. O pedido foi cancelado.",
+                    IsRead = false,
+                    RentalId = rental.Id,
+                    MessageType = "RentalPaymentExpired"
+                });
+            }
+
+            logger.LogInformation(
+                "Auto-cancelled overdue unpaid rental {RentalId} with deadline {PaymentDeadline}.",
+                rental.Id,
+                rental.PaymentDeadline);
+        }
+
+        await db.SaveChangesAsync();
     }
 }

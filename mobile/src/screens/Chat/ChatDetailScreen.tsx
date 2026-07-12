@@ -176,6 +176,23 @@ useEffect(() => {
     }
   };
 
+  const handleConfirmReturnWithPrompt = (rentalId: string) => {
+    Alert.alert(
+      'Confirmar devolução',
+      'Tem a certeza que quer confirmar a devolução deste item?',
+      [
+        {text: 'Cancelar', style: 'cancel'},
+        {
+          text: 'Confirmar',
+          style: 'destructive',
+          onPress: () => {
+            void handleReturnAction(rentalId, 'confirm');
+          },
+        },
+      ],
+    );
+  };
+
   const latestAcceptedRentalMessageId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
@@ -267,7 +284,7 @@ useEffect(() => {
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={[styles.actionButton, styles.confirmButton, isReturnActionLoading && styles.actionButtonDisabled]}
-                onPress={() => handleReturnAction(returnRequestId, 'confirm')}
+                onPress={() => handleConfirmReturnWithPrompt(returnRequestId)}
                 disabled={isReturnActionLoading}>
                 <Text style={styles.actionButtonText}>Confirmar</Text>
               </TouchableOpacity>
