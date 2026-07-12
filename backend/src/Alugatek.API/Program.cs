@@ -52,10 +52,11 @@ builder.Services.AddScoped<S3ItemImageStorage>();
 builder.Services.AddScoped<IItemImageStorage>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<StorageOptions>>().Value;
-    if (string.Equals(options.Provider, "S3", StringComparison.OrdinalIgnoreCase))
-        return sp.GetRequiredService<S3ItemImageStorage>();
+    IItemImageStorage inner = string.Equals(options.Provider, "S3", StringComparison.OrdinalIgnoreCase)
+        ? sp.GetRequiredService<S3ItemImageStorage>()
+        : sp.GetRequiredService<LocalItemImageStorage>();
 
-    return sp.GetRequiredService<LocalItemImageStorage>();
+    return new CompressingItemImageStorage(inner);
 });
 
 builder.Services.AddSingleton<IAmazonS3>(sp =>
