@@ -78,9 +78,18 @@ export default function HomeScreen() {
     }
   }, [selectedCategory, search, selectedDistrict]);
 
-  useEffect(() => {
-    itemsService.getCategories().then(r => setCategories(r.data));
+  const fetchCategories = useCallback(async () => {
+    try {
+      const {data} = await itemsService.getCategories();
+      setCategories(data);
+    } catch {
+      setCategories([]);
+    }
   }, []);
+
+  useEffect(() => {
+    void fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     setLoading(true);
@@ -93,7 +102,8 @@ export default function HomeScreen() {
       setLoading(true);
       void fetchItems();
       void fetchMyRentals();
-    }, [fetchItems, fetchMyRentals]),
+      void fetchCategories();
+    }, [fetchItems, fetchMyRentals, fetchCategories]),
   );
 
   const renderItem = ({item}: {item: TechItem}) => (

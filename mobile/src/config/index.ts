@@ -1,4 +1,20 @@
-import {Platform} from 'react-native';
+import {NativeModules, Platform} from 'react-native';
+
+function getMetroBundleHost(): string | null {
+  const sourceCode = (NativeModules as any)?.SourceCode;
+  const scriptURL = sourceCode?.scriptURL as string | undefined;
+
+  if (!scriptURL) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(scriptURL);
+    return parsed.hostname || null;
+  } catch {
+    return null;
+  }
+}
 
 function isAndroidEmulator(): boolean {
   if (Platform.OS !== 'android') {
@@ -23,7 +39,9 @@ function isAndroidEmulator(): boolean {
 }
 
 // Development API URL for physical devices and emulators.
-const DEV_ANDROID_PRIMARY_HOST = isAndroidEmulator() ? '10.0.2.2' : 'localhost';
+// On real devices we prefer Metro's host (usually your LAN IP).
+const DEV_BUNDLE_HOST = getMetroBundleHost();
+const DEV_ANDROID_PRIMARY_HOST = isAndroidEmulator() ? '10.0.2.2' : DEV_BUNDLE_HOST ?? 'localhost';
 
 const DEV_API_HOST = Platform.select({
   android: DEV_ANDROID_PRIMARY_HOST,
@@ -37,10 +55,12 @@ export const API_BASE_URL = __DEV__
 
 export const DEV_ANDROID_API_FALLBACK_BASE_URLS = __DEV__
   ? [
+      DEV_BUNDLE_HOST ? `http://${DEV_BUNDLE_HOST}:5000/api` : null,
       'http://localhost:5000/api',
       'http://10.0.2.2:5000/api',
-      'http://192.168.1.119:5000/api',
+      'http://127.0.0.1:5000/api',
     ]
+      .filter((value): value is string => Boolean(value))
   : [];
 
 export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');

@@ -185,13 +185,16 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (canonicalDistrict is null)
             return BadRequest(new { message = "District must be a valid Portuguese district." });
 
+        if (caucao <= 0)
+            return BadRequest(new { message = "Caucao is required and must be greater than 0." });
+
         var item = new TechItem
         {
             Title = title,
             Description = description,
             District = canonicalDistrict,
             DailyRate = dailyRate,
-            Caucao = caucao < 0 ? 0 : caucao,
+            Caucao = caucao,
             ImageUrl = imageUrl,
             CategoryId = categoryId,
             OwnerId = ownerId

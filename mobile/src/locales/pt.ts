@@ -50,6 +50,8 @@ export const pt = {
     errorSelectPhoto: 'Por favor, selecione uma foto.',
     errorSelectCategory: 'Por favor, selecione uma categoria.',
     errorSelectDistrict: 'Por favor, selecione um distrito.',
+    errorCaucaoRequired: 'A caução é obrigatória e deve ser maior que 0€.',
+    errorCaucaoInvalid: 'Introduza um valor de caução válido.',
     creationSuccess: 'Item listado com sucesso!',
     updateSuccess: 'Item atualizado com sucesso!',
     creationFailed: 'Falha ao criar item.',

@@ -34,7 +34,8 @@ export default function CreateItemScreen({route}: Props) {
     const loadData = async () => {
       try {
         const categoriesRes = await itemsService.getCategories();
-        setCategories(categoriesRes.data);
+        const fetchedCategories = categoriesRes.data;
+        setCategories(fetchedCategories);
 
         if (isEditing && itemId) {
           const itemRes = await itemsService.getById(itemId);
@@ -44,18 +45,20 @@ export default function CreateItemScreen({route}: Props) {
           setDistrict(item.district ?? '');
           setDailyRate(item.dailyRate.toString());
           setCaucao(item.caucao.toString());
-          setCategoryId(item.categoryName ? categories.find(c => c.name === item.categoryName)?.id || null : null);
+          setCategoryId(item.categoryName ? fetchedCategories.find(c => c.name === item.categoryName)?.id || null : null);
           if (item.imageUrl) {
             const resolvedImageUri = resolveApiAssetUrl(item.imageUrl) ?? item.imageUrl;
             setImage({uri: resolvedImageUri});
           }
         }
+      } catch {
+        Alert.alert(i18n.common.error, i18n.auth.errorNetworkDetail);
       } finally {
         setInitialLoading(false);
       }
     };
 
-    loadData();
+    void loadData();
   }, []);
 
   const handleChoosePhoto = async () => {
@@ -102,8 +105,12 @@ export default function CreateItemScreen({route}: Props) {
       return;
     }
     const deposit = parseFloat(caucao || '0');
-    if (isNaN(deposit) || deposit < 0) {
-      Alert.alert(i18n.common.error, 'Enter a valid caução amount.');
+    if (!isEditing && (isNaN(deposit) || deposit <= 0)) {
+      Alert.alert(i18n.common.error, i18n.item.errorCaucaoRequired);
+      return;
+    }
+    if (isEditing && (isNaN(deposit) || deposit < 0)) {
+      Alert.alert(i18n.common.error, i18n.item.errorCaucaoInvalid);
       return;
     }
     setLoading(true);
@@ -177,7 +184,7 @@ export default function CreateItemScreen({route}: Props) {
       <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
         placeholder="0.00" keyboardType="decimal-pad" />
 
-      <Text style={styles.label}>🔒 {i18n.item.caucao}</Text>
+      <Text style={styles.label}>🔒 {i18n.item.caucao} {isEditing ? '' : '*'}</Text>
       <TextInput style={styles.input} value={caucao} onChangeText={setCaucao}
         placeholder="0.00" keyboardType="decimal-pad" />
 
