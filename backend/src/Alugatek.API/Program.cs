@@ -12,12 +12,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = ResolveConnectionString(builder.Configuration);
+
 // Database
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 // JWT auth
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -131,7 +134,30 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.Migrate();
+    var migrationLogger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("StartupMigration");
+
+    const int maxMigrationAttempts = 12;
+    for (var attempt = 1; attempt <= maxMigrationAttempts; attempt++)
+    {
+        try
+        {
+            dbContext.Database.Migrate();
+            migrationLogger.LogInformation("Database migration completed on attempt {Attempt}.", attempt);
+            break;
+        }
+        catch (Exception ex) when (attempt < maxMigrationAttempts)
+        {
+            migrationLogger.LogWarning(
+                ex,
+                "Database migration attempt {Attempt}/{MaxAttempts} failed. Retrying in 5 seconds.",
+                attempt,
+                maxMigrationAttempts);
+
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+    }
 }
 
 // Eagerly initialize push notifications so its status is logged at startup.
@@ -155,4 +181,66 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string ResolveConnectionString(IConfiguration configuration)
+{
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        return BuildConnectionStringFromDatabaseUrl(databaseUrl);
+    }
+
+    var pgHost = Environment.GetEnvironmentVariable("PGHOST");
+    if (!string.IsNullOrWhiteSpace(pgHost))
+    {
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = pgHost,
+            Port = ParseIntOrDefault(Environment.GetEnvironmentVariable("PGPORT"), 5432),
+            Database = Environment.GetEnvironmentVariable("PGDATABASE") ?? "postgres",
+            Username = Environment.GetEnvironmentVariable("PGUSER") ?? "postgres",
+            Password = Environment.GetEnvironmentVariable("PGPASSWORD") ?? string.Empty,
+        };
+
+        var sslMode = Environment.GetEnvironmentVariable("PGSSLMODE");
+        if (!string.IsNullOrWhiteSpace(sslMode) && Enum.TryParse<SslMode>(sslMode, true, out var parsedSslMode))
+        {
+            builder.SslMode = parsedSslMode;
+        }
+
+        return builder.ConnectionString;
+    }
+
+    return configuration.GetConnectionString("DefaultConnection")
+           ?? throw new InvalidOperationException("No database connection string configured.");
+}
+
+static string BuildConnectionStringFromDatabaseUrl(string databaseUrl)
+{
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':', 2);
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Database = uri.AbsolutePath.Trim('/'),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+    };
+
+    var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+    var sslMode = query["sslmode"];
+    if (!string.IsNullOrWhiteSpace(sslMode) && Enum.TryParse<SslMode>(sslMode, true, out var parsedSslMode))
+    {
+        builder.SslMode = parsedSslMode;
+    }
+
+    return builder.ConnectionString;
+}
+
+static int ParseIntOrDefault(string? value, int fallback)
+{
+    return int.TryParse(value, out var parsed) ? parsed : fallback;
+}
 
