@@ -725,7 +725,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
     private static RenewQuoteDto BuildRenewQuote(decimal dailyRate, int extraDays)
     {
         var additionalAmount = dailyRate * extraDays;
-        var platformCommission = PlatformBaseCommission + (additionalAmount * PlatformPercentageCommissionRate);
+        var platformCommission = additionalAmount * PlatformPercentageCommissionRate;
         var totalCharge = additionalAmount + platformCommission;
         return new RenewQuoteDto(additionalAmount, platformCommission, totalCharge);
     }

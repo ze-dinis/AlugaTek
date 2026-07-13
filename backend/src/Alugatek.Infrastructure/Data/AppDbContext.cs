@@ -120,11 +120,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         // Seed categories
         modelBuilder.Entity<Category>().HasData(
             new Category { Id = 1, Name = "Smartphones" },
-            new Category { Id = 2, Name = "Laptops" },
-            new Category { Id = 3, Name = "Câmeras" },
-            new Category { Id = 4, Name = "Áudio" },
+            new Category { Id = 2, Name = "Portáteis" },
+            new Category { Id = 3, Name = "Câmaras" },
+            new Category { Id = 4, Name = "Equipamentos de áudio" },
             new Category { Id = 5, Name = "Tablets" },
-            new Category { Id = 6, Name = "Gaming" }
+            new Category { Id = 6, Name = "Gaming" },
+            new Category { Id = 7, Name = "Drones" },
+            new Category { Id = 8, Name = "Wearables" },
+            new Category { Id = 9, Name = "Projetores" },
+            new Category { Id = 10, Name = "Monitores" }
         );
     }
 }

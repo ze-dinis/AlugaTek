@@ -50,17 +50,17 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 2,
-                            Name = "Laptops"
+                            Name = "Portáteis"
                         },
                         new
                         {
                             Id = 3,
-                            Name = "Câmeras"
+                            Name = "Câmaras"
                         },
                         new
                         {
                             Id = 4,
-                            Name = "Áudio"
+                            Name = "Equipamentos de áudio"
                         },
                         new
                         {
@@ -71,6 +71,26 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         {
                             Id = 6,
                             Name = "Gaming"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "Drones"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "Wearables"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Name = "Projetores"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Name = "Monitores"
                         });
                 });
 
