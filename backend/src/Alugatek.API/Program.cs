@@ -160,6 +160,7 @@ using (var scope = app.Services.CreateScope())
         try
         {
             dbContext.Database.Migrate();
+            await EnsureCriticalSchemaAsync(dbContext, migrationLogger);
             migrationLogger.LogInformation("Database migration completed on attempt {Attempt}.", attempt);
             break;
         }
@@ -258,5 +259,17 @@ static string BuildConnectionStringFromDatabaseUrl(string databaseUrl)
 static int ParseIntOrDefault(string? value, int fallback)
 {
     return int.TryParse(value, out var parsed) ? parsed : fallback;
+}
+
+static async Task EnsureCriticalSchemaAsync(AppDbContext dbContext, ILogger logger)
+{
+    const string ensureSellerPaymentDestinationSql = @"
+ALTER TABLE ""Rentals""
+ADD COLUMN IF NOT EXISTS ""SellerPaymentDestination"" text;";
+
+    var rows = await dbContext.Database.ExecuteSqlRawAsync(ensureSellerPaymentDestinationSql);
+    logger.LogInformation(
+        "Schema guard executed for Rentals.SellerPaymentDestination (rows affected: {Rows}).",
+        rows);
 }
 
