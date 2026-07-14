@@ -9,6 +9,10 @@ public class EmailVerificationOptions
     public string FromEmail { get; set; } = string.Empty;
     public string FromName { get; set; } = "Alugatek";
 
+    // HTTP transport (Resend) — preferred on platforms that block outbound SMTP
+    public string? ResendApiKey { get; set; }
+
+    // SMTP transport — fallback for local dev
     public string SmtpHost { get; set; } = string.Empty;
     public int SmtpPort { get; set; } = 587;
     public bool UseSsl { get; set; } = true;

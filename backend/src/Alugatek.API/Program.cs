@@ -52,6 +52,7 @@ builder.Services.AddControllers();
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection("PushNotifications"));
 builder.Services.AddSingleton<IPushNotificationService, FirebasePushNotificationService>();
 builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection("EmailVerification"));
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<EmailVerificationService>();
 
 var emailVerificationOptions = builder.Configuration.GetSection("EmailVerification").Get<EmailVerificationOptions>()
@@ -62,12 +63,19 @@ if (builder.Environment.IsProduction() && !emailVerificationOptions.Enabled)
     throw new InvalidOperationException("EmailVerification is disabled in Production. Set EmailVerification__Enabled=true.");
 }
 
-if (emailVerificationOptions.Enabled &&
-    (string.IsNullOrWhiteSpace(emailVerificationOptions.SmtpHost) ||
-     string.IsNullOrWhiteSpace(emailVerificationOptions.FromEmail)))
+if (emailVerificationOptions.Enabled)
 {
-    throw new InvalidOperationException(
-        "EmailVerification is enabled but SMTP/FromEmail is missing. Configure EmailVerification__SmtpHost and EmailVerification__FromEmail.");
+    var hasResend = !string.IsNullOrWhiteSpace(emailVerificationOptions.ResendApiKey);
+    var hasSmtp = !string.IsNullOrWhiteSpace(emailVerificationOptions.SmtpHost);
+
+    if (!hasResend && !hasSmtp)
+        throw new InvalidOperationException(
+            "EmailVerification is enabled but no mail transport is configured. " +
+            "Set EmailVerification__ResendApiKey (recommended) or EmailVerification__SmtpHost.");
+
+    if (string.IsNullOrWhiteSpace(emailVerificationOptions.FromEmail))
+        throw new InvalidOperationException(
+            "EmailVerification is enabled but FromEmail is missing. Configure EmailVerification__FromEmail.");
 }
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));

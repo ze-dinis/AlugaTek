@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using Alugatek.Domain.Entities;
@@ -8,7 +9,8 @@ using Microsoft.Extensions.Options;
 namespace Alugatek.API.Services;
 
 public class EmailVerificationService(
-    IOptions<EmailVerificationOptions> options)
+    IOptions<EmailVerificationOptions> options,
+    IHttpClientFactory httpClientFactory)
 {
     private readonly EmailVerificationOptions _options = options.Value;
 
@@ -52,21 +54,50 @@ public class EmailVerificationService(
         if (!_options.Enabled)
             throw new InvalidOperationException("Email verification is required but EmailVerification:Enabled is false.");
 
-        if (string.IsNullOrWhiteSpace(_options.SmtpHost) || string.IsNullOrWhiteSpace(_options.FromEmail))
-        {
-            throw new InvalidOperationException("Email verification is enabled but SMTP/FromEmail is not configured.");
-        }
-
         var verificationUrl = BuildVerificationUrl(user.Email, token);
+        var subject = "Confirme o seu email no Alugatek";
+        var body = $"Olá {user.Name},\n\nConfirme o seu email para ativar a conta:\n{verificationUrl}\n\nEste link expira em {_options.TokenTtlMinutes} minutos.";
 
+        if (!string.IsNullOrWhiteSpace(_options.ResendApiKey))
+        {
+            await SendViaResendAsync(user.Email, subject, body);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(_options.SmtpHost) || string.IsNullOrWhiteSpace(_options.FromEmail))
+                throw new InvalidOperationException("Email verification is enabled but SMTP/FromEmail is not configured.");
+
+            await SendViaSmtpAsync(user.Email, subject, body);
+        }
+    }
+
+    private async Task SendViaResendAsync(string toEmail, string subject, string body)
+    {
+        var client = httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ResendApiKey);
+
+        var payload = new
+        {
+            from = $"{_options.FromName} <{_options.FromEmail}>",
+            to = new[] { toEmail },
+            subject,
+            text = body
+        };
+
+        var response = await client.PostAsJsonAsync("https://api.resend.com/emails", payload);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task SendViaSmtpAsync(string toEmail, string subject, string body)
+    {
         using var mailMessage = new MailMessage
         {
             From = new MailAddress(_options.FromEmail, _options.FromName),
-            Subject = "Confirme o seu email no Alugatek",
-            Body = $"Olá {user.Name},\n\nConfirme o seu email para ativar a conta:\n{verificationUrl}\n\nEste link expira em {_options.TokenTtlMinutes} minutos.",
+            Subject = subject,
+            Body = body,
             IsBodyHtml = false
         };
-        mailMessage.To.Add(user.Email);
+        mailMessage.To.Add(toEmail);
 
         using var smtpClient = new SmtpClient(_options.SmtpHost, _options.SmtpPort)
         {

@@ -28,6 +28,7 @@ services:
       - EmailVerification__TokenTtlMinutes=${EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:-10}
       - EmailVerification__FromEmail=${EMAIL_VERIFICATION_FROM_EMAIL:-no-reply@alugatek.pt}
       - EmailVerification__FromName=${EMAIL_VERIFICATION_FROM_NAME:-Alugatek}
+      - EmailVerification__ResendApiKey=${EMAIL_VERIFICATION_RESEND_API_KEY:-}
       - EmailVerification__SmtpHost=${EMAIL_VERIFICATION_SMTP_HOST:-smtp.zoho.eu}
       - EmailVerification__SmtpPort=${EMAIL_VERIFICATION_SMTP_PORT:-587}
       - EmailVerification__UseSsl=${EMAIL_VERIFICATION_USE_SSL:-true}
