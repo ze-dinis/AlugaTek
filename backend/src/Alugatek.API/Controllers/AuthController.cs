@@ -7,12 +7,19 @@ using Alugatek.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Alugatek.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(AppDbContext db, JwtService jwt, EmailVerificationService emailVerification, ILogger<AuthController> logger) : ControllerBase
+public class AuthController(
+    AppDbContext db,
+    JwtService jwt,
+    EmailVerificationService emailVerification,
+    IOptions<EmailVerificationOptions> emailVerificationOptions,
+    IWebHostEnvironment environment,
+    ILogger<AuthController> logger) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<ActionResult<RegisterResponse>> Register(RegisterRequest request)
@@ -47,6 +54,18 @@ public class AuthController(AppDbContext db, JwtService jwt, EmailVerificationSe
         }
 
         await db.SaveChangesAsync();
+
+        if (!emailVerificationOptions.Value.Enabled && environment.IsDevelopment())
+        {
+            // Dev/local fallback: when verification is disabled, immediately mark account as verified.
+            user.EmailVerified = true;
+            user.EmailVerifiedAt = DateTime.UtcNow;
+            user.EmailVerificationTokenHash = null;
+            user.EmailVerificationTokenExpiresAt = null;
+            await db.SaveChangesAsync();
+
+            return Ok(new RegisterResponse("Conta criada. Já pode iniciar sessão."));
+        }
 
         var token = emailVerification.GenerateToken(user);
         await db.SaveChangesAsync();
@@ -136,6 +155,9 @@ public class AuthController(AppDbContext db, JwtService jwt, EmailVerificationSe
     [HttpPost("resend-verification")]
     public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationEmailRequest request)
     {
+        if (!emailVerificationOptions.Value.Enabled && environment.IsDevelopment())
+            return Ok(new { message = "A verificação de email está desativada no servidor." });
+
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         var user = await db.Users.SingleOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 

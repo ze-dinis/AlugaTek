@@ -54,6 +54,22 @@ builder.Services.AddSingleton<IPushNotificationService, FirebasePushNotification
 builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection("EmailVerification"));
 builder.Services.AddScoped<EmailVerificationService>();
 
+var emailVerificationOptions = builder.Configuration.GetSection("EmailVerification").Get<EmailVerificationOptions>()
+    ?? new EmailVerificationOptions();
+
+if (builder.Environment.IsProduction() && !emailVerificationOptions.Enabled)
+{
+    throw new InvalidOperationException("EmailVerification is disabled in Production. Set EmailVerification__Enabled=true.");
+}
+
+if (emailVerificationOptions.Enabled &&
+    (string.IsNullOrWhiteSpace(emailVerificationOptions.SmtpHost) ||
+     string.IsNullOrWhiteSpace(emailVerificationOptions.FromEmail)))
+{
+    throw new InvalidOperationException(
+        "EmailVerification is enabled but SMTP/FromEmail is missing. Configure EmailVerification__SmtpHost and EmailVerification__FromEmail.");
+}
+
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection("Stripe"));
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 builder.Services.AddHostedService<ExpiringHoldCaptureService>();
