@@ -72,7 +72,7 @@ public class EmailVerificationService(
         {
             EnableSsl = _options.UseSsl,
             DeliveryMethod = SmtpDeliveryMethod.Network,
-            Timeout = 7000
+            Timeout = 30000
         };
 
         if (!string.IsNullOrWhiteSpace(_options.SmtpUsername))
