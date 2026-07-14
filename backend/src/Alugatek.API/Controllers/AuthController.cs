@@ -74,9 +74,9 @@ public class AuthController(
         {
             await emailVerification.SendVerificationEmailAsync(user, token);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            logger.LogError("Email verification configuration is invalid while registering {Email}.", normalizedEmail);
+            logger.LogError(ex, "Email verification configuration is invalid while registering {Email}.", normalizedEmail);
             if (isNewUser)
             {
                 db.Users.Remove(user);
@@ -85,9 +85,9 @@ public class AuthController(
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new { message = "A verificação de email não está configurada no servidor." });
         }
-        catch
+        catch (Exception ex)
         {
-            logger.LogError("Email verification delivery failed while registering {Email}.", normalizedEmail);
+            logger.LogError(ex, "Email verification delivery failed while registering {Email}.", normalizedEmail);
             if (isNewUser)
             {
                 db.Users.Remove(user);
@@ -170,15 +170,15 @@ public class AuthController(
         {
             await emailVerification.SendVerificationEmailAsync(user, token);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            logger.LogError("Email verification configuration is invalid while resending for {Email}.", normalizedEmail);
+            logger.LogError(ex, "Email verification configuration is invalid while resending for {Email}.", normalizedEmail);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new { message = "A verificação de email não está configurada no servidor." });
         }
-        catch
+        catch (Exception ex)
         {
-            logger.LogError("Email verification delivery failed while resending for {Email}.", normalizedEmail);
+            logger.LogError(ex, "Email verification delivery failed while resending for {Email}.", normalizedEmail);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new { message = "Não foi possível enviar o email de verificação. Por favor, tente novamente." });
         }

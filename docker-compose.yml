@@ -17,14 +17,14 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=alugatek;Username=postgres;Password=postgres
 
       - Jwt__Key=LUZhjIirzwXAzPIBiSNNoZ5ptrwj/U530Kqc/476cGM=
       - Jwt__Issuer=alugatek-api
       - Jwt__Audience=alugatek-app
       - EmailVerification__Enabled=${EMAIL_VERIFICATION_ENABLED:-true}
-      - EmailVerification__VerificationEndpoint=${EMAIL_VERIFICATION_ENDPOINT:-http://api.alugatek.pt:5000/api/auth/verify-email}
+      - EmailVerification__VerificationEndpoint=${EMAIL_VERIFICATION_ENDPOINT:-http://localhost:5000/api/auth/verify-email}
       - EmailVerification__TokenTtlMinutes=${EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:-10}
       - EmailVerification__FromEmail=${EMAIL_VERIFICATION_FROM_EMAIL:-no-reply@alugatek.pt}
       - EmailVerification__FromName=${EMAIL_VERIFICATION_FROM_NAME:-Alugatek}
