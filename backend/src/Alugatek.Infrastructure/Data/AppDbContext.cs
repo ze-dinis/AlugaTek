@@ -48,7 +48,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(r => r.PaymentStatus).HasConversion<string>().HasColumnType("text");
             e.Property(r => r.PaymentIntentId).HasColumnType("text");
             e.Property(r => r.ExtendedAuthorizationStatus).HasColumnType("text");
-            e.Property(r => r.SellerPaymentDestination).HasColumnType("text");
+                        e.Property(r => r.SellerPaymentDestination).HasColumnType("text");
             e.HasOne(r => r.Renter)
              .WithMany(u => u.Rentals)
              .HasForeignKey(r => r.RenterId)
