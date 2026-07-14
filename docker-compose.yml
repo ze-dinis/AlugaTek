@@ -24,8 +24,8 @@ services:
       - Jwt__Issuer=alugatek-api
       - Jwt__Audience=alugatek-app
       - EmailVerification__Enabled=${EMAIL_VERIFICATION_ENABLED:-true}
-      - EmailVerification__VerificationEndpoint=${EMAIL_VERIFICATION_ENDPOINT:-http://localhost:5000/api/auth/verify-email}
-      - EmailVerification__TokenTtlMinutes=${EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:-60}
+      - EmailVerification__VerificationEndpoint=${EMAIL_VERIFICATION_ENDPOINT:-http://api.alugatek.pt:5000/api/auth/verify-email}
+      - EmailVerification__TokenTtlMinutes=${EMAIL_VERIFICATION_TOKEN_TTL_MINUTES:-10}
       - EmailVerification__FromEmail=${EMAIL_VERIFICATION_FROM_EMAIL:-no-reply@alugatek.pt}
       - EmailVerification__FromName=${EMAIL_VERIFICATION_FROM_NAME:-Alugatek}
       - EmailVerification__SmtpHost=${EMAIL_VERIFICATION_SMTP_HOST:-smtp.zoho.eu}
