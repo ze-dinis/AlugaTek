@@ -24,19 +24,46 @@ public class FirebasePushNotificationService : IPushNotificationService
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(pushOptions.ServiceAccountJsonPath))
+        GoogleCredential? credential = null;
+
+        if (!string.IsNullOrWhiteSpace(pushOptions.ServiceAccountJson))
         {
-            _logger.LogWarning("Push notifications enabled, but ServiceAccountJsonPath is missing.");
-            return;
+            // Prefer raw JSON (Railway env var: PushNotifications__ServiceAccountJson).
+            try
+            {
+                credential = GoogleCredential.FromJson(pushOptions.ServiceAccountJson);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse Firebase service account JSON from configuration.");
+                return;
+            }
         }
-
-        var credentialPath = Path.IsPathRooted(pushOptions.ServiceAccountJsonPath)
-            ? pushOptions.ServiceAccountJsonPath
-            : Path.Combine(environment.ContentRootPath, pushOptions.ServiceAccountJsonPath);
-
-        if (!File.Exists(credentialPath))
+        else if (!string.IsNullOrWhiteSpace(pushOptions.ServiceAccountJsonPath))
         {
-            _logger.LogWarning("Firebase service account file not found at {CredentialPath}", credentialPath);
+            var credentialPath = Path.IsPathRooted(pushOptions.ServiceAccountJsonPath)
+                ? pushOptions.ServiceAccountJsonPath
+                : Path.Combine(environment.ContentRootPath, pushOptions.ServiceAccountJsonPath);
+
+            if (!File.Exists(credentialPath))
+            {
+                _logger.LogWarning("Firebase service account file not found at {CredentialPath}", credentialPath);
+                return;
+            }
+
+            try
+            {
+                credential = GoogleCredential.FromFile(credentialPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read Firebase service account file; push notifications disabled.");
+                return;
+            }
+        }
+        else
+        {
+            _logger.LogWarning("Push notifications enabled, but neither ServiceAccountJson nor ServiceAccountJsonPath is configured.");
             return;
         }
 
@@ -47,10 +74,7 @@ public class FirebasePushNotificationService : IPushNotificationService
         {
             try
             {
-                app = FirebaseApp.Create(new AppOptions
-                {
-                    Credential = GoogleCredential.FromFile(credentialPath)
-                });
+                app = FirebaseApp.Create(new AppOptions { Credential = credential });
             }
             catch (Exception ex)
             {
