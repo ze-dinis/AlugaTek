@@ -61,6 +61,19 @@ export const itemsService = {
 
   delete: (id: string) => api.delete(`/items/${id}`),
 
+  uploadImage: (photo: {uri: string; name?: string; type?: string}) => {
+    const formData = new FormData();
+    formData.append('photo', {
+      uri: photo.uri,
+      name: photo.name ?? `item-${Date.now()}.jpg`,
+      type: photo.type ?? 'image/jpeg',
+    } as any);
+    return api.post<{imageUrl: string}>('/items/upload-image', formData, {
+      headers: {'Content-Type': 'multipart/form-data'},
+      transformRequest: data => data,
+    });
+  },
+
   reportUser: (reportedUserId: string, itemId: string, reason: string) =>
     api.post('/reports', {reportedUserId, itemId, reason}),
 };

@@ -164,6 +164,24 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.CategoryId);
     }
 
+    [Authorize]
+    [HttpPost("upload-image")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<object>> UploadImage([FromForm] IFormFile photo, CancellationToken cancellationToken)
+    {
+        if (photo is null || photo.Length == 0)
+            return BadRequest(new { message = "Photo is required." });
+
+        if (photo.Length > MaxPhotoSizeBytes)
+            return BadRequest(new { message = "Photo must be at most 5 MB." });
+
+        if (!AllowedImageContentTypes.Contains(photo.ContentType))
+            return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
+
+        var imageUrl = await imageStorage.SaveAsync(photo, cancellationToken);
+        return Ok(new { imageUrl });
+    }
+
     private async Task<ActionResult<TechItemDto>> CreateItemAsync(
         string title,
         string description,

@@ -29,6 +29,7 @@ export default function CreateItemScreen({route}: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditing);
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -47,6 +48,7 @@ export default function CreateItemScreen({route}: Props) {
           setCaucao(item.caucao.toString());
           setCategoryId(item.categoryName ? fetchedCategories.find(c => c.name === item.categoryName)?.id || null : null);
           if (item.imageUrl) {
+            setOriginalImageUrl(item.imageUrl);
             const resolvedImageUri = resolveApiAssetUrl(item.imageUrl) ?? item.imageUrl;
             setImage({uri: resolvedImageUri});
           }
@@ -116,13 +118,18 @@ export default function CreateItemScreen({route}: Props) {
     setLoading(true);
     try {
       if (isEditing && itemId) {
+        let imageUrl: string | undefined = originalImageUrl ?? undefined;
+        if (image?.uri.startsWith('file://')) {
+          const uploadRes = await itemsService.uploadImage(image);
+          imageUrl = uploadRes.data.imageUrl;
+        }
         await itemsService.update(itemId, {
           title,
           description,
           district,
           dailyRate: rate,
           caucao: deposit,
-          imageUrl: image?.uri,
+          imageUrl,
           isAvailable: true,
         });
         Alert.alert(i18n.common.success, i18n.item.updateSuccess, [
