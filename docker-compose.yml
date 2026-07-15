@@ -38,6 +38,9 @@ services:
       - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-}
     depends_on:
       - postgres
+    volumes:
+      - uploads:/app/wwwroot/uploads
 
 volumes:
   pgdata:
+  uploads:
