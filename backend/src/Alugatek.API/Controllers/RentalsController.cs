@@ -295,13 +295,14 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (sellerPayoutDestination is null)
             return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before payment." });
 
-        var captureDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
+        var chargeDescription = BuildCaptureDescription(rental, sellerPayoutDestination, rental.TotalPrice);
+        var holdDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
 
         // 1. Charge the rental price + platform commission immediately.
         try
         {
             var priceIntentId = await payments.ChargeAsync(
-                totalChargeAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), captureDescription);
+                totalChargeAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), chargeDescription);
             rental.PaymentIntentId = priceIntentId;
             rental.PaymentStatus = PaymentStatus.Captured;
         }
@@ -319,7 +320,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             try
             {
                 var hold = await payments.PlaceHoldAsync(
-                    rental.CaucaoAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), captureDescription);
+                    rental.CaucaoAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), holdDescription);
                 rental.CaucaoPaymentIntentId = hold.PaymentIntentId;
                 rental.CaucaoPaymentStatus = PaymentStatus.Held;
                 rental.CaptureBefore = hold.CaptureBefore;
@@ -403,7 +404,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         if (sellerPayoutDestination is null)
             return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before renewal payment." });
 
-        var captureDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
+        var renewChargeDescription = BuildCaptureDescription(rental, sellerPayoutDestination, quote.AdditionalAmount);
+        var renewHoldDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
         var previousHoldIntentId = rental.CaucaoPaymentIntentId;
         var hadPreviousActiveHold = rental.CaucaoPaymentStatus == PaymentStatus.Held && !string.IsNullOrWhiteSpace(previousHoldIntentId);
         string? renewalChargeIntentId = null;
@@ -421,7 +423,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                 request.PaymentMethodId,
                 renewalCustomerId,
                 rental.Id.ToString(),
-                captureDescription);
+                renewChargeDescription);
 
             if (rental.CaucaoAmount > 0)
             {
@@ -431,7 +433,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
                     request.PaymentMethodId,
                     renewalCustomerId,
                     rental.Id.ToString(),
-                    captureDescription);
+                    renewHoldDescription);
             }
 
             if (hadPreviousActiveHold)
@@ -747,12 +749,15 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         return null;
     }
 
-    private static string BuildCaptureDescription(Rental rental, string sellerPayoutDestination)
+    private static string BuildCaptureDescription(Rental rental, string sellerPayoutDestination, decimal? valorATransferir = null)
     {
         var sellerEmail = rental.Item.Owner.Email.Trim().ToLowerInvariant();
         var buyerEmail = rental.Renter.Email.Trim().ToLowerInvariant();
 
-        return $"rental={rental.Id}; seller_payout={sellerPayoutDestination}; seller_email={sellerEmail}; buyer_email={buyerEmail}";
+        var base_ = $"rental={rental.Id}; seller_payout={sellerPayoutDestination}; seller_email={sellerEmail}; buyer_email={buyerEmail}";
+        return valorATransferir.HasValue
+            ? $"{base_}; Valor a transferir: {valorATransferir.Value:F2}€"
+            : base_;
     }
 
     private async Task ExpireOverdueUnpaidRentalsAsync()
