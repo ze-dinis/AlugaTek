@@ -114,4 +114,4 @@ export const GOOGLE_WEB_CLIENT_ID = '973689934720-j9gq5oacbmdlav92utmicqj3lltbmm
 // Stripe publishable key — safe to commit (public key, not the secret key).
 export const STRIPE_PUBLISHABLE_KEY = __DEV__
   ? 'pk_test_51TqHdrR7bR8HrqNrWeajkGdkRqCUB0rIK628qvSTMJPOJLriKlhTg1Nd2vz4nChVgagbyZhaH7B6dJso5rMQjJnF00uVNZGZ4f'
-  : 'pk_live_REPLACE_BEFORE_RELEASE';
+  : 'pk_test_51TqHdrR7bR8HrqNrWeajkGdkRqCUB0rIK628qvSTMJPOJLriKlhTg1Nd2vz4nChVgagbyZhaH7B6dJso5rMQjJnF00uVNZGZ4f';
