@@ -72,7 +72,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         {
             SenderId = renterId,
             ReceiverId = item.OwnerId,
-            Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}.",
+            Content = $"Pedido de aluguer para {item.Title} por {days} {(days == 1 ? "dia" : "dias")}. O arrendatário terá 10 minutos para pagar.",
             IsRead = false,
             ItemId = item.Id,
             RentalId = rental.Id,
@@ -296,7 +296,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before payment." });
 
         var chargeDescription = BuildCaptureDescription(rental, sellerPayoutDestination, rental.TotalPrice);
-        var holdDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
+        var holdDescription = BuildCaptureDescription(rental, sellerPayoutDestination, rental.CaucaoAmount);
 
         // 1. Charge the rental price + platform commission immediately.
         try
@@ -405,7 +405,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
             return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before renewal payment." });
 
         var renewChargeDescription = BuildCaptureDescription(rental, sellerPayoutDestination, quote.AdditionalAmount);
-        var renewHoldDescription = BuildCaptureDescription(rental, sellerPayoutDestination);
+        var renewHoldDescription = BuildCaptureDescription(rental, sellerPayoutDestination, rental.CaucaoAmount);
         var previousHoldIntentId = rental.CaucaoPaymentIntentId;
         var hadPreviousActiveHold = rental.CaucaoPaymentStatus == PaymentStatus.Held && !string.IsNullOrWhiteSpace(previousHoldIntentId);
         string? renewalChargeIntentId = null;
@@ -749,15 +749,12 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         return null;
     }
 
-    private static string BuildCaptureDescription(Rental rental, string sellerPayoutDestination, decimal? valorATransferir = null)
+    private static string BuildCaptureDescription(Rental rental, string sellerPayoutDestination, decimal valorATransferir)
     {
         var sellerEmail = rental.Item.Owner.Email.Trim().ToLowerInvariant();
         var buyerEmail = rental.Renter.Email.Trim().ToLowerInvariant();
 
-        var base_ = $"rental={rental.Id}; seller_payout={sellerPayoutDestination}; seller_email={sellerEmail}; buyer_email={buyerEmail}";
-        return valorATransferir.HasValue
-            ? $"{base_}; Valor a transferir: {valorATransferir.Value:F2}€"
-            : base_;
+        return $"rental={rental.Id}; seller_payout={sellerPayoutDestination}; seller_email={sellerEmail}; buyer_email={buyerEmail}; Valor a transferir: {valorATransferir:F2}€";
     }
 
     private async Task ExpireOverdueUnpaidRentalsAsync()

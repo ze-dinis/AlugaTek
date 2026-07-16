@@ -128,7 +128,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             new Category { Id = 7, Name = "Drones" },
             new Category { Id = 8, Name = "Wearables" },
             new Category { Id = 9, Name = "Projetores" },
-            new Category { Id = 10, Name = "Monitores" }
+            new Category { Id = 10, Name = "Monitores" },
+            new Category { Id = 11, Name = "Impressoras" }
         );
     }
 }

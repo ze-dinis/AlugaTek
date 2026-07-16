@@ -91,6 +91,11 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         {
                             Id = 10,
                             Name = "Monitores"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Name = "Impressoras"
                         });
                 });
 
