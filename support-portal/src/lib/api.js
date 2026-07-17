@@ -1,5 +1,8 @@
 import axios from 'axios';
-const baseURL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://api.alugatek.pt/api');
+const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+const baseURL = configuredUrl && configuredUrl.length > 0
+    ? configuredUrl
+    : 'https://api.alugatek.pt/api';
 export const api = axios.create({
     baseURL,
     timeout: 15000,

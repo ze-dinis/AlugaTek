@@ -13,8 +13,11 @@ const statuses: Array<{ label: string; value: DisputeStatus | 'All' }> = [
   { label: 'Rejeitadas', value: 'Rejected' },
 ];
 
+type InboxTab = 'General' | 'DisputaTag';
+
 export function DisputesInboxPage() {
   const [selectedStatus, setSelectedStatus] = useState<DisputeStatus | 'All'>('All');
+  const [selectedTab, setSelectedTab] = useState<InboxTab>('General');
 
   const queryStatus = useMemo(
     () => (selectedStatus === 'All' ? undefined : selectedStatus),
@@ -26,6 +29,16 @@ export function DisputesInboxPage() {
     queryFn: () => disputesService.getInbox(queryStatus),
   });
 
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+
+    if (selectedTab === 'DisputaTag') {
+      return data.filter(dispute => dispute.reason.trim().toUpperCase().startsWith('[DISPUTA]'));
+    }
+
+    return data;
+  }, [data, selectedTab]);
+
   return (
     <section>
       <header className="page-header">
@@ -34,6 +47,23 @@ export function DisputesInboxPage() {
           <p className="muted">Gerir pedidos com prioridade e contexto de aluguer.</p>
         </div>
       </header>
+
+      <div className="filter-row">
+        <button
+          className={selectedTab === 'General' ? 'chip active' : 'chip'}
+          onClick={() => setSelectedTab('General')}
+          type="button"
+        >
+          Inbox geral
+        </button>
+        <button
+          className={selectedTab === 'DisputaTag' ? 'chip active' : 'chip'}
+          onClick={() => setSelectedTab('DisputaTag')}
+          type="button"
+        >
+          [DISPUTA]
+        </button>
+      </div>
 
       <div className="filter-row">
         {statuses.map(option => (
@@ -51,9 +81,9 @@ export function DisputesInboxPage() {
       {isLoading && <p>A carregar disputas...</p>}
       {isError && <p>Erro ao carregar disputas.</p>}
 
-      {data && data.length === 0 && <p>Nenhuma disputa encontrada para este filtro.</p>}
+      {data && filteredData.length === 0 && <p>Nenhuma disputa encontrada para este filtro.</p>}
 
-      {data && data.length > 0 && (
+      {data && filteredData.length > 0 && (
         <div className="card table-card">
           <table>
             <thead>
@@ -67,7 +97,7 @@ export function DisputesInboxPage() {
               </tr>
             </thead>
             <tbody>
-              {data.map(dispute => (
+              {filteredData.map(dispute => (
                 <tr key={dispute.id}>
                   <td>
                     <Link to={`/disputes/${dispute.id}`}>{dispute.id.slice(0, 8)}</Link>

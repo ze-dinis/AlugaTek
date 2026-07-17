@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { authService } from '../services/authService';
 import { useAuth } from '../lib/AuthContext';
 
@@ -20,8 +21,18 @@ export function LoginPage() {
       const session = await authService.login({ email, password });
       login(session);
       navigate('/disputes');
-    } catch {
-      setError('Falha no login de suporte. Verifique as credenciais e role.');
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          setError('Sem ligacao a API de suporte. Verifique VITE_API_URL e se o backend esta online.');
+          return;
+        }
+
+        const message = (error.response?.data as { message?: string } | undefined)?.message;
+        setError(message ?? `Falha no login de suporte (HTTP ${error.response.status}).`);
+      } else {
+        setError('Falha no login de suporte. Verifique as credenciais e role.');
+      }
     } finally {
       setLoading(false);
     }
