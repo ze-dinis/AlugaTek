@@ -1,6 +1,7 @@
 using System.Text;
 using Alugatek.API.Storage;
 using Alugatek.API.Services;
+using Alugatek.API.Middleware;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -202,6 +203,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<BannedUserMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
