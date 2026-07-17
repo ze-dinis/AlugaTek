@@ -120,6 +120,7 @@ export default function ProfileScreen() {
               value={draftPayoutDescription}
               onChangeText={setDraftPayoutDescription}
               placeholder={i18n.profile.ibanMbwayPlaceholder}
+              placeholderTextColor="#8b95a5"
               style={styles.modalInput}
               autoCapitalize="characters"
             />
@@ -176,6 +177,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 14,
+    color: '#1f2937',
   },
   modalActions: {
     flexDirection: 'row',

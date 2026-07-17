@@ -42,10 +42,17 @@ export default function RegisterScreen({navigation}: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>{i18n.auth.createAccount}</Text>
 
-      <TextInput style={styles.input} placeholder={i18n.auth.fullName} value={name} onChangeText={setName} />
+      <TextInput
+        style={styles.input}
+        placeholder={i18n.auth.fullName}
+        placeholderTextColor="#8b95a5"
+        value={name}
+        onChangeText={setName}
+      />
       <TextInput
         style={styles.input}
         placeholder={i18n.auth.email}
+        placeholderTextColor="#8b95a5"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -54,6 +61,7 @@ export default function RegisterScreen({navigation}: Props) {
       <TextInput
         style={styles.input}
         placeholder={i18n.auth.password}
+        placeholderTextColor="#8b95a5"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -73,7 +81,7 @@ export default function RegisterScreen({navigation}: Props) {
 const styles = StyleSheet.create({
   container: {flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff'},
   title: {fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 32, color: '#1a73e8'},
-  input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 16},
+  input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 16, color: '#1f2937'},
   button: {backgroundColor: '#1a73e8', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12},
   buttonText: {color: '#fff', fontWeight: '600', fontSize: 16},
   link: {textAlign: 'center', color: '#1a73e8', marginTop: 8},

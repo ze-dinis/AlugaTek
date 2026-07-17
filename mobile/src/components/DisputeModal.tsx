@@ -37,6 +37,7 @@ export default function DisputeModal({
           <TextInput
             style={styles.input}
             placeholder="Motivo (ex.: item danificado)"
+            placeholderTextColor="#8b95a5"
             value={reason}
             onChangeText={onChangeReason}
             editable={!submitting}
@@ -45,6 +46,7 @@ export default function DisputeModal({
           <TextInput
             style={[styles.input, styles.inputMultiline]}
             placeholder="Descrição detalhada"
+            placeholderTextColor="#8b95a5"
             value={description}
             onChangeText={onChangeDescription}
             editable={!submitting}
@@ -105,6 +107,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 10,
     backgroundColor: '#fff',
+    color: '#1f2937',
   },
   inputMultiline: {
     minHeight: 90,

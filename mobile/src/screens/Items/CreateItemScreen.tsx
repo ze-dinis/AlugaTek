@@ -169,15 +169,30 @@ export default function CreateItemScreen({route}: Props) {
       <Text style={styles.heading}>{isEditing ? '🛠️ Editar anúncio' : '🚀 Novo anúncio'}</Text>
 
       <Text style={styles.label}>✏️ {i18n.item.title} *</Text>
-      <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="ex: iPhone 15 Pro" />
+      <TextInput
+        style={styles.input}
+        value={title}
+        onChangeText={setTitle}
+        placeholder="ex: iPhone 15 Pro"
+        placeholderTextColor="#8b95a5"
+      />
 
       <Text style={styles.label}>📝 {i18n.item.description} *</Text>
-      <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription}
-        placeholder={i18n.item.description} multiline numberOfLines={4} />
+      <TextInput
+        style={[styles.input, styles.multiline]}
+        value={description}
+        onChangeText={setDescription}
+        placeholder={i18n.item.description}
+        placeholderTextColor="#8b95a5"
+        multiline
+        numberOfLines={4}
+      />
 
       <Text style={styles.label}>📍 {i18n.item.district} *</Text>
       <View style={styles.pickerContainer}>
         <Picker
+          style={styles.picker}
+          dropdownIconColor="#1f2937"
           selectedValue={district}
           onValueChange={(value: string) => setDistrict(value)}>
           <Picker.Item label={i18n.item.selectDistrict} value="" />
@@ -188,12 +203,24 @@ export default function CreateItemScreen({route}: Props) {
       </View>
 
       <Text style={styles.label}>💶 {i18n.item.dailyRate} *</Text>
-      <TextInput style={styles.input} value={dailyRate} onChangeText={setDailyRate}
-        placeholder="0.00" keyboardType="decimal-pad" />
+      <TextInput
+        style={styles.input}
+        value={dailyRate}
+        onChangeText={setDailyRate}
+        placeholder="0.00"
+        placeholderTextColor="#8b95a5"
+        keyboardType="decimal-pad"
+      />
 
       <Text style={styles.label}>🔒 {i18n.item.caucao} {isEditing ? '' : '*'}</Text>
-      <TextInput style={styles.input} value={caucao} onChangeText={setCaucao}
-        placeholder="0.00" keyboardType="decimal-pad" />
+      <TextInput
+        style={styles.input}
+        value={caucao}
+        onChangeText={setCaucao}
+        placeholder="0.00"
+        placeholderTextColor="#8b95a5"
+        keyboardType="decimal-pad"
+      />
 
       {!isEditing && (
         <>
@@ -242,7 +269,7 @@ const styles = StyleSheet.create({
   content: {padding: 20, paddingBottom: 28},
   heading: {fontSize: 24, fontWeight: '800', color: '#1f2937', marginBottom: 16},
   label: {fontWeight: '600', marginBottom: 6, color: '#333'},
-  input: {borderWidth: 1, borderColor: '#d8e0ea', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 15},
+  input: {borderWidth: 1, borderColor: '#d8e0ea', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 15, color: '#1f2937'},
   multiline: {height: 100, textAlignVertical: 'top'},
   categories: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24},
   pickerContainer: {
@@ -253,6 +280,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#fff',
   },
+  picker: {color: '#1f2937'},
   chip: {borderWidth: 1, borderColor: '#1a73e8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6},
   chipSelected: {backgroundColor: '#1a73e8'},
   chipText: {color: '#1a73e8'},

@@ -147,6 +147,7 @@ export default function HomeScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder={i18n.home.searchPlaceholder}
+          placeholderTextColor="#8b95a5"
           value={search}
           onChangeText={setSearch}
         />
@@ -178,6 +179,8 @@ export default function HomeScreen() {
       <View style={styles.districtFilterContainer}>
         <Text style={styles.districtFilterLabel}>📍 {i18n.item.district}</Text>
         <Picker
+          style={styles.districtPicker}
+          dropdownIconColor="#1f2937"
           selectedValue={selectedDistrict}
           onValueChange={(value: string) => setSelectedDistrict(value)}>
           <Picker.Item label={i18n.home.allDistricts} value="" />
@@ -229,7 +232,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   searchIcon: {fontSize: 16, marginRight: 6},
-  searchInput: {flex: 1, paddingVertical: 10, fontSize: 15},
+  searchInput: {flex: 1, paddingVertical: 10, fontSize: 15, color: '#1f2937'},
   addButton: {backgroundColor: '#1a73e8', width: 44, borderRadius: 8, justifyContent: 'center', alignItems: 'center'},
   addButtonText: {color: '#fff', fontSize: 24, lineHeight: 24, fontWeight: '600', marginTop: -1},
   categoryListWrapper: {maxHeight: 60},
@@ -258,6 +261,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   districtFilterLabel: {fontSize: 12, color: '#5e6b7a', paddingHorizontal: 12, paddingTop: 8},
+  districtPicker: {color: '#1f2937'},
   grid: {padding: 8},
   gridEmpty: {flexGrow: 1, padding: 16, justifyContent: 'center'},
   card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.12, shadowRadius: 6},
