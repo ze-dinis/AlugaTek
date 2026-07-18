@@ -78,7 +78,14 @@ export default function ChatListScreen() {
     return (
       <TouchableOpacity
         style={styles.conversationItem}
-        onPress={() => navigation.navigate('Chat', {itemId: item.itemId, itemTitle: item.itemTitle})}>
+        onPress={() =>
+          navigation.navigate('Chat', {
+            itemId: item.itemId,
+            itemTitle: item.itemTitle,
+            otherUserId: item.otherUserId,
+            otherName: item.otherName,
+          })
+        }>
         <ConversationAvatar avatarUrl={resolveApiAssetUrl(item.itemImageUrl)} name={item.itemTitle} />
         <View style={styles.content}>
           <Text style={styles.name}>{item.itemTitle}</Text>
@@ -109,7 +116,7 @@ export default function ChatListScreen() {
     <View style={styles.container}>
       <FlatList
         data={conversations}
-        keyExtractor={c => c.itemId}
+        keyExtractor={c => `${c.itemId}:${c.otherUserId}`}
         renderItem={renderItem}
         contentContainerStyle={conversations.length === 0 ? styles.emptyContainer : undefined}
         refreshControl={

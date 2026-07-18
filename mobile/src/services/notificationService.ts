@@ -27,6 +27,8 @@ export async function initializeNotificationService(): Promise<void> {
 interface NewMessageNotificationParams {
   otherId: string;
   otherName: string;
+  itemId?: string;
+  itemTitle?: string;
   senderName: string;
   messagePreview: string;
   unreadCount: number;
@@ -36,6 +38,8 @@ interface NewMessageNotificationParams {
 export async function showNewMessageNotification({
   otherId,
   otherName,
+  itemId,
+  itemTitle,
   senderName,
   messagePreview,
   unreadCount,
@@ -66,6 +70,8 @@ export async function showNewMessageNotification({
     data: {
       otherId,
       otherName,
+      itemId,
+      itemTitle,
     },
   });
 }

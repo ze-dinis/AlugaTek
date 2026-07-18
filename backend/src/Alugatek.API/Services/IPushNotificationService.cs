@@ -6,6 +6,8 @@ public interface IPushNotificationService
         IReadOnlyCollection<string> deviceTokens,
         Guid senderId,
         string senderName,
+        Guid itemId,
+        string itemTitle,
         string content,
         CancellationToken cancellationToken = default);
 

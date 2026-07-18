@@ -24,7 +24,19 @@ import {chatService} from './src/services/chatService';
 import {pushTokenService} from './src/services/pushTokenService';
 import {STRIPE_PUBLISHABLE_KEY} from './src/config';
 
-type PendingChatRoute = {otherId: string; otherName: string};
+type NotificationThreadData = {
+  otherUserId: string;
+  otherName: string;
+  itemId?: string;
+  itemTitle?: string;
+};
+
+type PendingChatRoute = {
+  otherUserId: string;
+  otherName: string;
+  itemId: string;
+  itemTitle: string;
+};
 
 export default function App() {
   const loadFromStorage = useAuthStore(s => s.loadFromStorage);
@@ -33,30 +45,48 @@ export default function App() {
   const unreadByConversationRef = useRef<Record<string, number>>({});
   const hasUnreadBaselineRef = useRef(false);
 
-  const extractChatRouteFromNotification = (notification?: Notification): PendingChatRoute | null => {
-    const otherId = notification?.data?.otherId;
+  const extractChatRouteFromNotification = (notification?: Notification): NotificationThreadData | null => {
+    const otherUserId = notification?.data?.otherUserId ?? notification?.data?.otherId;
     const otherName = notification?.data?.otherName;
+    const itemId = notification?.data?.itemId;
+    const itemTitle = notification?.data?.itemTitle;
 
-    if (typeof otherId !== 'string' || typeof otherName !== 'string') {
+    if (typeof otherUserId !== 'string' || typeof otherName !== 'string') {
       return null;
     }
 
-    return {otherId, otherName};
+    return {
+      otherUserId,
+      otherName,
+      itemId: typeof itemId === 'string' ? itemId : undefined,
+      itemTitle: typeof itemTitle === 'string' ? itemTitle : undefined,
+    };
   };
 
-  const openChatFromNotification = (route: PendingChatRoute) => {
+  const openChatFromNotification = (route: NotificationThreadData) => {
+    if (!route.itemId || !route.itemTitle) {
+      return;
+    }
+
+    const chatRoute: PendingChatRoute = {
+      otherUserId: route.otherUserId,
+      otherName: route.otherName,
+      itemId: route.itemId,
+      itemTitle: route.itemTitle,
+    };
+
     if (!user) {
-      pendingChatRouteRef.current = route;
+      pendingChatRouteRef.current = chatRoute;
       return;
     }
 
     if (!navigationRef.isReady()) {
-      pendingChatRouteRef.current = route;
+      pendingChatRouteRef.current = chatRoute;
       return;
     }
 
     pendingChatRouteRef.current = null;
-    navigationRef.navigate('Chat', route);
+    navigationRef.navigate('Chat', chatRoute);
   };
 
   useEffect(() => {
@@ -100,8 +130,10 @@ export default function App() {
       }
 
       await showNewMessageNotification({
-        otherId: route.otherId,
+        otherId: route.otherUserId,
         otherName: route.otherName,
+        itemId: route.itemId,
+        itemTitle: route.itemTitle,
         senderName: route.otherName,
         messagePreview: remoteMessage.notification?.body ?? remoteMessage.data?.content ?? 'New message',
         unreadCount: 1,
@@ -216,8 +248,10 @@ export default function App() {
 
           if (hasUnreadBaselineRef.current && currentUnread > previous) {
             await showNewMessageNotification({
-              otherId: conversation.otherId,
+              otherId: conversation.otherUserId,
               otherName: conversation.otherName,
+              itemId: conversation.itemId,
+              itemTitle: conversation.itemTitle,
               senderName: conversation.otherName,
               messagePreview: conversation.lastMessage,
               unreadCount: currentUnread,
@@ -253,15 +287,22 @@ export default function App() {
 
 function extractChatRouteFromRemoteData(
   data?: FirebaseMessagingTypes.RemoteMessage['data'],
-): PendingChatRoute | null {
-  const otherId = data?.otherId;
+): NotificationThreadData | null {
+  const otherUserId = data?.otherUserId ?? data?.otherId;
   const otherName = data?.otherName;
+  const itemId = data?.itemId;
+  const itemTitle = data?.itemTitle;
 
-  if (typeof otherId !== 'string' || typeof otherName !== 'string') {
+  if (typeof otherUserId !== 'string' || typeof otherName !== 'string') {
     return null;
   }
 
-  return {otherId, otherName};
+  return {
+    otherUserId,
+    otherName,
+    itemId,
+    itemTitle,
+  };
 }
 
 function parseApiTimestampToMs(value?: string): number | undefined {

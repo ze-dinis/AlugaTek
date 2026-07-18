@@ -20,23 +20,32 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         var conversations = await db.Messages
-            .Include(m => m.Sender)
-            .Include(m => m.Receiver)
             .Where(m => m.ItemId != null && (m.SenderId == userId || m.ReceiverId == userId))
-            .GroupBy(m => m.ItemId!.Value)
+            .GroupBy(m => new
+            {
+                ItemId = m.ItemId!.Value,
+                OtherUserId = m.SenderId == userId ? m.ReceiverId : m.SenderId,
+            })
             .Select(g => new
             {
-                ItemId = g.Key,
+                ItemId = g.Key.ItemId,
+                OtherUserId = g.Key.OtherUserId,
                 LastMessage = g.OrderByDescending(m => m.CreatedAt).First(),
                 UnreadCount = g.Count(m => m.ReceiverId == userId && !m.IsRead)
             })
             .ToListAsync();
 
         var itemIds = conversations.Select(c => c.ItemId).ToList();
+        var otherUserIds = conversations.Select(c => c.OtherUserId).Distinct().ToList();
+
         var items = await db.TechItems
             .Include(i => i.Owner)
             .Where(i => itemIds.Contains(i.Id))
             .ToDictionaryAsync(i => i.Id);
+
+        var users = await db.Users
+            .Where(u => otherUserIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
 
         var result = new List<ConversationDto>();
         foreach (var conv in conversations)
@@ -44,15 +53,13 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
             if (!items.TryGetValue(conv.ItemId, out var item))
                 continue;
 
-            var lastMessage = conv.LastMessage;
-            var otherUserId = lastMessage.SenderId == userId ? lastMessage.ReceiverId : lastMessage.SenderId;
-            var otherUser = await db.Users.FindAsync(otherUserId);
-            if (otherUser != null)
+            if (users.TryGetValue(conv.OtherUserId, out var otherUser))
             {
                 result.Add(new ConversationDto(
                     item.Id,
                     item.Title,
                     item.ImageUrl,
+                    otherUser.Id,
                     otherUser.Name,
                     otherUser.AvatarUrl,
                     conv.LastMessage.Content,
@@ -65,7 +72,7 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
     }
 
     [HttpGet("{itemId:guid}")]
-    public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessages(Guid itemId)
+    public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessages(Guid itemId, [FromQuery] Guid otherUserId)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -76,14 +83,19 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         if (item is null)
             return NotFound(new { message = "Item not found." });
 
+        if (otherUserId == userId)
+            return BadRequest(new { message = "Invalid conversation user." });
+
         var messages = await db.Messages
             .Include(m => m.Sender)
             .Include(m => m.Receiver)
             .Where(m =>
+                ((m.SenderId == userId && m.ReceiverId == otherUserId) ||
+                 (m.SenderId == otherUserId && m.ReceiverId == userId)) &&
                 (m.ItemId == itemId ||
                  (m.ItemId == null &&
-                  ((m.SenderId == userId && m.ReceiverId == item.OwnerId) ||
-                   (m.SenderId == item.OwnerId && m.ReceiverId == userId)))))
+                  m.RentalId != null &&
+                  db.Rentals.Any(r => r.Id == m.RentalId && r.ItemId == itemId))))
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
@@ -114,22 +126,32 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         Guid receiverId;
         if (senderId == item.OwnerId)
         {
-            var latestRentalRecipient = await db.Rentals
-                .Where(r => r.ItemId == request.ItemId)
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => (Guid?)r.RenterId)
-                .FirstOrDefaultAsync();
+            if (request.ReceiverId is Guid explicitReceiverId)
+            {
+                if (explicitReceiverId == senderId)
+                    return BadRequest(new { message = "Invalid recipient." });
 
-            var lastCounterparty = await db.Messages
-                .Where(m => m.ItemId == request.ItemId && m.SenderId != senderId)
-                .OrderByDescending(m => m.CreatedAt)
-                .Select(m => (Guid?)m.SenderId)
-                .FirstOrDefaultAsync();
+                receiverId = explicitReceiverId;
+            }
+            else
+            {
+                var lastCounterparty = await db.Messages
+                    .Where(m => m.ItemId == request.ItemId && m.ReceiverId == senderId && m.SenderId != senderId)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .Select(m => (Guid?)m.SenderId)
+                    .FirstOrDefaultAsync();
 
-            if (latestRentalRecipient is null && lastCounterparty is null)
-                return BadRequest(new { message = "No recipient available for this item conversation." });
+                var latestRentalRecipient = await db.Rentals
+                    .Where(r => r.ItemId == request.ItemId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Select(r => (Guid?)r.RenterId)
+                    .FirstOrDefaultAsync();
 
-            receiverId = latestRentalRecipient ?? lastCounterparty!.Value;
+                if (latestRentalRecipient is null && lastCounterparty is null)
+                    return BadRequest(new { message = "No recipient available for this item conversation." });
+
+                receiverId = lastCounterparty ?? latestRentalRecipient!.Value;
+            }
         }
         else
         {
@@ -161,6 +183,8 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
                 receiverTokens,
                 senderId,
                 message.Sender.Name,
+                request.ItemId,
+                item.Title,
                 message.Content);
 
             if (invalidTokens.Count > 0)

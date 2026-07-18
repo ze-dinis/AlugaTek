@@ -91,6 +91,8 @@ public class FirebasePushNotificationService : IPushNotificationService
         IReadOnlyCollection<string> deviceTokens,
         Guid senderId,
         string senderName,
+        Guid itemId,
+        string itemTitle,
         string content,
         CancellationToken cancellationToken = default)
     {
@@ -120,6 +122,8 @@ public class FirebasePushNotificationService : IPushNotificationService
                     ["type"] = "chat_message",
                     ["otherId"] = senderId.ToString(),
                     ["otherName"] = senderName,
+                    ["itemId"] = itemId.ToString(),
+                    ["itemTitle"] = itemTitle,
                     ["content"] = content
                 },
                 Android = new AndroidConfig

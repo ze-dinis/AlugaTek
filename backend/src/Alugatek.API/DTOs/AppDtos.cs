@@ -99,7 +99,7 @@ public record ReviewDto(
     DateTime CreatedAt);
 
 // Message
-public record SendMessageRequest(Guid ItemId, string Content);
+public record SendMessageRequest(Guid ItemId, string Content, Guid? ReceiverId);
 
 public record MessageDto(
     Guid Id,
@@ -116,6 +116,7 @@ public record ConversationDto(
     Guid ItemId,
     string ItemTitle,
     string? ItemImageUrl,
+    Guid OtherUserId,
     string OtherName,
     string? OtherAvatarUrl,
     string LastMessage,

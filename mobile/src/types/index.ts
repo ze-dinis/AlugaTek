@@ -79,6 +79,7 @@ export interface Conversation {
   itemId: string;
   itemTitle: string;
   itemImageUrl?: string;
+  otherUserId: string;
   otherName: string;
   otherAvatarUrl?: string;
   lastMessage: string;

@@ -30,7 +30,7 @@ const PLATFORM_BASE_COMMISSION = 3.0;
 const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
 
 export default function ChatDetailScreen({route, navigation}: Props) {
-  const {itemId, itemTitle} = route.params;
+  const {itemId, itemTitle, otherUserId} = route.params;
   const {user} = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const {data} = await chatService.getMessages(itemId);
+        const {data} = await chatService.getMessages(itemId, otherUserId);
         setMessages(data);
         setTimeout(() => flatListRef.current?.scrollToEnd({animated: false}), 100);
       } catch {
@@ -89,7 +89,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     };
 
     loadMessages();
-  }, [itemId]);
+  }, [itemId, otherUserId]);
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -99,7 +99,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     setSending(true);
 
     try {
-      const {data} = await chatService.sendMessage(itemId, messageText);
+      const {data} = await chatService.sendMessage(itemId, messageText, otherUserId);
       setMessages(prev => [...prev, data]);
       setTimeout(() => flatListRef.current?.scrollToEnd({animated: true}), 100);
     } catch {
