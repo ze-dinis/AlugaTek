@@ -15,6 +15,9 @@ mobile/android/app/build/
 mobile/android/app/.cxx/
 mobile/android/.kotlin/
 mobile/android/local.properties
+mobile/android/key.properties
+*.keystore
+*.jks
 
 # React Native — iOS build artifacts
 mobile/ios/build/
