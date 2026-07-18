@@ -177,24 +177,47 @@ public class FirebasePushNotificationService : IPushNotificationService
         _logger.LogInformation("Sending rental expiry push to {Count} device token(s).", deviceTokens.Count);
 
         var invalidTokens = new List<string>();
-        var endDateText = endDateUtc.ToString("yyyy-MM-dd HH:mm");
+        var normalizedEndDateUtc = endDateUtc.Kind == DateTimeKind.Utc
+            ? endDateUtc
+            : DateTime.SpecifyKind(endDateUtc, DateTimeKind.Utc);
+        var hasValidEndDate = normalizedEndDateUtc.Year >= 2000;
+        var endDateText = hasValidEndDate
+            ? normalizedEndDateUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            : null;
+
+        if (!hasValidEndDate)
+        {
+            _logger.LogWarning(
+                "Rental expiry push has invalid end date for rental {RentalId}. Value: {EndDateUtc}",
+                rentalId,
+                endDateUtc);
+        }
+
         var messageTasks = deviceTokens.Select(async token =>
         {
+            var data = new Dictionary<string, string>
+            {
+                ["type"] = "rental_expiring_24h",
+                ["rentalId"] = rentalId.ToString(),
+                ["itemTitle"] = itemTitle,
+            };
+
+            if (hasValidEndDate)
+            {
+                data["endDateUtc"] = normalizedEndDateUtc.ToString("o");
+            }
+
             var message = new Message
             {
                 Token = token,
                 Notification = new Notification
                 {
                     Title = "Aluguer a expirar em 24h",
-                    Body = $"{itemTitle} termina a {endDateText}. Renove para continuar com o item."
+                    Body = hasValidEndDate
+                        ? $"{itemTitle} termina a {endDateText}. Renove para continuar com o item."
+                        : $"{itemTitle} termina em breve. Renove para continuar com o item."
                 },
-                Data = new Dictionary<string, string>
-                {
-                    ["type"] = "rental_expiring_24h",
-                    ["rentalId"] = rentalId.ToString(),
-                    ["itemTitle"] = itemTitle,
-                    ["endDateUtc"] = endDateUtc.ToString("o")
-                },
+                Data = data,
                 Android = new AndroidConfig
                 {
                     Priority = Priority.High,
