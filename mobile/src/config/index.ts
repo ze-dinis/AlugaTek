@@ -109,7 +109,36 @@ export function resolveApiAssetUrl(url?: string | null): string | undefined {
   return `${API_ORIGIN}/${url.replace(/^\/+/, '')}`;
 }
 
-export const GOOGLE_WEB_CLIENT_ID = '973689934720-j9gq5oacbmdlav92utmicqj3lltbmmlk.apps.googleusercontent.com';
+type RuntimeConfig = {
+  GOOGLE_WEB_CLIENT_ID?: string;
+};
+
+function resolveGoogleWebClientId(): string {
+  const runtime = (globalThis as unknown as RuntimeConfig).GOOGLE_WEB_CLIENT_ID;
+  if (runtime?.trim()) {
+    return runtime.trim();
+  }
+
+  const env = (globalThis as {
+    process?: {
+      env?: Record<string, string | undefined>;
+    };
+  }).process?.env;
+
+  const envValue =
+    env?.GOOGLE_WEB_CLIENT_ID ??
+    env?.REACT_NATIVE_GOOGLE_WEB_CLIENT_ID ??
+    env?.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+  if (envValue?.trim()) {
+    return envValue.trim();
+  }
+
+  // Backward-compatible fallback while migrating to env/build config.
+  return '412423945668-rin55creh0g3ldbkkckivdu44h0stmt8.apps.googleusercontent.com';
+}
+
+export const GOOGLE_WEB_CLIENT_ID = resolveGoogleWebClientId();
 
 // Stripe publishable key — safe to commit (public key, not the secret key).
 export const STRIPE_PUBLISHABLE_KEY = __DEV__
