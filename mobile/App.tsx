@@ -68,20 +68,21 @@ export default function App() {
       return;
     }
 
-    initializeNotificationService().catch(() => {
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
+        if (type !== EventType.PRESS && type !== EventType.ACTION_PRESS) {
+          return;
+        }
+
+        const route = extractChatRouteFromNotification(detail.notification);
+        if (route) {
+          openChatFromNotification(route);
+        }
+      });
+    } catch {
       // silently fail
-    });
-
-    const unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
-      if (type !== EventType.PRESS && type !== EventType.ACTION_PRESS) {
-        return;
-      }
-
-      const route = extractChatRouteFromNotification(detail.notification);
-      if (route) {
-        openChatFromNotification(route);
-      }
-    });
+    }
 
     const fcm = getMessaging();
 
@@ -104,26 +105,32 @@ export default function App() {
         senderName: route.otherName,
         messagePreview: remoteMessage.notification?.body ?? remoteMessage.data?.content ?? 'New message',
         unreadCount: 1,
+        timestampMs: remoteMessage.sentTime,
       });
     });
 
-    notifee.getInitialNotification().then(initial => {
-      const route = extractChatRouteFromNotification(initial?.notification);
-      if (route) {
-        openChatFromNotification(route);
-      }
-    }).catch(() => {
-      // silently fail
-    });
+    notifee
+      .getInitialNotification()
+      .then(initial => {
+        const route = extractChatRouteFromNotification(initial?.notification);
+        if (route) {
+          openChatFromNotification(route);
+        }
+      })
+      .catch(() => {
+        // silently fail
+      });
 
-    getInitialNotification(fcm).then(initial => {
-      const route = extractChatRouteFromRemoteData(initial?.data);
-      if (route) {
-        openChatFromNotification(route);
-      }
-    }).catch(() => {
-      // silently fail
-    });
+    getInitialNotification(fcm)
+      .then(initial => {
+        const route = extractChatRouteFromRemoteData(initial?.data);
+        if (route) {
+          openChatFromNotification(route);
+        }
+      })
+      .catch(() => {
+        // silently fail
+      });
 
     return () => {
       unsubscribe();
@@ -153,6 +160,9 @@ export default function App() {
 
     const registerPushToken = async () => {
       try {
+        // Request permission and create the channel only after login to avoid
+        // first-launch startup instability on newer Android versions.
+        await initializeNotificationService();
         const fcm = getMessaging();
         await registerDeviceForRemoteMessages(fcm);
         await requestPermission(fcm);
@@ -211,6 +221,7 @@ export default function App() {
               senderName: conversation.otherName,
               messagePreview: conversation.lastMessage,
               unreadCount: currentUnread,
+              timestampMs: parseApiTimestampToMs(conversation.lastMessageTime),
             });
           }
         }
@@ -251,4 +262,25 @@ function extractChatRouteFromRemoteData(
   }
 
   return {otherId, otherName};
+}
+
+function parseApiTimestampToMs(value?: string): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const hasTimezone = /(?:[zZ]|[+-]\d{2}:\d{2})$/.test(value);
+  const normalized = hasTimezone ? value : `${value}Z`;
+  const parsed = Date.parse(normalized);
+
+  if (Number.isNaN(parsed)) {
+    return undefined;
+  }
+
+  const year = new Date(parsed).getUTCFullYear();
+  if (year < 2000) {
+    return undefined;
+  }
+
+  return parsed;
 }

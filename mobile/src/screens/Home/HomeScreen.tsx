@@ -20,6 +20,7 @@ import {i18n} from '../../locales';
 import {Picker} from '@react-native-picker/picker';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 import SafeImage from '../../components/SafeImage';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -37,6 +38,7 @@ function normalizeDistrict(value: string | undefined): string {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<TechItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
@@ -136,7 +138,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.hero}>
+      <View style={[styles.hero, {paddingTop: insets.top}]}> 
         <Text style={styles.heroTitle}>✨ Descobrir Tecnologia</Text>
         <Text style={styles.heroSubtitle}>Escolha o equipamento ideal para alugar hoje.</Text>
       </View>
@@ -217,7 +219,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f3f6fb'},
-  hero: {paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10, backgroundColor: '#f3f6fb'},
+  hero: {paddingHorizontal: 14, paddingBottom: 10, backgroundColor: '#f3f6fb'},
   heroTitle: {fontSize: 24, fontWeight: '800', color: '#1f2937'},
   heroSubtitle: {fontSize: 13, color: '#526072', marginTop: 4},
   header: {flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10, gap: 8},

@@ -30,6 +30,7 @@ interface NewMessageNotificationParams {
   senderName: string;
   messagePreview: string;
   unreadCount: number;
+  timestampMs?: number;
 }
 
 export async function showNewMessageNotification({
@@ -38,6 +39,7 @@ export async function showNewMessageNotification({
   senderName,
   messagePreview,
   unreadCount,
+  timestampMs,
 }: NewMessageNotificationParams): Promise<void> {
   if (Platform.OS !== 'android') {
     return;
@@ -46,6 +48,7 @@ export async function showNewMessageNotification({
   await initializeNotificationService();
 
   const summary = unreadCount > 1 ? `${unreadCount} unread messages` : '1 unread message';
+  const notificationTimestamp = Number.isFinite(timestampMs) ? Number(timestampMs) : Date.now();
 
   await notifee.displayNotification({
     title: `Nova mensagem de ${senderName}`,
@@ -57,7 +60,7 @@ export async function showNewMessageNotification({
       pressAction: {id: 'default'},
       importance: AndroidImportance.HIGH,
       showTimestamp: true,
-      timestamp: Date.now(),
+      timestamp: notificationTimestamp,
       onlyAlertOnce: false,
     },
     data: {

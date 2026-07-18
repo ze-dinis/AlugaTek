@@ -94,6 +94,7 @@ export default function LoginScreen({navigation}: Props) {
       <TextInput
         style={styles.input}
         placeholder={i18n.auth.email}
+        placeholderTextColor="#8b95a5"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -102,6 +103,7 @@ export default function LoginScreen({navigation}: Props) {
       <TextInput
         style={styles.input}
         placeholder={i18n.auth.password}
+        placeholderTextColor="#8b95a5"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -128,7 +130,15 @@ const styles = StyleSheet.create({
   title: {fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#1a73e8'},
   titleTek: {color: '#1a99e8'},
   subtitleImage: {width: '100%', height: 120, alignSelf: 'center', marginBottom: 24},
-  input: {borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 16},
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 16,
+    color: '#1f2937',
+  },
   button: {backgroundColor: '#1a73e8', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12},
   googleButton: {backgroundColor: '#db4437'},
   buttonText: {color: '#fff', fontWeight: '600', fontSize: 16},

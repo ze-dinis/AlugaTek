@@ -388,6 +388,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
         <TextInput
           style={styles.input}
           placeholder={i18n.chat.writeMessage}
+          placeholderTextColor="#8b95a5"
           value={inputText}
           onChangeText={setInputText}
           multiline
@@ -516,7 +517,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 8,
   },
-  input: {flex: 1, backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, maxHeight: 100},
+  input: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    maxHeight: 100,
+    color: '#1f2937',
+  },
   sendButton: {
     backgroundColor: '#1a73e8',
     paddingHorizontal: 16,

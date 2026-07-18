@@ -74,7 +74,7 @@ export default function ChatListScreen() {
   };
 
   const renderItem = ({item}: {item: Conversation}) => {
-    const timeStr = new Date(item.lastMessageTime).toLocaleDateString();
+    const timeStr = formatConversationDate(item.lastMessageTime);
     return (
       <TouchableOpacity
         style={styles.conversationItem}
@@ -125,6 +125,25 @@ export default function ChatListScreen() {
       />
     </View>
   );
+}
+
+function parseApiDate(value: string): Date {
+  const hasTimezone = /(?:[zZ]|[+-]\d{2}:\d{2})$/.test(value);
+  const normalized = hasTimezone ? value : `${value}Z`;
+  return new Date(normalized);
+}
+
+function formatConversationDate(value: string): string {
+  const date = parseApiDate(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Agora';
+  }
+
+  if (date.getUTCFullYear() < 2000) {
+    return 'Agora';
+  }
+
+  return date.toLocaleDateString('pt-PT');
 }
 
 const styles = StyleSheet.create({
