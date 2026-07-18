@@ -111,6 +111,9 @@ adb devices
 adb -s <device_number> reverse tcp:8081 tcp:8081
 adb -s <device_number> reverse tcp:5000 tcp:5000
 
+# Android release
+npx react-native run-android --mode=release
+
 # iOS (macOS only)
 cd ios && pod install && cd ..
 npm run ios
