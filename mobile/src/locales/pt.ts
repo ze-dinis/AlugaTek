@@ -70,7 +70,7 @@ export const pt = {
     rentAmount: 'Valor do aluguer',
     platformCommission: 'Proteção do consumidor',
     total: 'Total',
-    rentNow: 'Alugar Agora',
+    rentNow: 'Alugar',
     unavailable: 'Alugado',
     rentalInProgress: 'Aluguer em curso',
     reserved: 'Reservado',
