@@ -81,7 +81,6 @@ export default function EarningsCalculatorScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Calcula quanto podes ganhar</Text>
       <Text style={styles.subtitle}>
         Simula ganhos mensais com PS5, iPhone e um item com preço por dia configurável.
       </Text>
