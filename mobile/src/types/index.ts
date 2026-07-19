@@ -20,6 +20,7 @@ export interface TechItem {
   dailyRate: number;
   caucao: number;
   imageUrl?: string;
+  imageUrls?: string[];
   isAvailable: boolean;
   categoryName: string;
   owner: User;

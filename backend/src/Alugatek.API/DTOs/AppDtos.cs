@@ -22,6 +22,7 @@ public record CreateItemRequest(
     decimal DailyRate,
     decimal Caucao,
     string? ImageUrl,
+    IReadOnlyList<string>? ImageUrls,
     int CategoryId);
 
 public class CreateItemWithPhotoRequest
@@ -34,6 +35,7 @@ public class CreateItemWithPhotoRequest
     public string? ImageUrl { get; set; }
     public int CategoryId { get; set; }
     public IFormFile? Photo { get; set; }
+    public List<IFormFile>? Photos { get; set; }
 }
 
 public record UpdateItemRequest(
@@ -43,6 +45,7 @@ public record UpdateItemRequest(
     decimal DailyRate,
     decimal Caucao,
     string? ImageUrl,
+    IReadOnlyList<string>? ImageUrls,
     bool IsAvailable);
 
 public record TechItemDto(
@@ -53,6 +56,7 @@ public record TechItemDto(
     decimal DailyRate,
     decimal Caucao,
     string? ImageUrl,
+    IReadOnlyList<string> ImageUrls,
     bool IsAvailable,
     string CategoryName,
     UserDto Owner,

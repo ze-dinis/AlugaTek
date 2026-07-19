@@ -10,6 +10,7 @@ public class TechItem
     /// <summary>Security deposit (caução) held on the renter's card and released on confirmed return.</summary>
     public decimal Caucao { get; set; } = 0;
     public string? ImageUrl { get; set; }
+    public string? ImageUrlsJson { get; set; }
     public bool IsAvailable { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -17,7 +17,7 @@ namespace Alugatek.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -299,6 +299,9 @@ namespace Alugatek.Infrastructure.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImageUrlsJson")
                         .HasColumnType("text");
 
                     b.Property<bool>("IsAvailable")

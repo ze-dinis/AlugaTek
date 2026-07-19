@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using Alugatek.API.DTOs;
 using Alugatek.API.Storage;
 using Alugatek.Domain.Entities;
@@ -43,6 +44,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     };
 
     private const long MaxPhotoSizeBytes = 5 * 1024 * 1024;
+    private const int MaxPhotosCount = 5;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TechItemDto>>> GetAll(
@@ -122,7 +124,20 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     [Consumes("application/json")]
     public async Task<ActionResult<TechItemDto>> Create(CreateItemRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.ImageUrl))
+        if (request.ImageUrls is { Count: > MaxPhotosCount })
+            return BadRequest(new { message = $"You can upload up to {MaxPhotosCount} photos." });
+
+        var imageUrls = request.ImageUrls?
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxPhotosCount)
+            .ToList() ?? [];
+
+        if (imageUrls.Count == 0 && !string.IsNullOrWhiteSpace(request.ImageUrl))
+            imageUrls.Add(request.ImageUrl.Trim());
+
+        if (imageUrls.Count == 0)
             return BadRequest(new { message = "Image is required. Use /api/items/upload with a photo file." });
 
         return await CreateItemAsync(
@@ -131,7 +146,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.District,
             request.DailyRate,
             request.Caucao,
-            request.ImageUrl,
+            imageUrls,
             request.CategoryId);
     }
 
@@ -140,19 +155,35 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<TechItemDto>> CreateWithPhoto([FromForm] CreateItemWithPhotoRequest request)
     {
-        if (request.Photo is null)
+        var photos = new List<IFormFile>();
+        if (request.Photo is not null)
+            photos.Add(request.Photo);
+        if (request.Photos is { Count: > 0 })
+            photos.AddRange(request.Photos.Where(p => p is not null));
+
+        if (photos.Count == 0)
             return BadRequest(new { message = "Photo is required." });
 
-        if (request.Photo.Length == 0)
-            return BadRequest(new { message = "Photo file is empty." });
+        if (photos.Count > MaxPhotosCount)
+            return BadRequest(new { message = $"You can upload up to {MaxPhotosCount} photos." });
 
-        if (request.Photo.Length > MaxPhotoSizeBytes)
-            return BadRequest(new { message = "Photo must be at most 5 MB." });
+        foreach (var photo in photos)
+        {
+            if (photo.Length == 0)
+                return BadRequest(new { message = "Photo file is empty." });
 
-        if (!AllowedImageContentTypes.Contains(request.Photo.ContentType))
-            return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
+            if (photo.Length > MaxPhotoSizeBytes)
+                return BadRequest(new { message = "Photo must be at most 5 MB." });
 
-        var imageUrl = await imageStorage.SaveAsync(request.Photo, HttpContext.RequestAborted);
+            if (!AllowedImageContentTypes.Contains(photo.ContentType))
+                return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
+        }
+
+        var imageUrls = new List<string>(photos.Count);
+        foreach (var photo in photos)
+        {
+            imageUrls.Add(await imageStorage.SaveAsync(photo, HttpContext.RequestAborted));
+        }
 
         return await CreateItemAsync(
             request.Title,
@@ -160,7 +191,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.District,
             request.DailyRate,
             request.Caucao,
-            imageUrl,
+            imageUrls,
             request.CategoryId);
     }
 
@@ -182,13 +213,45 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         return Ok(new { imageUrl });
     }
 
+    [Authorize]
+    [HttpPost("upload-images")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<object>> UploadImages([FromForm] List<IFormFile> photos, CancellationToken cancellationToken)
+    {
+        if (photos is null || photos.Count == 0)
+            return BadRequest(new { message = "At least one photo is required." });
+
+        if (photos.Count > MaxPhotosCount)
+            return BadRequest(new { message = $"You can upload up to {MaxPhotosCount} photos." });
+
+        foreach (var photo in photos)
+        {
+            if (photo.Length == 0)
+                return BadRequest(new { message = "Photo file is empty." });
+
+            if (photo.Length > MaxPhotoSizeBytes)
+                return BadRequest(new { message = "Photo must be at most 5 MB." });
+
+            if (!AllowedImageContentTypes.Contains(photo.ContentType))
+                return BadRequest(new { message = "Unsupported photo format. Use JPEG, PNG, or WEBP." });
+        }
+
+        var imageUrls = new List<string>(photos.Count);
+        foreach (var photo in photos)
+        {
+            imageUrls.Add(await imageStorage.SaveAsync(photo, cancellationToken));
+        }
+
+        return Ok(new { imageUrls });
+    }
+
     private async Task<ActionResult<TechItemDto>> CreateItemAsync(
         string title,
         string description,
         string district,
         decimal dailyRate,
         decimal caucao,
-        string? imageUrl,
+        IReadOnlyList<string> imageUrls,
         int categoryId)
     {
         var ownerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -213,7 +276,8 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             District = canonicalDistrict,
             DailyRate = dailyRate,
             Caucao = caucao,
-            ImageUrl = imageUrl,
+            ImageUrl = imageUrls.FirstOrDefault(),
+            ImageUrlsJson = imageUrls.Count > 0 ? JsonSerializer.Serialize(imageUrls) : null,
             CategoryId = categoryId,
             OwnerId = ownerId
         };
@@ -250,7 +314,21 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         item.District = canonicalDistrict;
         item.DailyRate = request.DailyRate;
         item.Caucao = request.Caucao < 0 ? 0 : request.Caucao;
-        item.ImageUrl = request.ImageUrl;
+        if (request.ImageUrls is { Count: > MaxPhotosCount })
+            return BadRequest(new { message = $"You can upload up to {MaxPhotosCount} photos." });
+
+        var normalizedImageUrls = request.ImageUrls?
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxPhotosCount)
+            .ToList() ?? [];
+
+        if (normalizedImageUrls.Count == 0 && !string.IsNullOrWhiteSpace(request.ImageUrl))
+            normalizedImageUrls.Add(request.ImageUrl.Trim());
+
+        item.ImageUrl = normalizedImageUrls.FirstOrDefault();
+        item.ImageUrlsJson = normalizedImageUrls.Count > 0 ? JsonSerializer.Serialize(normalizedImageUrls) : null;
         item.IsAvailable = request.IsAvailable;
 
         await db.SaveChangesAsync();
@@ -293,12 +371,46 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     public async Task<ActionResult<IEnumerable<object>>> GetCategories() =>
         Ok(await db.Categories.Select(c => new { c.Id, c.Name, c.IconUrl }).ToListAsync());
 
-    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null) => new(
-        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.Caucao, i.ImageUrl, isAvailableOverride ?? i.IsAvailable,
+    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null)
+    {
+        var imageUrls = ParseImageUrls(i.ImageUrlsJson, i.ImageUrl);
+
+        return new TechItemDto(
+        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.Caucao, i.ImageUrl, imageUrls, isAvailableOverride ?? i.IsAvailable,
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,
         i.CreatedAt);
+    }
+
+    private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson, string? imageUrl)
+    {
+        var result = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(imageUrlsJson))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<string>>(imageUrlsJson);
+                if (parsed is not null)
+                {
+                    result.AddRange(parsed.Where(url => !string.IsNullOrWhiteSpace(url)).Select(url => url.Trim()));
+                }
+            }
+            catch
+            {
+                // Keep compatibility with older or malformed payloads by falling back to ImageUrl.
+            }
+        }
+
+        if (result.Count == 0 && !string.IsNullOrWhiteSpace(imageUrl))
+            result.Add(imageUrl.Trim());
+
+        return result
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxPhotosCount)
+            .ToList();
+    }
 
     private static string? TryGetCanonicalDistrict(string district)
     {

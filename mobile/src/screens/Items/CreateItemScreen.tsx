@@ -13,6 +13,9 @@ import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 import SafeImage from '../../components/SafeImage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
+type ItemImage = {uri: string; type?: string; name?: string; imageUrl?: string};
+
+const MAX_IMAGES = 5;
 
 export default function CreateItemScreen({route}: Props) {
   const navigation = useNavigation();
@@ -24,12 +27,11 @@ export default function CreateItemScreen({route}: Props) {
   const [district, setDistrict] = useState('');
   const [dailyRate, setDailyRate] = useState('');
   const [caucao, setCaucao] = useState('');
-  const [image, setImage] = useState<{uri: string; type?: string; name?: string} | null>(null);
+  const [images, setImages] = useState<ItemImage[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditing);
-  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -47,11 +49,14 @@ export default function CreateItemScreen({route}: Props) {
           setDailyRate(item.dailyRate.toString());
           setCaucao(item.caucao.toString());
           setCategoryId(item.categoryName ? fetchedCategories.find(c => c.name === item.categoryName)?.id || null : null);
-          if (item.imageUrl) {
-            setOriginalImageUrl(item.imageUrl);
-            const resolvedImageUri = resolveApiAssetUrl(item.imageUrl) ?? item.imageUrl;
-            setImage({uri: resolvedImageUri});
-          }
+          const backendImageUrls = (item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])
+            .slice(0, MAX_IMAGES);
+          setImages(
+            backendImageUrls.map(url => ({
+              imageUrl: url,
+              uri: resolveApiAssetUrl(url) ?? url,
+            })),
+          );
         }
       } catch {
         Alert.alert(i18n.common.error, i18n.auth.errorNetworkDetail);
@@ -64,9 +69,14 @@ export default function CreateItemScreen({route}: Props) {
   }, []);
 
   const handleChoosePhoto = async () => {
+    if (images.length >= MAX_IMAGES) {
+      Alert.alert(i18n.common.error, `Pode carregar no máximo ${MAX_IMAGES} imagens.`);
+      return;
+    }
+
     const result = await launchImageLibrary({
       mediaType: 'photo',
-      selectionLimit: 1,
+      selectionLimit: MAX_IMAGES,
       quality: 0.9,
     });
 
@@ -79,17 +89,28 @@ export default function CreateItemScreen({route}: Props) {
       return;
     }
 
-    const asset = result.assets?.[0];
-    if (!asset?.uri) {
+    const picked = (result.assets ?? []).filter(asset => !!asset.uri);
+    if (picked.length === 0) {
       Alert.alert(i18n.common.error, 'Invalid image selected.');
       return;
     }
 
-    setImage({
-      uri: asset.uri,
+    const remainingSlots = MAX_IMAGES - images.length;
+    const nextImages: ItemImage[] = picked.slice(0, remainingSlots).map((asset, index) => ({
+      uri: asset.uri!,
       type: asset.type,
-      name: asset.fileName,
-    });
+      name: asset.fileName ?? `item-${Date.now()}-${index + 1}.jpg`,
+    }));
+
+    setImages(prev => [...prev, ...nextImages]);
+
+    if (picked.length > remainingSlots) {
+      Alert.alert(i18n.common.error, `Apenas ${MAX_IMAGES} imagens são permitidas por anúncio.`);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
@@ -97,7 +118,7 @@ export default function CreateItemScreen({route}: Props) {
       Alert.alert(i18n.common.error, i18n.item.errorFillFields);
       return;
     }
-    if (!isEditing && !image) {
+    if (images.length === 0) {
       Alert.alert(i18n.common.error, i18n.item.errorSelectPhoto);
       return;
     }
@@ -118,18 +139,27 @@ export default function CreateItemScreen({route}: Props) {
     setLoading(true);
     try {
       if (isEditing && itemId) {
-        let imageUrl: string | undefined = originalImageUrl ?? undefined;
-        if (image?.uri.startsWith('file://')) {
-          const uploadRes = await itemsService.uploadImage(image);
-          imageUrl = uploadRes.data.imageUrl;
+        const existingImageUrls = images
+          .map(image => image.imageUrl)
+          .filter((url): url is string => !!url);
+        const newImages = images.filter(image => !image.imageUrl);
+
+        let uploadedImageUrls: string[] = [];
+        if (newImages.length > 0) {
+          const uploadRes = await itemsService.uploadImages(newImages);
+          uploadedImageUrls = uploadRes.data.imageUrls ?? [];
         }
+
+        const imageUrls = [...existingImageUrls, ...uploadedImageUrls].slice(0, MAX_IMAGES);
+
         await itemsService.update(itemId, {
           title,
           description,
           district,
           dailyRate: rate,
           caucao: deposit,
-          imageUrl,
+          imageUrl: imageUrls[0],
+          imageUrls,
           isAvailable: true,
         });
         Alert.alert(i18n.common.success, i18n.item.updateSuccess, [
@@ -142,7 +172,7 @@ export default function CreateItemScreen({route}: Props) {
           district,
           dailyRate: rate,
           caucao: deposit,
-          image: image ?? undefined,
+          images,
           categoryId,
         });
         Alert.alert(i18n.common.success, i18n.item.creationSuccess, [
@@ -222,25 +252,23 @@ export default function CreateItemScreen({route}: Props) {
         keyboardType="decimal-pad"
       />
 
-      {!isEditing && (
-        <>
-          <Text style={styles.label}>🖼️ {i18n.item.selectPhoto} *</Text>
-          <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-            <Text style={styles.photoButtonText}>📷 {image ? i18n.item.uploadPhoto : i18n.item.selectPhoto}</Text>
-          </TouchableOpacity>
-          {image ? <SafeImage uri={image.uri} style={styles.preview} /> : null}
-        </>
-      )}
-
-      {isEditing && image && (
-        <>
-          <Text style={styles.label}>🖼️ {i18n.item.photoPreview}</Text>
-          <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
-            <Text style={styles.photoButtonText}>📷 {i18n.item.uploadPhoto}</Text>
-          </TouchableOpacity>
-          <SafeImage uri={image.uri} style={styles.preview} />
-        </>
-      )}
+      <Text style={styles.label}>🖼️ {i18n.item.selectPhoto} * ({images.length}/{MAX_IMAGES})</Text>
+      <TouchableOpacity style={styles.photoButton} onPress={handleChoosePhoto}>
+        <Text style={styles.photoButtonText}>📷 {i18n.item.uploadPhoto}</Text>
+      </TouchableOpacity>
+      <View style={styles.previewGrid}>
+        {images.map((image, index) => (
+          <View key={`${image.uri}-${index}`} style={styles.previewCard}>
+            <SafeImage uri={image.uri} style={styles.preview} />
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => handleRemoveImage(index)}
+              disabled={loading}>
+              <Text style={styles.removeImageButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
 
       <Text style={styles.label}>🏷️ {i18n.item.category} *</Text>
       <View style={styles.categories}>
@@ -295,13 +323,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef4ff',
   },
   photoButtonText: {color: '#1a73e8', fontWeight: '600'},
+  previewGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16},
+  previewCard: {position: 'relative', width: '48%'},
   preview: {
     width: '100%',
-    height: 180,
+    height: 140,
     borderRadius: 8,
-    marginBottom: 16,
     resizeMode: 'cover',
   },
+  removeImageButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeImageButtonText: {color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16},
   button: {backgroundColor: '#1a73e8', padding: 16, borderRadius: 12, alignItems: 'center', shadowColor: '#1a73e8', shadowOpacity: 0.25, shadowRadius: 8},
   buttonText: {color: '#fff', fontWeight: '700', fontSize: 16},
 });

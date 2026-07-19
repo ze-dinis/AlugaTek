@@ -17,11 +17,11 @@ export const itemsService = {
     district: string;
     dailyRate: number;
     caucao: number;
-    image?: {
+    images?: Array<{
       uri: string;
       name?: string;
       type?: string;
-    };
+    }>;
     categoryId: number;
   }) => {
     const formData = new FormData();
@@ -32,13 +32,15 @@ export const itemsService = {
     formData.append('caucao', data.caucao.toString());
     formData.append('categoryId', data.categoryId.toString());
 
-    if (data.image?.uri) {
-      formData.append('photo', {
-        uri: data.image.uri,
-        name: data.image.name ?? `item-${Date.now()}.jpg`,
-        type: data.image.type ?? 'image/jpeg',
+    data.images?.forEach((image, index) => {
+      if (!image?.uri) return;
+
+      formData.append('photos', {
+        uri: image.uri,
+        name: image.name ?? `item-${Date.now()}-${index + 1}.jpg`,
+        type: image.type ?? 'image/jpeg',
       } as any);
-    }
+    });
 
     return api.post<TechItem>('/items/upload', formData, {
       headers: {'Content-Type': 'multipart/form-data'},
@@ -55,6 +57,7 @@ export const itemsService = {
       dailyRate: number;
       caucao: number;
       imageUrl?: string;
+      imageUrls?: string[];
       isAvailable: boolean;
     },
   ) => api.put<TechItem>(`/items/${id}`, data),
@@ -69,6 +72,22 @@ export const itemsService = {
       type: photo.type ?? 'image/jpeg',
     } as any);
     return api.post<{imageUrl: string}>('/items/upload-image', formData, {
+      headers: {'Content-Type': 'multipart/form-data'},
+      transformRequest: data => data,
+    });
+  },
+
+  uploadImages: (photos: Array<{uri: string; name?: string; type?: string}>) => {
+    const formData = new FormData();
+    photos.forEach((photo, index) => {
+      formData.append('photos', {
+        uri: photo.uri,
+        name: photo.name ?? `item-${Date.now()}-${index + 1}.jpg`,
+        type: photo.type ?? 'image/jpeg',
+      } as any);
+    });
+
+    return api.post<{imageUrls: string[]}>('/items/upload-images', formData, {
       headers: {'Content-Type': 'multipart/form-data'},
       transformRequest: data => data,
     });

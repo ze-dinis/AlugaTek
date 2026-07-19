@@ -36,6 +36,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .HasMaxLength(100)
              .IsRequired();
             e.Property(i => i.DailyRate).HasColumnType("decimal(18,2)");
+            e.Property(i => i.ImageUrlsJson).HasColumnType("text");
             e.HasOne(i => i.Owner)
              .WithMany(u => u.ListedItems)
              .HasForeignKey(i => i.OwnerId)

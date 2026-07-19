@@ -3,10 +3,14 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   Alert,
   ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  useWindowDimensions,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useFocusEffect} from '@react-navigation/native';
@@ -28,6 +32,7 @@ const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
 export default function ItemDetailScreen({route, navigation}: Props) {
   const {itemId} = route.params;
   const {user} = useAuthStore();
+  const {width} = useWindowDimensions();
   const [item, setItem] = useState<TechItem | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +41,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [deleting, setDeleting] = useState(false);
   const [rentalDays, setRentalDays] = useState(3);
   const [reporting, setReporting] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const loadItemData = useCallback(() => {
     setLoading(true);
@@ -169,14 +175,58 @@ export default function ItemDetailScreen({route, navigation}: Props) {
     return <Text style={{textAlign: 'center', marginTop: 40}}>Item not found.</Text>;
   }
 
-  const imageUri = resolveApiAssetUrl(item.imageUrl);
+  const galleryImages = (item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])
+    .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
+    .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
   const isRentalInProgress = !item.isAvailable && !reservedByCurrentUser;
+
+  const handleGalleryScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const width = event.nativeEvent.layoutMeasurement.width || 1;
+    const nextIndex = Math.round(offsetX / width);
+    setActiveImageIndex(nextIndex);
+  };
 
   return (
     <ScrollView style={styles.container}>
+      {galleryImages.length > 1 && (
+        <View style={styles.galleryHeader}>
+          <Text style={styles.galleryTitle}>📷 Fotos do artigo</Text>
+          <Text style={styles.galleryHint}>Deslize para ver mais</Text>
+        </View>
+      )}
       <View style={styles.imageContainer}>
-        <SafeImage uri={imageUri} style={styles.image} />
+        {galleryImages.length > 1 ? (
+          <FlatList
+            data={galleryImages}
+            keyExtractor={(uri, index) => `${uri}-${index}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            onScrollToIndexFailed={({index, averageItemLength}) => {
+              const fallbackOffset = (averageItemLength || width) * index;
+              galleryRef.current?.scrollToOffset({offset: fallbackOffset, animated: true});
+            }}
+            onMomentumScrollEnd={handleGalleryScroll}
+            renderItem={({item: imageUri}) => (
+              <SafeImage uri={imageUri} style={[styles.image, {width}]} />
+            )}
+          />
+        ) : (
+          <SafeImage uri={galleryImages[0]} style={[styles.image, {width}]} />
+        )}
         {isRentalInProgress && <View style={styles.imageGreyOverlay} />}
+        {galleryImages.length > 1 && (
+          <View style={styles.imageCounter}>
+            <Text style={styles.imageCounterText}>{activeImageIndex + 1}/{galleryImages.length}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -306,8 +356,22 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f3f6fb'},
-  imageContainer: {position: 'relative'},
-  image: {width: '100%', height: 260},
+  galleryHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#f3f6fb',
+  },
+  galleryTitle: {fontSize: 16, fontWeight: '800', color: '#1f2937'},
+  galleryHint: {fontSize: 12, color: '#64748b', marginTop: 2},
+  imageContainer: {
+    position: 'relative',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: 'hidden',
+  },
+  image: {height: 270},
   imageGreyOverlay: {
     position: 'absolute',
     top: 0,
@@ -316,6 +380,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(120,120,120,0.45)',
   },
+  imageCounter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(15,23,42,0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  imageCounterText: {color: '#fff', fontSize: 12, fontWeight: '700'},
   content: {padding: 20, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -18},
   title: {fontSize: 24, fontWeight: 'bold'},
   category: {color: '#888', marginTop: 4},
