@@ -7,6 +7,11 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _fallbackAttemptIndex?: number;
 };
 
+function isIdempotentMethod(method?: string): boolean {
+  const normalized = (method ?? 'get').toLowerCase();
+  return normalized === 'get' || normalized === 'head' || normalized === 'options';
+}
+
 function getAndroidFallbackBaseUrls(currentBaseUrl?: string): string[] {
   const ordered = [currentBaseUrl, ...DEV_ANDROID_API_FALLBACK_BASE_URLS].filter(
     (value): value is string => Boolean(value),
@@ -38,7 +43,13 @@ api.interceptors.response.use(
 
     // In Android dev we retry network failures against alternative local hosts
     // to support both emulator (10.0.2.2) and physical device (localhost/LAN).
-    if (__DEV__ && Platform.OS === 'android' && !error.response && config) {
+    if (
+      __DEV__
+      && Platform.OS === 'android'
+      && !error.response
+      && config
+      && isIdempotentMethod(config.method)
+    ) {
       const fallbackBaseUrls = getAndroidFallbackBaseUrls(
         config.baseURL ?? api.defaults.baseURL,
       );

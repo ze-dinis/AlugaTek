@@ -64,6 +64,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [pendingImages, setPendingImages] = useState<PendingChatImage[]>([]);
   const flatListRef = useRef<FlatList>(null);
+  const sendInFlightRef = useRef(false);
 
   const latestDisputableRentalId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -105,9 +106,12 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   }, [itemId, otherUserId]);
 
   const handleSend = async () => {
+    if (sendInFlightRef.current) return;
+
     const messageText = inputText.trim();
     if (!messageText && pendingImages.length === 0) return;
 
+    sendInFlightRef.current = true;
     setInputText('');
     const imagesToUpload = pendingImages;
     setPendingImages([]);
@@ -128,6 +132,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       setPendingImages(imagesToUpload);
     } finally {
       setSending(false);
+      sendInFlightRef.current = false;
     }
   };
 

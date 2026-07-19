@@ -89,6 +89,7 @@ public class FirebasePushNotificationService : IPushNotificationService
 
     public async Task<IReadOnlyCollection<string>> SendChatMessageAsync(
         IReadOnlyCollection<string> deviceTokens,
+        Guid messageId,
         Guid senderId,
         string senderName,
         Guid itemId,
@@ -120,6 +121,7 @@ public class FirebasePushNotificationService : IPushNotificationService
                 },
                 Data = new Dictionary<string, string>
                 {
+                    ["messageId"] = messageId.ToString(),
                     ["type"] = "chat_message",
                     ["otherId"] = senderId.ToString(),
                     ["otherName"] = senderName,

@@ -4,6 +4,7 @@ public interface IPushNotificationService
 {
     Task<IReadOnlyCollection<string>> SendChatMessageAsync(
         IReadOnlyCollection<string> deviceTokens,
+        Guid messageId,
         Guid senderId,
         string senderName,
         Guid itemId,

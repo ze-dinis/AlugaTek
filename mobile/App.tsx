@@ -38,12 +38,66 @@ type PendingChatRoute = {
   itemTitle: string;
 };
 
+type NotificationIdentity = {
+  messageId?: string;
+  eventId?: string;
+};
+
+const NOTIFICATION_DEDUPE_WINDOW_MS = 15000;
+
 export default function App() {
   const loadFromStorage = useAuthStore(s => s.loadFromStorage);
   const user = useAuthStore(s => s.user);
   const pendingChatRouteRef = useRef<PendingChatRoute | null>(null);
   const unreadByConversationRef = useRef<Record<string, number>>({});
   const hasUnreadBaselineRef = useRef(false);
+  const recentNotificationKeysRef = useRef<Record<string, number>>({});
+
+  const shouldDisplayNotification = (
+    otherUserId: string,
+    itemId: string | undefined,
+    messagePreview: string,
+    timestampMs?: number,
+    eventId?: string,
+  ): boolean => {
+    const now = Date.now();
+    if (eventId) {
+      const existingTimestamp = recentNotificationKeysRef.current[eventId];
+      for (const key of Object.keys(recentNotificationKeysRef.current)) {
+        if (now - recentNotificationKeysRef.current[key] > NOTIFICATION_DEDUPE_WINDOW_MS) {
+          delete recentNotificationKeysRef.current[key];
+        }
+      }
+
+      if (existingTimestamp && now - existingTimestamp < NOTIFICATION_DEDUPE_WINDOW_MS) {
+        return false;
+      }
+
+      recentNotificationKeysRef.current[eventId] = now;
+      return true;
+    }
+
+    const itemPart = itemId ?? 'none';
+    const previewPart = messagePreview.trim().toLowerCase();
+    const timestampPart = Number.isFinite(timestampMs)
+      ? Math.floor(Number(timestampMs) / 5000).toString()
+      : 'na';
+    const dedupeKey = `${otherUserId}:${itemPart}:${previewPart}:${timestampPart}`;
+    const previousTimestamp = recentNotificationKeysRef.current[dedupeKey];
+
+    for (const key of Object.keys(recentNotificationKeysRef.current)) {
+      if (now - recentNotificationKeysRef.current[key] > NOTIFICATION_DEDUPE_WINDOW_MS) {
+        delete recentNotificationKeysRef.current[key];
+      }
+    }
+
+    if (previousTimestamp && now - previousTimestamp < NOTIFICATION_DEDUPE_WINDOW_MS) {
+      return false;
+    }
+
+    recentNotificationKeysRef.current[dedupeKey] = now;
+    return true;
+  };
 
   const extractChatRouteFromNotification = (notification?: Notification): NotificationThreadData | null => {
     const otherUserId = notification?.data?.otherUserId ?? notification?.data?.otherId;
@@ -128,6 +182,20 @@ export default function App() {
       if (!route) {
         return;
       }
+      const identity = extractNotificationIdentityFromRemoteData(remoteMessage.data);
+
+      const messagePreview = remoteMessage.notification?.body
+        ?? remoteMessage.data?.content
+        ?? 'New message';
+      if (!shouldDisplayNotification(
+        route.otherUserId,
+        route.itemId,
+        messagePreview,
+        remoteMessage.sentTime,
+        identity.eventId,
+      )) {
+        return;
+      }
 
       await showNewMessageNotification({
         otherId: route.otherUserId,
@@ -135,9 +203,10 @@ export default function App() {
         itemId: route.itemId,
         itemTitle: route.itemTitle,
         senderName: route.otherName,
-        messagePreview: remoteMessage.notification?.body ?? remoteMessage.data?.content ?? 'New message',
+        messagePreview,
         unreadCount: 1,
         timestampMs: remoteMessage.sentTime,
+        eventId: identity.eventId,
       });
     });
 
@@ -242,20 +311,35 @@ export default function App() {
         const nextUnread: Record<string, number> = {};
 
         for (const conversation of conversations) {
+          const conversationKey = `${conversation.itemId}:${conversation.otherUserId}`;
           const currentUnread = conversation.unreadCount ?? 0;
-          const previous = previousUnread[conversation.otherId] ?? 0;
-          nextUnread[conversation.otherId] = currentUnread;
+          const previous = previousUnread[conversationKey] ?? 0;
+          nextUnread[conversationKey] = currentUnread;
 
           if (hasUnreadBaselineRef.current && currentUnread > previous) {
+            const messagePreview = conversation.lastMessage;
+            const messageTimestampMs = parseApiTimestampToMs(conversation.lastMessageTime);
+            const pollingEventId = `poll:${conversation.itemId}:${conversation.otherUserId}:${messageTimestampMs ?? 0}`;
+            if (!shouldDisplayNotification(
+              conversation.otherUserId,
+              conversation.itemId,
+              messagePreview,
+              messageTimestampMs,
+              pollingEventId,
+            )) {
+              continue;
+            }
+
             await showNewMessageNotification({
               otherId: conversation.otherUserId,
               otherName: conversation.otherName,
               itemId: conversation.itemId,
               itemTitle: conversation.itemTitle,
               senderName: conversation.otherName,
-              messagePreview: conversation.lastMessage,
+              messagePreview,
               unreadCount: currentUnread,
-              timestampMs: parseApiTimestampToMs(conversation.lastMessageTime),
+              timestampMs: messageTimestampMs,
+              eventId: pollingEventId,
             });
           }
         }
@@ -303,6 +387,19 @@ function extractChatRouteFromRemoteData(
     itemId,
     itemTitle,
   };
+}
+
+function extractNotificationIdentityFromRemoteData(
+  data?: FirebaseMessagingTypes.RemoteMessage['data'],
+): NotificationIdentity {
+  const messageId = typeof data?.messageId === 'string' && data.messageId.trim().length > 0
+    ? data.messageId
+    : undefined;
+  const eventId = typeof data?.eventId === 'string' && data.eventId.trim().length > 0
+    ? data.eventId
+    : messageId;
+
+  return {messageId, eventId};
 }
 
 function parseApiTimestampToMs(value?: string): number | undefined {

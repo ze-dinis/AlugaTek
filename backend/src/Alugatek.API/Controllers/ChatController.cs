@@ -233,12 +233,14 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         var receiverTokens = await db.DevicePushTokens
             .Where(t => t.UserId == receiverId && t.Platform == "android")
             .Select(t => t.Token)
+            .Distinct()
             .ToListAsync();
 
         if (receiverTokens.Count > 0)
         {
             var invalidTokens = await pushNotifications.SendChatMessageAsync(
                 receiverTokens,
+                message.Id,
                 senderId,
                 message.Sender.Name,
                 request.ItemId,

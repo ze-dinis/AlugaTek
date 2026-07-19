@@ -33,6 +33,7 @@ interface NewMessageNotificationParams {
   messagePreview: string;
   unreadCount: number;
   timestampMs?: number;
+  eventId?: string;
 }
 
 export async function showNewMessageNotification({
@@ -44,6 +45,7 @@ export async function showNewMessageNotification({
   messagePreview,
   unreadCount,
   timestampMs,
+  eventId,
 }: NewMessageNotificationParams): Promise<void> {
   if (Platform.OS !== 'android') {
     return;
@@ -55,6 +57,7 @@ export async function showNewMessageNotification({
   const notificationTimestamp = Number.isFinite(timestampMs) ? Number(timestampMs) : Date.now();
 
   await notifee.displayNotification({
+    id: eventId,
     title: `Nova mensagem de ${senderName}`,
     body: messagePreview,
     subtitle: summary,
