@@ -186,7 +186,12 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
             else
             {
                 var lastCounterparty = await db.Messages
-                    .Where(m => m.ItemId == request.ItemId && m.ReceiverId == senderId && m.SenderId != senderId)
+                    .Where(m =>
+                        m.ItemId == request.ItemId &&
+                        m.ReceiverId == senderId &&
+                        m.SenderId != senderId &&
+                        m.MessageType != SupportReplyMessageType &&
+                        m.MessageType != SupportResolutionMessageType)
                     .OrderByDescending(m => m.CreatedAt)
                     .Select(m => (Guid?)m.SenderId)
                     .FirstOrDefaultAsync();
@@ -308,6 +313,20 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         Guid userId,
         IReadOnlyDictionary<Guid, RentalParticipant> rentalParticipantById)
     {
+        var isSupportMessage = message.MessageType == SupportReplyMessageType ||
+                               message.MessageType == SupportResolutionMessageType;
+
+        if (isSupportMessage &&
+            message.RentalId is Guid supportRentalId &&
+            rentalParticipantById.TryGetValue(supportRentalId, out var supportParticipant))
+        {
+            if (supportParticipant.RenterId == userId)
+                return supportParticipant.OwnerId;
+
+            if (supportParticipant.OwnerId == userId)
+                return supportParticipant.RenterId;
+        }
+
         if (message.SenderId == userId)
             return message.ReceiverId;
 
