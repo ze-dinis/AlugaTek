@@ -3,6 +3,7 @@ import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndi
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AuthStackParamList} from '../../navigation/AppNavigator';
 import {authService} from '../../services/authService';
+import {analyticsService} from '../../services/analyticsService';
 import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
@@ -25,6 +26,7 @@ export default function RegisterScreen({navigation}: Props) {
     setLoading(true);
     try {
       const {data} = await authService.register(name, email, password);
+      void analyticsService.trackSignUp('email');
       Alert.alert(i18n.common.success, data.message ?? i18n.auth.verificationEmailSent, [
         {
           text: i18n.common.ok,

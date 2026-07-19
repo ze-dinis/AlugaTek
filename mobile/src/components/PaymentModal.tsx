@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {CardField, useStripe} from '@stripe/stripe-react-native';
 import {rentalsService} from '../services/rentalsService';
+import {analyticsService} from '../services/analyticsService';
 import {i18n} from '../locales';
 
 interface Props {
@@ -67,7 +68,8 @@ export default function PaymentModal({
       if (onAuthorizePaymentMethod) {
         await onAuthorizePaymentMethod(paymentMethod.id);
       } else {
-        await rentalsService.pay(rentalId, paymentMethod.id);
+        const {data: paidRental} = await rentalsService.pay(rentalId, paymentMethod.id);
+        void analyticsService.trackRentalPaid(paidRental);
       }
       onSuccess();
     } catch (e: any) {

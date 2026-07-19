@@ -11,6 +11,7 @@ import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 import SafeImage from '../../components/SafeImage';
+import {analyticsService} from '../../services/analyticsService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
 type ItemImage = {uri: string; type?: string; name?: string; imageUrl?: string};
@@ -166,7 +167,7 @@ export default function CreateItemScreen({route}: Props) {
           {text: i18n.common.ok, onPress: () => navigation.goBack()},
         ]);
       } else {
-        await itemsService.create({
+        const {data: createdItem} = await itemsService.create({
           title,
           description,
           district,
@@ -174,6 +175,14 @@ export default function CreateItemScreen({route}: Props) {
           caucao: deposit,
           images,
           categoryId,
+        });
+        void analyticsService.trackItemListed({
+          itemId: createdItem.id,
+          categoryId,
+          district,
+          dailyRate: rate,
+          caucao: deposit,
+          imageCount: images.length,
         });
         Alert.alert(i18n.common.success, i18n.item.creationSuccess, [
           {text: i18n.common.ok, onPress: () => navigation.goBack()},
