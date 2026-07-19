@@ -228,16 +228,24 @@ export default function ItemDetailScreen({route, navigation}: Props) {
         <Text style={styles.owner}>{item.owner.name}</Text>
 
         {user?.id === item.owner.id ? (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDelete}
-            disabled={deleting}>
-            {deleting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.deleteButtonText}>🗑️ {i18n.itemDetail.deleteItem}</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.ownerActions}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => navigation.navigate('EditItem', {itemId: item.id})}
+              disabled={deleting}>
+              <Text style={styles.editButtonText}>✏️ {i18n.myAdvertisements.edit}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+              disabled={deleting}>
+              {deleting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.deleteButtonText}>🗑️ {i18n.itemDetail.deleteItem}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         ) : (
           <View style={styles.buttonRow}>
             {item.isAvailable && !reservedByCurrentUser ? (
@@ -338,7 +346,10 @@ const styles = StyleSheet.create({
   unavailableText: {color: '#5d4037', fontWeight: '600', fontSize: 16},
   messageButton: {backgroundColor: '#34a853'},
   messageButtonText: {color: '#fff', fontWeight: '600', fontSize: 16},
-  deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 24},
+  ownerActions: {marginTop: 24, gap: 10},
+  editButton: {backgroundColor: '#34a853', padding: 16, borderRadius: 10, alignItems: 'center'},
+  editButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
+  deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center'},
   deleteButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   reportButton: {marginTop: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e57373', alignItems: 'center'},
   reportButtonText: {color: '#c62828', fontWeight: '600', fontSize: 14},
