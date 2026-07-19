@@ -16,27 +16,63 @@ namespace Alugatek.API.Controllers;
 public class ChatController(AppDbContext db, IPushNotificationService pushNotifications) : ControllerBase
 {
     private const int MaxMessageImages = 5;
+    private const string SupportReplyMessageType = "SupportReply";
+    private const string SupportResolutionMessageType = "SupportResolution";
 
     [HttpGet("conversations")]
     public async Task<ActionResult<IEnumerable<ConversationDto>>> GetConversations()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var conversations = await db.Messages
-            .Where(m => m.ItemId != null && (m.SenderId == userId || m.ReceiverId == userId))
-            .GroupBy(m => new
+        var rentalParticipants = await db.Rentals
+            .Where(r => r.RenterId == userId || r.Item.OwnerId == userId)
+            .Select(r => new RentalParticipant(r.Id, r.ItemId, r.RenterId, r.Item.OwnerId))
+            .ToListAsync();
+
+        var rentalIds = rentalParticipants.Select(r => r.RentalId).ToList();
+        var rentalParticipantById = rentalParticipants.ToDictionary(r => r.RentalId);
+
+        var messages = await db.Messages
+            .Where(m =>
+                m.ItemId != null &&
+                (
+                    m.SenderId == userId ||
+                    m.ReceiverId == userId ||
+                    (m.RentalId != null &&
+                     rentalIds.Contains(m.RentalId.Value) &&
+                     (m.MessageType == SupportReplyMessageType || m.MessageType == SupportResolutionMessageType))
+                ))
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+
+        var conversations = messages
+            .Select(m =>
             {
-                ItemId = m.ItemId!.Value,
-                OtherUserId = m.SenderId == userId ? m.ReceiverId : m.SenderId,
+                if (m.ItemId is null)
+                    return null;
+
+                var otherUserId = ResolveOtherUserId(m, userId, rentalParticipantById);
+                if (otherUserId is null)
+                    return null;
+
+                return new
+                {
+                    ItemId = m.ItemId.Value,
+                    OtherUserId = otherUserId.Value,
+                    Message = m,
+                };
             })
+            .Where(x => x is not null)
+            .Select(x => x!)
+            .GroupBy(x => new { x.ItemId, x.OtherUserId })
             .Select(g => new
             {
                 ItemId = g.Key.ItemId,
                 OtherUserId = g.Key.OtherUserId,
-                LastMessage = g.OrderByDescending(m => m.CreatedAt).First(),
-                UnreadCount = g.Count(m => m.ReceiverId == userId && !m.IsRead)
+                LastMessage = g.OrderByDescending(x => x.Message.CreatedAt).First().Message,
+                UnreadCount = g.Count(x => x.Message.ReceiverId == userId && !x.Message.IsRead)
             })
-            .ToListAsync();
+            .ToList();
 
         var itemIds = conversations.Select(c => c.ItemId).ToList();
         var otherUserIds = conversations.Select(c => c.OtherUserId).Distinct().ToList();
@@ -89,16 +125,25 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         if (otherUserId == userId)
             return BadRequest(new { message = "Invalid conversation user." });
 
+        var rentalIdsBetweenUsers = await db.Rentals
+            .Where(r => r.ItemId == itemId &&
+                        ((r.RenterId == userId && r.Item.OwnerId == otherUserId) ||
+                         (r.RenterId == otherUserId && r.Item.OwnerId == userId)))
+            .Select(r => r.Id)
+            .ToListAsync();
+
         var messages = await db.Messages
             .Include(m => m.Sender)
             .Include(m => m.Receiver)
             .Where(m =>
-                ((m.SenderId == userId && m.ReceiverId == otherUserId) ||
-                 (m.SenderId == otherUserId && m.ReceiverId == userId)) &&
-                (m.ItemId == itemId ||
-                 (m.ItemId == null &&
-                  m.RentalId != null &&
-                  db.Rentals.Any(r => r.Id == m.RentalId && r.ItemId == itemId))))
+                m.ItemId == itemId &&
+                (
+                    (m.SenderId == userId && m.ReceiverId == otherUserId) ||
+                    (m.SenderId == otherUserId && m.ReceiverId == userId) ||
+                    (m.RentalId != null &&
+                     rentalIdsBetweenUsers.Contains(m.RentalId.Value) &&
+                     (m.MessageType == SupportReplyMessageType || m.MessageType == SupportResolutionMessageType))
+                ))
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
@@ -257,4 +302,32 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
             return [];
         }
     }
+
+    private static Guid? ResolveOtherUserId(
+        Message message,
+        Guid userId,
+        IReadOnlyDictionary<Guid, RentalParticipant> rentalParticipantById)
+    {
+        if (message.SenderId == userId)
+            return message.ReceiverId;
+
+        if (message.ReceiverId == userId)
+            return message.SenderId;
+
+        if (message.RentalId is not Guid rentalId)
+            return null;
+
+        if (!rentalParticipantById.TryGetValue(rentalId, out var participant))
+            return null;
+
+        if (participant.RenterId == userId)
+            return participant.OwnerId;
+
+        if (participant.OwnerId == userId)
+            return participant.RenterId;
+
+        return null;
+    }
+
+    private sealed record RentalParticipant(Guid RentalId, Guid ItemId, Guid RenterId, Guid OwnerId);
 }
