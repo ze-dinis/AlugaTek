@@ -76,7 +76,14 @@ export default function ChatDetailScreen({route, navigation}: Props) {
 
   useEffect(() => {
     navigation.setOptions({
-      title: itemTitle,
+      headerTitle: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ItemDetail', {itemId})}
+          style={styles.headerTitleButton}
+          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+          <Text numberOfLines={1} style={styles.headerTitleText}>{itemTitle}</Text>
+        </TouchableOpacity>
+      ),
       headerRight: () =>
         latestDisputableRentalId ? (
           <TouchableOpacity
@@ -87,7 +94,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
           </TouchableOpacity>
         ) : null,
     });
-  }, [latestDisputableRentalId, navigation, itemTitle, submittingDispute]);
+  }, [latestDisputableRentalId, navigation, itemId, itemTitle, submittingDispute]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -616,6 +623,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  headerTitleButton: {
+    maxWidth: 220,
+  },
+  headerTitleText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1a73e8',
   },
   inputContainer: {
     padding: 12,

@@ -18,11 +18,13 @@ import CreateItemScreen from '../screens/Items/CreateItemScreen';
 import MyItemsScreen from '../screens/Items/MyItemsScreen';
 import ChatListScreen from '../screens/Chat/ChatListScreen';
 import ChatDetailScreen from '../screens/Chat/ChatDetailScreen';
+import EarningsCalculatorScreen from '../screens/Home/EarningsCalculatorScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   ItemDetail: {itemId: string};
+  EarningsCalculator: undefined;
   CreateItem: undefined;
   MyItems: undefined;
   EditItem: {itemId: string};
@@ -148,6 +150,11 @@ export default function AppNavigator() {
               name="ItemDetail"
               component={ItemDetailScreen}
               options={{headerShown: true, title: 'Detalhes'}}
+            />
+            <RootStack.Screen
+              name="EarningsCalculator"
+              component={EarningsCalculatorScreen}
+              options={{headerShown: true, title: 'Calculadora de ganhos'}}
             />
             <RootStack.Screen
               name="CreateItem"

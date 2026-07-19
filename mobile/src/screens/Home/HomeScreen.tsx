@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
@@ -21,8 +22,10 @@ import {Picker} from '@react-native-picker/picker';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 import SafeImage from '../../components/SafeImage';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useAuthStore} from '../../store/authStore';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
+const EARNINGS_HINT_KEY_PREFIX = 'earnings_hint_seen';
 
 function normalizeDistrict(value: string | undefined): string {
   if (!value) {
@@ -39,6 +42,7 @@ function normalizeDistrict(value: string | undefined): string {
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore(s => s.user);
   const [items, setItems] = useState<TechItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
@@ -47,6 +51,31 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [myOpenRentalItemIds, setMyOpenRentalItemIds] = useState<string[]>([]);
+  const [showEarningsHint, setShowEarningsHint] = useState(false);
+
+  const getEarningsHintStorageKey = useCallback(() => {
+    const userId = user?.id ?? 'anonymous';
+    return `${EARNINGS_HINT_KEY_PREFIX}_${userId}`;
+  }, [user?.id]);
+
+  const markEarningsHintSeen = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(getEarningsHintStorageKey(), '1');
+    } catch {
+      // silently ignore persistence failures
+    }
+  }, [getEarningsHintStorageKey]);
+
+  const handleDismissEarningsHint = useCallback(() => {
+    setShowEarningsHint(false);
+    void markEarningsHintSeen();
+  }, [markEarningsHintSeen]);
+
+  const handleOpenEarningsCalculator = useCallback(() => {
+    setShowEarningsHint(false);
+    void markEarningsHintSeen();
+    navigation.navigate('EarningsCalculator');
+  }, [markEarningsHintSeen, navigation]);
 
   const fetchMyRentals = useCallback(async () => {
     try {
@@ -94,6 +123,29 @@ export default function HomeScreen() {
   }, [fetchCategories]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadEarningsHintVisibility = async () => {
+      try {
+        const seen = await AsyncStorage.getItem(getEarningsHintStorageKey());
+        if (isMounted) {
+          setShowEarningsHint(seen !== '1');
+        }
+      } catch {
+        if (isMounted) {
+          setShowEarningsHint(true);
+        }
+      }
+    };
+
+    void loadEarningsHintVisibility();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getEarningsHintStorageKey]);
+
+  useEffect(() => {
     setLoading(true);
     const timer = setTimeout(fetchItems, 300);
     return () => clearTimeout(timer);
@@ -139,8 +191,32 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.hero, {paddingTop: insets.top}]}> 
-        <Text style={styles.heroTitle}>✨ Descobrir Tecnologia</Text>
+        <View style={styles.heroTopRow}>
+          <Text style={styles.heroTitle}>✨ Descobrir Tecnologia</Text>
+          <TouchableOpacity
+            style={styles.calculatorButton}
+            onPress={handleOpenEarningsCalculator}>
+            <Text style={styles.calculatorButtonText}>Calculadora</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.heroSubtitle}>Escolha o equipamento ideal para alugar hoje.</Text>
+
+        {showEarningsHint && (
+          <View style={styles.earningsHintCard}>
+            <Text style={styles.earningsHintTitle}>Queres ver quanto podes ganhar por mês?</Text>
+            <Text style={styles.earningsHintBody}>
+              Experimenta a calculadora com exemplos como PS5 e iPhone antes de anunciares.
+            </Text>
+            <View style={styles.earningsHintActions}>
+              <TouchableOpacity style={styles.earningsHintSecondaryButton} onPress={handleDismissEarningsHint}>
+                <Text style={styles.earningsHintSecondaryText}>Agora não</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.earningsHintPrimaryButton} onPress={handleOpenEarningsCalculator}>
+                <Text style={styles.earningsHintPrimaryText}>Ver calculadora</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.header}>
@@ -215,8 +291,45 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f3f6fb'},
   hero: {paddingHorizontal: 14, paddingBottom: 10, backgroundColor: '#f3f6fb'},
+  heroTopRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8},
   heroTitle: {fontSize: 24, fontWeight: '800', color: '#1f2937'},
+  calculatorButton: {
+    backgroundColor: '#e8f0fe',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#cfe0ff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  calculatorButtonText: {color: '#1a73e8', fontWeight: '700', fontSize: 12},
   heroSubtitle: {fontSize: 13, color: '#526072', marginTop: 4},
+  earningsHintCard: {
+    marginTop: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d8e0ea',
+    borderRadius: 12,
+    padding: 12,
+  },
+  earningsHintTitle: {fontSize: 14, fontWeight: '700', color: '#1f2937'},
+  earningsHintBody: {fontSize: 12, color: '#5f6b7a', marginTop: 4},
+  earningsHintActions: {flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10},
+  earningsHintSecondaryButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d8e0ea',
+    backgroundColor: '#fff',
+  },
+  earningsHintSecondaryText: {color: '#5f6b7a', fontWeight: '600', fontSize: 12},
+  earningsHintPrimaryButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#1a73e8',
+  },
+  earningsHintPrimaryText: {color: '#fff', fontWeight: '700', fontSize: 12},
   header: {paddingHorizontal: 12, paddingBottom: 10},
   searchBox: {
     flexDirection: 'row',
