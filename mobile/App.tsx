@@ -185,7 +185,7 @@ export default function App() {
       const identity = extractNotificationIdentityFromRemoteData(remoteMessage.data);
 
       const messagePreview = remoteMessage.notification?.body
-        ?? remoteMessage.data?.content
+        ?? getRemoteDataString(remoteMessage.data, 'content')
         ?? 'New message';
       if (!shouldDisplayNotification(
         route.otherUserId,
@@ -372,10 +372,10 @@ export default function App() {
 function extractChatRouteFromRemoteData(
   data?: FirebaseMessagingTypes.RemoteMessage['data'],
 ): NotificationThreadData | null {
-  const otherUserId = data?.otherUserId ?? data?.otherId;
-  const otherName = data?.otherName;
-  const itemId = data?.itemId;
-  const itemTitle = data?.itemTitle;
+  const otherUserId = getRemoteDataString(data, 'otherUserId') ?? getRemoteDataString(data, 'otherId');
+  const otherName = getRemoteDataString(data, 'otherName');
+  const itemId = getRemoteDataString(data, 'itemId');
+  const itemTitle = getRemoteDataString(data, 'itemTitle');
 
   if (typeof otherUserId !== 'string' || typeof otherName !== 'string') {
     return null;
@@ -392,11 +392,14 @@ function extractChatRouteFromRemoteData(
 function extractNotificationIdentityFromRemoteData(
   data?: FirebaseMessagingTypes.RemoteMessage['data'],
 ): NotificationIdentity {
-  const messageId = typeof data?.messageId === 'string' && data.messageId.trim().length > 0
-    ? data.messageId
+  const messageIdRaw = getRemoteDataString(data, 'messageId');
+  const eventIdRaw = getRemoteDataString(data, 'eventId');
+
+  const messageId = typeof messageIdRaw === 'string' && messageIdRaw.trim().length > 0
+    ? messageIdRaw
     : undefined;
-  const eventId = typeof data?.eventId === 'string' && data.eventId.trim().length > 0
-    ? data.eventId
+  const eventId = typeof eventIdRaw === 'string' && eventIdRaw.trim().length > 0
+    ? eventIdRaw
     : messageId;
 
   return {messageId, eventId};
@@ -421,4 +424,12 @@ function parseApiTimestampToMs(value?: string): number | undefined {
   }
 
   return parsed;
+}
+
+function getRemoteDataString(
+  data: FirebaseMessagingTypes.RemoteMessage['data'] | undefined,
+  key: string,
+): string | undefined {
+  const value = data?.[key];
+  return typeof value === 'string' ? value : undefined;
 }

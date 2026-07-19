@@ -461,6 +461,10 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       />
 
       <View style={styles.inputContainer}>
+        <Text style={styles.safetyDisclaimer}>
+          Mantém-te seguro. Nunca abras links para outros websites e não partilhes contactos nem informação financeira.
+        </Text>
+
         {pendingImages.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pendingImageList}>
             {pendingImages.map((image, index) => (
@@ -618,6 +622,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+  },
+  safetyDisclaimer: {
+    color: '#5f6b7a',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 8,
   },
   pendingImageList: {gap: 8, marginBottom: 10},
   pendingImageCard: {width: 72, height: 72, borderRadius: 12, overflow: 'hidden', position: 'relative'},

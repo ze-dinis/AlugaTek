@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [rentalDays, setRentalDays] = useState(3);
   const [reporting, setReporting] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const galleryRef = useRef<FlatList<string> | null>(null);
 
   const loadItemData = useCallback(() => {
     setLoading(true);
@@ -106,7 +107,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
       [
         {text: i18n.common.cancel, style: 'cancel'},
         {
-          text: i18n.common.delete,
+          text: i18n.itemDetail.delete,
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
@@ -198,6 +199,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
       <View style={styles.imageContainer}>
         {galleryImages.length > 1 ? (
           <FlatList
+            ref={galleryRef}
             data={galleryImages}
             keyExtractor={(uri, index) => `${uri}-${index}`}
             horizontal

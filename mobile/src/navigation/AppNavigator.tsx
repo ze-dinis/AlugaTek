@@ -101,7 +101,7 @@ function MainTabNavigator() {
         }}
       />
       <MainTab.Screen
-        name="Anunciar"
+        name="Announce"
         component={HomeScreen}
         listeners={({navigation}) => ({
           tabPress: e => {

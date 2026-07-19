@@ -55,6 +55,18 @@ export async function showNewMessageNotification({
 
   const summary = unreadCount > 1 ? `${unreadCount} unread messages` : '1 unread message';
   const notificationTimestamp = Number.isFinite(timestampMs) ? Number(timestampMs) : Date.now();
+  const notificationData: Record<string, string> = {
+    otherId,
+    otherName,
+  };
+
+  if (itemId) {
+    notificationData.itemId = itemId;
+  }
+
+  if (itemTitle) {
+    notificationData.itemTitle = itemTitle;
+  }
 
   await notifee.displayNotification({
     id: eventId,
@@ -70,11 +82,6 @@ export async function showNewMessageNotification({
       timestamp: notificationTimestamp,
       onlyAlertOnce: false,
     },
-    data: {
-      otherId,
-      otherName,
-      itemId,
-      itemTitle,
-    },
+    data: notificationData,
   });
 }
