@@ -3,6 +3,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   TextInput,
@@ -11,11 +12,15 @@ import {
   Platform,
   Alert,
   Modal,
+  Image,
 } from 'react-native';
+import {launchImageLibrary} from 'react-native-image-picker';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
+import {itemsService} from '../../services/itemsService';
 import {rentalsService} from '../../services/rentalsService';
+import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
 import {Message} from '../../types';
 import {i18n} from '../../locales';
@@ -28,6 +33,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
 const PLATFORM_BASE_COMMISSION = 3.0;
 const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
+const MAX_CHAT_IMAGES = 5;
+
+type PendingChatImage = {
+  uri: string;
+  name?: string;
+  type?: string;
+};
 
 export default function ChatDetailScreen({route, navigation}: Props) {
   const {itemId, itemTitle, otherUserId} = route.params;
@@ -50,6 +62,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingChatImage[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
   const latestDisputableRentalId = useMemo(() => {
@@ -92,21 +105,67 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   }, [itemId, otherUserId]);
 
   const handleSend = async () => {
-    if (!inputText.trim()) return;
+    const messageText = inputText.trim();
+    if (!messageText && pendingImages.length === 0) return;
 
-    const messageText = inputText;
     setInputText('');
+    const imagesToUpload = pendingImages;
+    setPendingImages([]);
     setSending(true);
 
     try {
-      const {data} = await chatService.sendMessage(itemId, messageText, otherUserId);
+      let imageUrls: string[] = [];
+      if (imagesToUpload.length > 0) {
+        const uploadRes = await itemsService.uploadImages(imagesToUpload);
+        imageUrls = uploadRes.data.imageUrls ?? [];
+      }
+
+      const {data} = await chatService.sendMessage(itemId, messageText, otherUserId, imageUrls);
       setMessages(prev => [...prev, data]);
       setTimeout(() => flatListRef.current?.scrollToEnd({animated: true}), 100);
     } catch {
       setInputText(messageText);
+      setPendingImages(imagesToUpload);
     } finally {
       setSending(false);
     }
+  };
+
+  const handleChoosePhotos = async () => {
+    if (pendingImages.length >= MAX_CHAT_IMAGES) {
+      Alert.alert('Erro', `Pode enviar no máximo ${MAX_CHAT_IMAGES} fotos por mensagem.`);
+      return;
+    }
+
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: MAX_CHAT_IMAGES - pendingImages.length,
+      quality: 0.9,
+    });
+
+    if (result.didCancel || result.errorCode) {
+      return;
+    }
+
+    const assets = (result.assets ?? []).filter(asset => !!asset.uri);
+    if (assets.length === 0) return;
+
+    const remainingSlots = MAX_CHAT_IMAGES - pendingImages.length;
+    const nextImages: PendingChatImage[] = assets.slice(0, remainingSlots).map((asset, index) => ({
+      uri: asset.uri!,
+      name: asset.fileName ?? `chat-${Date.now()}-${index + 1}.jpg`,
+      type: asset.type,
+    }));
+
+    setPendingImages(prev => [...prev, ...nextImages]);
+
+    if (assets.length > remainingSlots) {
+      Alert.alert('Erro', `Pode enviar no máximo ${MAX_CHAT_IMAGES} fotos por mensagem.`);
+    }
+  };
+
+  const handleRemovePendingImage = (index: number) => {
+    setPendingImages(prev => prev.filter((_, imageIndex) => imageIndex !== index));
   };
 
   const handleRentalRequestAction = async (rentalId: string, action: 'confirm' | 'decline') => {
@@ -286,6 +345,9 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       && !!returnRequestId
       && !confirmedReturns.includes(returnRequestId);
     const isReturnActionLoading = returnRequestId ? !!returnActionLoading[returnRequestId] : false;
+    const messageImages = (item.imageUrls ?? [])
+      .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
+      .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
 
     return (
       <View style={[styles.messageRow, isOwn ? styles.ownMessageRow : styles.otherMessageRow]}>
@@ -300,6 +362,15 @@ export default function ChatDetailScreen({route, navigation}: Props) {
           <Text style={[styles.messageText, isOwn ? styles.ownText : isSupport ? styles.supportText : styles.otherText]}>
             {item.content}
           </Text>
+          {messageImages.length > 0 && (
+            <View style={styles.messageImageList}>
+              {messageImages.map((imageUrl, imageIndex) => (
+                <View key={`${item.id}-${imageIndex}`} style={styles.messageImageWrapper}>
+                  <Image source={{uri: imageUrl}} style={styles.messageImage} resizeMode="cover" />
+                </View>
+              ))}
+            </View>
+          )}
           <Text
             style={[
               styles.timestamp,
@@ -385,26 +456,52 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       />
 
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder={i18n.chat.writeMessage}
-          placeholderTextColor="#8b95a5"
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={500}
-          editable={!sending}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || sending}>
-          {sending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.sendButtonText}>{i18n.chat.send}</Text>
-          )}
-        </TouchableOpacity>
+        {pendingImages.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pendingImageList}>
+            {pendingImages.map((image, index) => (
+              <View key={`${image.uri}-${index}`} style={styles.pendingImageCard}>
+                <Image source={{uri: image.uri}} style={styles.pendingImage} resizeMode="cover" />
+                <TouchableOpacity style={styles.removePendingImageButton} onPress={() => handleRemovePendingImage(index)}>
+                  <Text style={styles.removePendingImageText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        <View style={styles.composerRow}>
+          <TouchableOpacity
+            style={[styles.attachButton, (sending || pendingImages.length >= MAX_CHAT_IMAGES) && styles.attachButtonDisabled]}
+            onPress={() => void handleChoosePhotos()}
+            disabled={sending || pendingImages.length >= MAX_CHAT_IMAGES}>
+            <Text style={styles.attachButtonText}>📎</Text>
+          </TouchableOpacity>
+
+          <TextInput
+            style={styles.input}
+            placeholder={i18n.chat.writeMessage}
+            placeholderTextColor="#8b95a5"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+            editable={!sending}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              ((!inputText.trim() && pendingImages.length === 0) || sending) && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={(!inputText.trim() && pendingImages.length === 0) || sending}>
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.sendButtonText}>{i18n.chat.send}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {payTarget && (
@@ -484,6 +581,9 @@ const styles = StyleSheet.create({
   ownText: {color: '#fff'},
   otherText: {color: '#333'},
   supportText: {color: '#fff'},
+  messageImageList: {marginTop: 8, gap: 6},
+  messageImageWrapper: {borderRadius: 10, overflow: 'hidden'},
+  messageImage: {width: 220, height: 180, backgroundColor: '#dfe7f3'},
   supportLabel: {fontSize: 11, fontWeight: '700', color: '#a5d6a7', marginBottom: 2},
   timestamp: {fontSize: 11, marginTop: 4},
   ownTimestamp: {color: '#b3d9ff'},
@@ -509,14 +609,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   inputContainer: {
-    flexDirection: 'row',
     padding: 12,
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
-    alignItems: 'flex-end',
-    gap: 8,
   },
+  pendingImageList: {gap: 8, marginBottom: 10},
+  pendingImageCard: {width: 72, height: 72, borderRadius: 12, overflow: 'hidden', position: 'relative'},
+  pendingImage: {width: '100%', height: '100%'},
+  removePendingImageButton: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removePendingImageText: {color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 12},
+  composerRow: {flexDirection: 'row', alignItems: 'flex-end', gap: 8},
+  attachButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#e8f0fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attachButtonDisabled: {opacity: 0.5},
+  attachButtonText: {fontSize: 18},
   input: {
     flex: 1,
     backgroundColor: '#fff',

@@ -7,6 +7,6 @@ export const chatService = {
   getMessages: (itemId: string, otherUserId: string) =>
     api.get<Message[]>(`/chat/${itemId}`, {params: {otherUserId}}),
 
-  sendMessage: (itemId: string, content: string, receiverId?: string) =>
-    api.post<Message>('/chat', {itemId, content, receiverId}),
+  sendMessage: (itemId: string, content: string, receiverId?: string, imageUrls?: string[]) =>
+    api.post<Message>('/chat', {itemId, content, receiverId, imageUrls}),
 };

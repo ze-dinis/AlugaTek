@@ -68,6 +68,7 @@ export interface RegisterResponse {
 export interface Message {
   id: string;
   content: string;
+  imageUrls?: string[];
   sender: User;
   receiver: User;
   createdAt: string;

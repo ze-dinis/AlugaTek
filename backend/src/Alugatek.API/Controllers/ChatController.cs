@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Alugatek.API.DTOs;
 using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
@@ -14,6 +15,8 @@ namespace Alugatek.API.Controllers;
 [Authorize]
 public class ChatController(AppDbContext db, IPushNotificationService pushNotifications) : ControllerBase
 {
+    private const int MaxMessageImages = 5;
+
     [HttpGet("conversations")]
     public async Task<ActionResult<IEnumerable<ConversationDto>>> GetConversations()
     {
@@ -114,7 +117,9 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
     {
         var senderId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        if (string.IsNullOrWhiteSpace(request.Content))
+        var normalizedImageUrls = NormalizeImageUrls(request.ImageUrls);
+
+        if (string.IsNullOrWhiteSpace(request.Content) && normalizedImageUrls.Count == 0)
             return BadRequest(new { message = "Message cannot be empty." });
 
         var item = await db.TechItems
@@ -162,7 +167,10 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         {
             SenderId = senderId,
             ReceiverId = receiverId,
-            Content = request.Content,
+            Content = string.IsNullOrWhiteSpace(request.Content)
+                ? "📷 Foto"
+                : request.Content.Trim(),
+            ImageUrlsJson = normalizedImageUrls.Count > 0 ? JsonSerializer.Serialize(normalizedImageUrls) : null,
             IsRead = false,
             ItemId = request.ItemId
         };
@@ -185,7 +193,8 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
                 message.Sender.Name,
                 request.ItemId,
                 item.Title,
-                message.Content);
+                message.Content,
+                message.ImageUrlsJson is null ? Array.Empty<string>() : normalizedImageUrls);
 
             if (invalidTokens.Count > 0)
             {
@@ -207,6 +216,7 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
     private static MessageDto MapToDto(Message m) => new(
         m.Id,
         m.Content,
+        ParseImageUrls(m.ImageUrlsJson),
         new UserDto(m.Sender.Id, m.Sender.Name, m.Sender.Email, m.Sender.AvatarUrl, m.Sender.Phone),
         new UserDto(m.Receiver.Id, m.Receiver.Name, m.Receiver.Email, m.Receiver.AvatarUrl, m.Receiver.Phone),
         m.CreatedAt,
@@ -214,4 +224,37 @@ public class ChatController(AppDbContext db, IPushNotificationService pushNotifi
         m.ItemId,
         m.RentalId,
         m.MessageType);
+
+    private static IReadOnlyList<string> NormalizeImageUrls(IReadOnlyList<string>? imageUrls)
+    {
+        if (imageUrls is null || imageUrls.Count == 0)
+            return [];
+
+        return imageUrls
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxMessageImages)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrlsJson))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(imageUrlsJson)?
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Select(url => url.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .Take(MaxMessageImages)
+                .ToList() ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
 }

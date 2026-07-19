@@ -94,6 +94,7 @@ public class FirebasePushNotificationService : IPushNotificationService
         Guid itemId,
         string itemTitle,
         string content,
+        IReadOnlyCollection<string>? imageUrls = null,
         CancellationToken cancellationToken = default)
     {
         if (_messaging is null || deviceTokens.Count == 0)
@@ -115,7 +116,7 @@ public class FirebasePushNotificationService : IPushNotificationService
                 Notification = new Notification
                 {
                     Title = $"New message from {senderName}",
-                    Body = content
+                    Body = string.IsNullOrWhiteSpace(content) ? "📷 Foto" : content
                 },
                 Data = new Dictionary<string, string>
                 {
@@ -124,7 +125,8 @@ public class FirebasePushNotificationService : IPushNotificationService
                     ["otherName"] = senderName,
                     ["itemId"] = itemId.ToString(),
                     ["itemTitle"] = itemTitle,
-                    ["content"] = content
+                    ["content"] = string.IsNullOrWhiteSpace(content) ? "📷 Foto" : content,
+                    ["hasImages"] = (imageUrls?.Count ?? 0) > 0 ? "true" : "false"
                 },
                 Android = new AndroidConfig
                 {

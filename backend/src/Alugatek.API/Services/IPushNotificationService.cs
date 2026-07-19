@@ -9,6 +9,7 @@ public interface IPushNotificationService
         Guid itemId,
         string itemTitle,
         string content,
+        IReadOnlyCollection<string>? imageUrls = null,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyCollection<string>> SendRentalExpiryReminderAsync(

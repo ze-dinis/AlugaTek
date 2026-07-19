@@ -66,6 +66,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<Message>(e =>
         {
+            e.Property(m => m.Content).HasColumnType("text");
+            e.Property(m => m.ImageUrlsJson).HasColumnType("text");
             e.HasIndex(m => m.ItemId);
 
             e.HasOne(m => m.Sender)

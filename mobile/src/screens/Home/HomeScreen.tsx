@@ -154,11 +154,6 @@ export default function HomeScreen() {
           onChangeText={setSearch}
         />
         </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('CreateItem')}>
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -222,9 +217,8 @@ const styles = StyleSheet.create({
   hero: {paddingHorizontal: 14, paddingBottom: 10, backgroundColor: '#f3f6fb'},
   heroTitle: {fontSize: 24, fontWeight: '800', color: '#1f2937'},
   heroSubtitle: {fontSize: 13, color: '#526072', marginTop: 4},
-  header: {flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 10, gap: 8},
+  header: {paddingHorizontal: 12, paddingBottom: 10},
   searchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -235,8 +229,6 @@ const styles = StyleSheet.create({
   },
   searchIcon: {fontSize: 16, marginRight: 6},
   searchInput: {flex: 1, paddingVertical: 10, fontSize: 15, color: '#1f2937'},
-  addButton: {backgroundColor: '#1a73e8', width: 44, borderRadius: 8, justifyContent: 'center', alignItems: 'center'},
-  addButtonText: {color: '#fff', fontSize: 24, lineHeight: 24, fontWeight: '600', marginTop: -1},
   categoryListWrapper: {maxHeight: 60},
   categoryList: {paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center'},
   chip: {

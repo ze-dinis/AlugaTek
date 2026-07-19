@@ -103,11 +103,12 @@ public record ReviewDto(
     DateTime CreatedAt);
 
 // Message
-public record SendMessageRequest(Guid ItemId, string Content, Guid? ReceiverId);
+public record SendMessageRequest(Guid ItemId, string? Content, Guid? ReceiverId, IReadOnlyList<string>? ImageUrls);
 
 public record MessageDto(
     Guid Id,
     string Content,
+    IReadOnlyList<string> ImageUrls,
     UserDto Sender,
     UserDto Receiver,
     DateTime CreatedAt,
