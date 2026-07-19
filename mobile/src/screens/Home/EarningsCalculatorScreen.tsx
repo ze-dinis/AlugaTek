@@ -22,7 +22,7 @@ const CUSTOM_ITEM_ID = 'custom';
 const EXAMPLE_ITEMS: ExampleItem[] = [
   {id: 'ps5', name: 'PS5', dailyRate: 18, icon: '🎮'},
   {id: 'iphone', name: 'iPhone', dailyRate: 16, icon: '📱'},
-  {id: CUSTOM_ITEM_ID, name: 'Item aleatorio', dailyRate: 10, icon: '🎲', isCustom: true},
+  {id: CUSTOM_ITEM_ID, name: 'Item aleatório', dailyRate: 10, icon: '🎲', isCustom: true},
 ];
 
 const MIN_RENTAL_DAYS_PER_MONTH = 1;
@@ -83,7 +83,7 @@ export default function EarningsCalculatorScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Calcula quanto podes ganhar</Text>
       <Text style={styles.subtitle}>
-        Simula ganhos mensais com PS5, iPhone e um item aleatorio com preco por dia configuravel.
+        Simula ganhos mensais com PS5, iPhone e um item com preço por dia configurável.
       </Text>
 
       <View style={styles.card}>
@@ -115,7 +115,7 @@ export default function EarningsCalculatorScreen() {
 
           {item.isCustom && (
             <View style={styles.customInputRow}>
-              <Text style={styles.customInputLabel}>Preco por dia</Text>
+              <Text style={styles.customInputLabel}>Preço por dia</Text>
               <TextInput
                 style={styles.customInput}
                 value={customDailyRateInput}
