@@ -21,6 +21,7 @@ alugatek/
 │   │   ├── store/        # Zustand auth store
 │   │   └── types/        # Shared TypeScript interfaces
 │   └── App.tsx
+├── website/          # Static marketing site served by Nginx
 └── docker-compose.yml
 ```
 
@@ -59,12 +60,27 @@ alugatek/
 
 #### With Docker Compose (recommended)
 ```bash
-# From repo root — starts PostgreSQL + API
+# From repo root — starts PostgreSQL + API + static landing page
 docker compose up --build -d
 # If no build is necessary:
 docker compose up -d
 # Swagger UI: http://localhost:5000/swagger
+# Landing page: http://localhost:8088
 ```
+
+### Marketing Website
+
+The static promotional site lives in `website/index.html` and is containerized with Nginx for easy deployment.
+
+```bash
+# Run only the landing page
+docker compose up --build website -d
+
+# Open the site
+http://localhost:8088
+```
+
+Replace the placeholder contact and download links in `website/index.html` before publishing to a real domain.
 
 #### Locally
 1. Start PostgreSQL: `docker compose up postgres`

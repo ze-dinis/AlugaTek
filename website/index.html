@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alugatek | Aluga tecnologia quando precisares</title>
+    <meta
+      name="description"
+      content="A plataforma para alugar portateis, telemoveis, cameras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #0d2948;
+        --muted: #4a6786;
+        --blue: #2f8fe0;
+        --blue-deep: #14609e;
+        --blue-bright: #5ec8ff;
+        --blue-soft: #eaf5ff;
+        --card: rgba(255, 255, 255, 0.92);
+        --line: rgba(13, 41, 72, 0.1);
+        --shadow: 0 28px 64px rgba(20, 96, 158, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(94, 200, 255, 0.22), transparent 32%),
+          radial-gradient(circle at right top, rgba(20, 96, 158, 0.16), transparent 30%),
+          linear-gradient(180deg, #fbfdff 0%, #eef6ff 58%, #e3f0ff 100%);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .page-shell {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 24px 0;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        overflow: hidden;
+      }
+
+      .app-icon {
+        display: block;
+        width: 100%;
+        height: 100%;
+        line-height: 0;
+      }
+
+      .app-icon img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .nav a:hover,
+      .nav a:focus-visible {
+        color: var(--ink);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        gap: 28px;
+        align-items: center;
+        padding: 32px 0 72px;
+      }
+
+      .hero-copy {
+        position: relative;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(13, 41, 72, 0.08);
+        color: var(--blue);
+        font-size: 0.86rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      h1 {
+        margin: 18px 0 18px;
+        font-size: clamp(3rem, 6vw, 5.8rem);
+        line-height: 0.95;
+        letter-spacing: -0.06em;
+      }
+
+      .accent {
+        display: inline-block;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-style: italic;
+        font-weight: 400;
+        color: var(--blue-deep);
+      }
+
+      .lead {
+        max-width: 620px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.08rem;
+        line-height: 1.75;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 30px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 54px;
+        padding: 0 22px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-weight: 700;
+        transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      }
+
+      .button:hover,
+      .button:focus-visible {
+        transform: translateY(-2px);
+      }
+
+      .button-primary {
+        background: linear-gradient(135deg, var(--blue-deep), var(--blue));
+        color: #fff;
+        box-shadow: 0 18px 34px rgba(10, 63, 115, 0.25);
+      }
+
+      .button-secondary {
+        background: rgba(255, 255, 255, 0.78);
+        border-color: rgba(13, 41, 72, 0.12);
+        color: var(--ink);
+      }
+
+      .hero-notes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-top: 26px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .hero-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+      }
+
+      .metric {
+        padding: 18px;
+        border-radius: 22px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        backdrop-filter: blur(8px);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 1.85rem;
+        line-height: 1;
+        margin-bottom: 8px;
+      }
+
+      .showcase {
+        position: relative;
+        padding: 28px;
+        border-radius: 34px;
+        background:
+          radial-gradient(circle at top right, rgba(94, 200, 255, 0.24), transparent 26%),
+          radial-gradient(circle at bottom left, rgba(94, 200, 255, 0.14), transparent 26%),
+          linear-gradient(160deg, #ffffff, #eaf5ff 70%, #dcedff 100%);
+        border: 1px solid rgba(20, 96, 158, 0.12);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        color: var(--ink);
+      }
+
+      .showcase::before {
+        content: "";
+        position: absolute;
+        inset: auto -40px -70px -40px;
+        height: 130px;
+        background: linear-gradient(180deg, rgba(94, 188, 255, 0), rgba(94, 188, 255, 0.14));
+        border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      }
+
+      .showcase-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 20px;
+        align-items: center;
+      }
+
+      .showcase-copy {
+        padding-top: 4px;
+      }
+
+      .showcase-badge-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .showcase-app {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .showcase-icon {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 18px 28px rgba(2, 16, 34, 0.28);
+      }
+
+      .showcase-app-name {
+        font-size: 1.9rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .showcase-download {
+        margin-top: 4px;
+        color: var(--blue);
+        font-weight: 700;
+        font-size: 1rem;
+      }
+
+      .showcase-laurel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 62px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(20, 96, 158, 0.16);
+        background: #ffffff;
+        color: var(--blue-deep);
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-align: center;
+        box-shadow: 0 10px 22px rgba(20, 96, 158, 0.12);
+      }
+
+      .showcase-hero-title {
+        margin: 34px 0 0;
+        font-size: clamp(3rem, 5vw, 4.7rem);
+        line-height: 0.92;
+        letter-spacing: -0.05em;
+      }
+
+      .showcase-hero-subtitle {
+        margin-top: 18px;
+        color: var(--blue-deep);
+        font-size: clamp(1.4rem, 2vw, 2.25rem);
+        font-weight: 700;
+      }
+
+      .showcase-points {
+        display: grid;
+        gap: 14px;
+        margin-top: 42px;
+      }
+
+      .showcase-point {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.05rem;
+      }
+
+      .showcase-check {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #61baff, #2d8ef0);
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(20, 96, 158, 0.28);
+      }
+
+      .showcase-visual {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .showcase-shot {
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: min(58vh, 480px);
+        object-fit: contain;
+        border-radius: 32px;
+        box-shadow: 0 28px 60px rgba(20, 96, 158, 0.22);
+        border: 1px solid rgba(20, 96, 158, 0.14);
+        background: #fff;
+      }
+
+      .screenshot-caption {
+        position: relative;
+        z-index: 1;
+        margin-top: 18px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.6;
+      }
+
+      section {
+        padding: 22px 0 58px;
+      }
+
+      .section-heading {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 26px;
+      }
+
+      .section-heading p,
+      .section-heading h2 {
+        margin: 0;
+      }
+
+      .section-heading p {
+        max-width: 720px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .section-kicker {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--blue);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .section-heading h2 {
+        font-size: clamp(2rem, 3.5vw, 3.4rem);
+        line-height: 1;
+        letter-spacing: -0.05em;
+      }
+
+      .grid-three {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .panel {
+        padding: 24px;
+        border-radius: 28px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        box-shadow: 0 18px 40px rgba(16, 32, 51, 0.07);
+        backdrop-filter: blur(8px);
+      }
+
+      .panel-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(47, 143, 224, 0.16);
+        color: var(--blue-deep);
+        font-weight: 700;
+        margin-bottom: 18px;
+      }
+
+      .panel h3 {
+        margin: 0 0 12px;
+        font-size: 1.2rem;
+      }
+
+      .panel p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .trust-layout {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 18px;
+      }
+
+      .trust-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .trust-item {
+        padding: 18px 20px;
+        border-radius: 22px;
+        background: #fff;
+        border: 1px solid rgba(16, 32, 51, 0.08);
+      }
+
+      .trust-item strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .trust-item span {
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .cta {
+        position: relative;
+        overflow: hidden;
+        padding: 30px;
+        border-radius: 32px;
+        background: linear-gradient(135deg, var(--blue-deep), var(--blue) 60%, var(--blue-bright) 100%);
+        color: #fff;
+        box-shadow: 0 28px 60px rgba(20, 96, 158, 0.25);
+      }
+
+      .cta::after {
+        content: "";
+        position: absolute;
+        inset: auto -40px -70px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .cta h2,
+      .cta p {
+        position: relative;
+        z-index: 1;
+        margin: 0;
+      }
+
+      .cta p {
+        max-width: 620px;
+        margin-top: 12px;
+        color: rgba(255, 255, 255, 0.82);
+        line-height: 1.7;
+      }
+
+      .cta .hero-actions {
+        position: relative;
+        z-index: 1;
+        margin-top: 24px;
+      }
+
+      .button-light {
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .button-outline-light {
+        border-color: rgba(255, 255, 255, 0.28);
+        color: #fff;
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 26px 0 38px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 960px) {
+        .hero,
+        .showcase-grid,
+        .trust-layout,
+        .grid-three {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding-top: 10px;
+        }
+
+        .showcase {
+          order: -1;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .topbar,
+        .footer,
+        .nav {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .nav {
+          gap: 14px;
+        }
+
+        h1 {
+          font-size: clamp(2.6rem, 15vw, 4.2rem);
+        }
+
+        .page-shell {
+          width: min(100% - 20px, 1180px);
+        }
+
+        .panel,
+        .cta,
+        .showcase {
+          border-radius: 24px;
+        }
+
+        .showcase {
+          padding: 22px;
+        }
+
+        .showcase-hero-title {
+          font-size: 2.6rem;
+        }
+
+        .phone-card.primary {
+          left: 50%;
+          width: 214px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#top">
+          <span class="brand-mark" aria-hidden="true">
+            <span class="app-icon">
+              <img src="blue.png" alt="" />
+            </span>
+          </span>
+          <span>Alugatek</span>
+        </a>
+
+        <nav class="nav" aria-label="Navegacao principal">
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#vantagens">Vantagens</a>
+          <a href="#seguranca">Seguranca</a>
+          <a href="#download">Download</a>
+        </nav>
+      </header>
+
+      <main id="top">
+        <section class="hero">
+          <div class="hero-copy">
+            <span class="eyebrow">Plataforma de aluguer de tecnologia</span>
+            <h1>
+              Precisas de um portatil, camera ou telemovel
+              <span class="accent">so por alguns dias?</span>
+            </h1>
+            <p class="lead">
+              A Alugatek liga pessoas que precisam de tecnologia a proprietarios que querem rentabilizar os seus equipamentos.
+              Descobre anuncios por categoria e distrito, fala diretamente no chat e gere o aluguer com pagamentos seguros.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button button-primary" href="#download">Quero experimentar</a>
+              <a class="button button-secondary" href="#como-funciona">Ver como funciona</a>
+            </div>
+
+            <div class="hero-notes">
+              <span class="hero-note">Pagamentos com protecao e caucoes</span>
+              <span class="hero-note">Chat integrado entre cliente e proprietario</span>
+              <span class="hero-note">Suporte para disputas quando necessario</span>
+            </div>
+
+            <div class="metrics" aria-label="Resumo de beneficios">
+              <div class="metric">
+                <strong>Tecnologia</strong>
+                Equipamentos como laptops, smartphones, cameras e mais.
+              </div>
+              <div class="metric">
+                <strong>Local</strong>
+                Pesquisa por distrito para encontrar o item certo perto de ti.
+              </div>
+              <div class="metric">
+                <strong>Seguro</strong>
+                Confirmacao, pagamento, devolucao e suporte num unico fluxo.
+              </div>
+            </div>
+          </div>
+
+          <aside class="showcase" aria-label="Pre-visualizacao da aplicacao">
+            <div class="showcase-grid">
+              <div class="showcase-copy">
+                <div class="showcase-badge-row">
+                  <div class="showcase-app">
+                    <div class="showcase-icon" aria-hidden="true">
+                      <span class="app-icon">
+                        <img src="blue.png" alt="" />
+                      </span>
+                    </div>
+                    <div>
+                      <div class="showcase-app-name">AlugaTek</div>
+                      <div class="showcase-download">Download Agora</div>
+                    </div>
+                  </div>
+                  <div class="showcase-laurel">Lancada<br />Recentemente</div>
+                </div>
+
+                <h2 class="showcase-hero-title">Alugue<br />Tecnologia</h2>
+                <div class="showcase-hero-subtitle">Conecte Possibilidades</div>
+
+                <div class="showcase-points">
+                  <div class="showcase-point">
+                    <span class="showcase-check">&#10003;</span>
+                    <span>Alugue o que precisa</span>
+                  </div>
+                  <div class="showcase-point">
+                    <span class="showcase-check">&#10003;</span>
+                    <span>Anuncie o que ja nao usa</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="showcase-visual">
+                <img class="showcase-shot" src="Screenshot_01.png" alt="Screenshot da app Alugatek" />
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section id="como-funciona">
+          <div class="section-heading">
+            <span class="section-kicker">Como funciona</span>
+            <h2>Uma experiencia simples para alugar ou anunciar.</h2>
+            <p>
+              A Alugatek foi pensada para reduzir friccao: procurar, falar com o proprietario, reservar, pagar e devolver sem sair da app.
+            </p>
+          </div>
+
+          <div class="grid-three">
+            <article class="panel">
+              <span class="panel-number">1</span>
+              <h3>Descobre o equipamento ideal</h3>
+              <p>Pesquisa por categoria, distrito e necessidade real. Encontra desde equipamentos para trabalho remoto ate material para conteudo e eventos.</p>
+            </article>
+
+            <article class="panel">
+              <span class="panel-number">2</span>
+              <h3>Combina tudo no chat</h3>
+              <p>Fala diretamente com o proprietario, esclarece detalhes, partilha imagens e acompanha pedidos de aluguer sem trocas de contexto.</p>
+            </article>
+
+            <article class="panel">
+              <span class="panel-number">3</span>
+              <h3>Gere pagamento e devolucao</h3>
+              <p>A app acompanha confirmacao, pagamento, pedido de devolucao e suporte em caso de problema durante o aluguer.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="vantagens">
+          <div class="section-heading">
+            <span class="section-kicker">Porque escolher</span>
+            <h2>Tecnologia acessivel sem comprares mais do que precisas.</h2>
+            <p>Ideal para freelancers, estudantes, equipas pequenas e qualquer pessoa que precise de um equipamento especifico por um periodo curto.</p>
+          </div>
+
+          <div class="grid-three">
+            <article class="panel">
+              <h3>Rentabiliza o que ja tens</h3>
+              <p>Se tens equipamento parado, cria anuncios e transforma ativos subutilizados numa fonte extra de rendimento.</p>
+            </article>
+
+            <article class="panel">
+              <h3>Aluga com mais flexibilidade</h3>
+              <p>Reserva apenas pelos dias de que precisas e evita comprar dispositivos caros para necessidades pontuais.</p>
+            </article>
+
+            <article class="panel">
+              <h3>Feedback e transparencias</h3>
+              <p>Acompanhamento do aluguer, fluxo de devolucao e sistema de reviews ajudam a criar mais confianca entre as partes.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="seguranca">
+          <div class="section-heading">
+            <span class="section-kicker">Confianca</span>
+            <h2>Fluxos pensados para reduzir risco e aumentar clareza.</h2>
+            <p>O produto ja contem suporte a caucoes, pagamentos, chat entre utilizadores e um fluxo de disputa para quando alguma coisa nao corre como esperado.</p>
+          </div>
+
+          <div class="trust-layout">
+            <div class="panel trust-list">
+              <div class="trust-item">
+                <strong>Pagamentos estruturados</strong>
+                <span>Confirmacao e pagamento fazem parte do processo do aluguer, com notas claras sobre valores e caucoes.</span>
+              </div>
+              <div class="trust-item">
+                <strong>Devolucao acompanhada</strong>
+                <span>O estado do aluguer evolui durante todo o ciclo, ajudando cliente e proprietario a saber o que falta fazer.</span>
+              </div>
+              <div class="trust-item">
+                <strong>Suporte para disputas</strong>
+                <span>Quando existe um problema, a app permite abrir disputa e encaminhar o caso para a equipa de suporte.</span>
+              </div>
+            </div>
+
+            <aside class="cta" id="download">
+              <h2>Coloca a tua tecnologia a render ou encontra o equipamento certo para o proximo projeto.</h2>
+              <p>Usa estes botoes como ponto de partida para ligares o teu download, lista de espera ou formulario de contacto.</p>
+              <div class="hero-actions">
+                <a class="button button-light" href="mailto:ola@alugatek.pt">Pedir demo / contacto</a>
+                <a class="button button-outline-light" href="#top">Voltar ao topo</a>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Alugatek · Plataforma de aluguer de tecnologia</span>
+        <span>Substitui os links de contacto e download pelos teus destinos reais.</span>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -41,6 +41,13 @@ services:
     volumes:
       - uploads:/app/wwwroot/uploads
 
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+    ports:
+      - "8088:80"
+
 volumes:
   pgdata:
   uploads:
