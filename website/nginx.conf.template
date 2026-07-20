@@ -1,6 +1,10 @@
 server {
     listen ${PORT};
-    server_name _;
+    server_name alugatek.pt www.alugatek.pt _;
+
+    if ($host = www.alugatek.pt) {
+        return 301 https://alugatek.pt$request_uri;
+    }
 
     root /usr/share/nginx/html;
     index index.html;
@@ -11,6 +15,14 @@ server {
 
     location = /index.html {
         add_header Cache-Control "no-store";
+    }
+
+    location = /robots.txt {
+        add_header Cache-Control "public, max-age=3600";
+    }
+
+    location = /sitemap.xml {
+        add_header Cache-Control "public, max-age=3600";
     }
 
     location ~* \.(css|js|png|jpg|jpeg|gif|svg|ico|webp)$ {

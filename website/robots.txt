@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://alugatek.pt/sitemap.xml

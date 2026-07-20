@@ -7,3 +7,5 @@ COPY website/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY website/index.html /usr/share/nginx/html/index.html
 COPY website/blue.png /usr/share/nginx/html/blue.png
 COPY website/Screenshot_01.png /usr/share/nginx/html/Screenshot_01.png
+COPY website/robots.txt /usr/share/nginx/html/robots.txt
+COPY website/sitemap.xml /usr/share/nginx/html/sitemap.xml
