@@ -16,6 +16,7 @@ import MyRentalsScreen from '../screens/Rentals/MyRentalsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CreateItemScreen from '../screens/Items/CreateItemScreen';
 import MyItemsScreen from '../screens/Items/MyItemsScreen';
+import MyFavoritesScreen from '../screens/Items/MyFavoritesScreen';
 import ChatListScreen from '../screens/Chat/ChatListScreen';
 import ChatDetailScreen from '../screens/Chat/ChatDetailScreen';
 import EarningsCalculatorScreen from '../screens/Home/EarningsCalculatorScreen';
@@ -27,6 +28,7 @@ export type RootStackParamList = {
   EarningsCalculator: undefined;
   CreateItem: undefined;
   MyItems: undefined;
+  MyFavorites: undefined;
   EditItem: {itemId: string};
   Chat: {itemId: string; itemTitle: string; otherUserId: string; otherName: string};
 };
@@ -165,6 +167,11 @@ export default function AppNavigator() {
               name="MyItems"
               component={MyItemsScreen}
               options={{headerShown: true, title: i18n.navigation.myItems}}
+            />
+            <RootStack.Screen
+              name="MyFavorites"
+              component={MyFavoritesScreen}
+              options={{headerShown: true, title: i18n.navigation.myFavorites}}
             />
             <RootStack.Screen
               name="EditItem"

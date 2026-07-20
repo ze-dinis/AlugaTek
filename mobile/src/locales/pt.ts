@@ -26,6 +26,8 @@ export const pt = {
     allDistricts: 'Todos os distritos',
     loading: 'A carregar...',
     noItems: 'Nenhum item encontrado.',
+    addFavorite: 'Adicionar aos favoritos',
+    removeFavorite: 'Remover dos favoritos',
   },
 
   // Create/Edit Item screen
@@ -103,6 +105,13 @@ export const pt = {
     unavailable: 'Alugado',
   },
 
+  // Favorites screen
+  favorites: {
+    title: 'Favoritos',
+    noItems: 'Ainda não tem itens favoritos.',
+    subtitle: 'Toque no coração de um item para o adicionar aos favoritos.',
+  },
+
   // My Rentals screen
   myRentals: {
     title: 'Meus Alugueres',
@@ -162,6 +171,7 @@ export const pt = {
   navigation: {
     home: 'Início',
     myItems: 'Anúncios',
+    myFavorites: 'Favoritos',
     myRentals: 'Alugueres',
     announce: 'Anunciar',
     messages: 'Mensagens',

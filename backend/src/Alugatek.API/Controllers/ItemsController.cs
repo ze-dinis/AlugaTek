@@ -95,7 +95,9 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             .Distinct()
             .ToListAsync();
 
-        return Ok(items.Select(i => MapToDto(i, i.IsAvailable && !inProgressItemIds.Contains(i.Id))));
+        var favoriteItemIds = await GetFavoriteItemIdsAsync(items.Select(i => i.Id));
+
+        return Ok(items.Select(i => MapToDto(i, i.IsAvailable && !inProgressItemIds.Contains(i.Id), favoriteItemIds.Contains(i.Id))));
     }
 
     [HttpGet("{id:guid}")]
@@ -116,7 +118,9 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
                     || r.Status == RentalStatus.Completed
                     || r.Status == RentalStatus.ReturnRequested));
 
-        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation));
+        var favoriteItemIds = await GetFavoriteItemIdsAsync([id]);
+
+        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation, favoriteItemIds.Contains(id)));
     }
 
     [Authorize]
@@ -364,14 +368,98 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
 
-        return Ok(items.Select(i => MapToDto(i)));
+        var favoriteItemIds = await GetFavoriteItemIdsAsync(items.Select(i => i.Id));
+
+        return Ok(items.Select(i => MapToDto(i, isFavorite: favoriteItemIds.Contains(i.Id))));
     }
 
     [HttpGet("categories")]
     public async Task<ActionResult<IEnumerable<object>>> GetCategories() =>
         Ok(await db.Categories.Select(c => new { c.Id, c.Name, c.IconUrl }).ToListAsync());
 
-    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null)
+    [Authorize]
+    [HttpGet("favorites")]
+    public async Task<ActionResult<IEnumerable<TechItemDto>>> GetFavorites()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var favoriteItemIds = await db.FavoriteItems
+            .Where(f => f.UserId == userId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => f.ItemId)
+            .ToListAsync();
+
+        var items = await db.TechItems
+            .Include(i => i.Category)
+            .Include(i => i.Owner)
+            .Include(i => i.Reviews)
+            .Where(i => favoriteItemIds.Contains(i.Id))
+            .ToListAsync();
+
+        var itemsById = items.ToDictionary(i => i.Id);
+        var orderedItems = favoriteItemIds
+            .Where(itemsById.ContainsKey)
+            .Select(id => itemsById[id]);
+
+        return Ok(orderedItems.Select(i => MapToDto(i, isFavorite: true)));
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/favorite")]
+    public async Task<IActionResult> AddFavorite(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var itemExists = await db.TechItems.AnyAsync(i => i.Id == id);
+        if (!itemExists)
+            return NotFound();
+
+        var alreadyFavorited = await db.FavoriteItems.AnyAsync(f => f.UserId == userId && f.ItemId == id);
+        if (!alreadyFavorited)
+        {
+            db.FavoriteItems.Add(new FavoriteItem { UserId = userId, ItemId = id });
+            await db.SaveChangesAsync();
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpDelete("{id:guid}/favorite")]
+    public async Task<IActionResult> RemoveFavorite(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var favorite = await db.FavoriteItems.FirstOrDefaultAsync(f => f.UserId == userId && f.ItemId == id);
+        if (favorite is not null)
+        {
+            db.FavoriteItems.Remove(favorite);
+            await db.SaveChangesAsync();
+        }
+
+        return NoContent();
+    }
+
+    private async Task<HashSet<Guid>> GetFavoriteItemIdsAsync(IEnumerable<Guid> itemIds)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userIdClaim is null)
+            return [];
+
+        var userId = Guid.Parse(userIdClaim);
+        var idsToCheck = itemIds.Distinct().ToList();
+        if (idsToCheck.Count == 0)
+            return [];
+
+        var favoriteIds = await db.FavoriteItems
+            .Where(f => f.UserId == userId && idsToCheck.Contains(f.ItemId))
+            .Select(f => f.ItemId)
+            .ToListAsync();
+
+        return favoriteIds.ToHashSet();
+    }
+
+    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null, bool isFavorite = false)
     {
         var imageUrls = ParseImageUrls(i.ImageUrlsJson, i.ImageUrl);
 
@@ -380,7 +468,8 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,
-        i.CreatedAt);
+        i.CreatedAt,
+        isFavorite);
     }
 
     private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson, string? imageUrl)

@@ -26,6 +26,7 @@ export interface TechItem {
   owner: User;
   averageRating?: number;
   createdAt: string;
+  isFavorite?: boolean;
 }
 
 export type RentalStatus = 'Pending' | 'Active' | 'Completed' | 'ReturnRequested' | 'Returned' | 'Cancelled';

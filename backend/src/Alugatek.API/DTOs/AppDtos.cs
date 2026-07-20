@@ -61,7 +61,8 @@ public record TechItemDto(
     string CategoryName,
     UserDto Owner,
     double? AverageRating,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool IsFavorite = false);
 
 // Rental
 public record CreateRentalRequest(Guid ItemId, DateTime StartDate, DateTime EndDate);

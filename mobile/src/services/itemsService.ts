@@ -11,6 +11,12 @@ export const itemsService = {
 
   getCategories: () => api.get<Category[]>('/items/categories'),
 
+  getFavorites: () => api.get<TechItem[]>('/items/favorites'),
+
+  addFavorite: (id: string) => api.post(`/items/${id}/favorite`),
+
+  removeFavorite: (id: string) => api.delete(`/items/${id}/favorite`),
+
   create: (data: {
     title: string;
     description: string;

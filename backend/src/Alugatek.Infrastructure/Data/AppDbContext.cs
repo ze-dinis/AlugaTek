@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserReport> UserReports => Set<UserReport>();
+    public DbSet<FavoriteItem> FavoriteItems => Set<FavoriteItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -117,6 +118,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(t => t.User)
              .WithMany(u => u.DevicePushTokens)
              .HasForeignKey(t => t.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FavoriteItem>(e =>
+        {
+            e.HasIndex(f => new { f.UserId, f.ItemId }).IsUnique();
+
+            e.HasOne(f => f.User)
+             .WithMany()
+             .HasForeignKey(f => f.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(f => f.Item)
+             .WithMany()
+             .HasForeignKey(f => f.ItemId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

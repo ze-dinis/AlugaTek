@@ -103,6 +103,10 @@ export default function ProfileScreen() {
         <Text style={styles.myItemsText}>{i18n.navigation.myItems}</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity style={styles.myItemsButton} onPress={() => navigation.navigate('MyFavorites')}>
+        <Text style={styles.myItemsText}>{i18n.navigation.myFavorites}</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.payoutButton} onPress={handleOpenPayoutModal}>
         <Text style={styles.payoutButtonText}>{i18n.profile.addIbanMbway}</Text>
       </TouchableOpacity>
@@ -147,7 +151,7 @@ const styles = StyleSheet.create({
   name: {fontSize: 22, fontWeight: 'bold', marginTop: 16},
   email: {color: '#666', marginTop: 4},
   phone: {color: '#666', marginTop: 2},
-  myItemsButton: {marginTop: 28, borderWidth: 1, borderColor: '#1a73e8', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12},
+  myItemsButton: {marginTop: 14, borderWidth: 1, borderColor: '#1a73e8', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12},
   myItemsText: {color: '#1a73e8', fontWeight: '600', fontSize: 16},
   payoutButton: {marginTop: 14, borderWidth: 1, borderColor: '#00796b', borderRadius: 8, paddingHorizontal: 24, paddingVertical: 12},
   payoutButtonText: {color: '#00796b', fontWeight: '600', fontSize: 16},

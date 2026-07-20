@@ -160,6 +160,20 @@ export default function HomeScreen() {
     }, [fetchItems, fetchMyRentals, fetchCategories]),
   );
 
+  const handleToggleFavorite = useCallback((item: TechItem) => {
+    const nextIsFavorite = !item.isFavorite;
+    setItems(prev => prev.map(i => (i.id === item.id ? {...i, isFavorite: nextIsFavorite} : i)));
+
+    const request = nextIsFavorite
+      ? itemsService.addFavorite(item.id)
+      : itemsService.removeFavorite(item.id);
+
+    request.catch(() => {
+      // revert optimistic update on failure
+      setItems(prev => prev.map(i => (i.id === item.id ? {...i, isFavorite: !nextIsFavorite} : i)));
+    });
+  }, []);
+
   const renderItem = ({item}: {item: TechItem}) => (
     (() => {
       const imageUri = resolveApiAssetUrl(item.imageUrl);
@@ -172,6 +186,13 @@ export default function HomeScreen() {
       <View style={styles.cardImageContainer}>
         <SafeImage uri={imageUri} style={styles.cardImage} />
         {isInProgress && <View style={styles.cardImageOverlay} />}
+        <TouchableOpacity
+          style={styles.favoriteButton}
+          accessibilityRole="button"
+          accessibilityLabel={item.isFavorite ? i18n.home.removeFavorite : i18n.home.addFavorite}
+          onPress={() => handleToggleFavorite(item)}>
+          <Text style={styles.favoriteIcon}>{item.isFavorite ? '❤️' : '🤍'}</Text>
+        </TouchableOpacity>
       </View>
       <View style={styles.cardContent}>
         <Text style={[styles.cardTitle, isInProgress && styles.textDisabled]} numberOfLines={1}>{item.title}</Text>
@@ -422,6 +443,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(120,120,120,0.45)',
   },
+  favoriteButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  favoriteIcon: {fontSize: 14},
   cardContent: {padding: 8},
   cardTitle: {fontWeight: '600', fontSize: 14},
   cardCategory: {color: '#888', fontSize: 12, marginTop: 2},
