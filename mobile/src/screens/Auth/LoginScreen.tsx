@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,24 @@ import {i18n} from '../../locales';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
-GoogleSignin.configure({webClientId: GOOGLE_WEB_CLIENT_ID});
+let isGoogleSigninConfigured = false;
+
+// Configuring lazily (and defensively) avoids crashing the whole JS thread on
+// cold start: calling this at module import time can race with native module
+// initialization on the very first launch after install, closing the app
+// immediately (it then works fine on the second open once things are warm).
+function ensureGoogleSigninConfigured(): void {
+  if (isGoogleSigninConfigured) {
+    return;
+  }
+
+  try {
+    GoogleSignin.configure({webClientId: GOOGLE_WEB_CLIENT_ID});
+    isGoogleSigninConfigured = true;
+  } catch {
+    // Will retry next time it's needed (e.g. on the Google login button press).
+  }
+}
 
 export default function LoginScreen({navigation}: Props) {
   const [email, setEmail] = useState('');
@@ -30,6 +47,10 @@ export default function LoginScreen({navigation}: Props) {
   const tekMatch = /(tek)$/i.exec(titleText);
   const tekSuffix = tekMatch ? tekMatch[1] : '';
   const titlePrefix = tekSuffix ? titleText.slice(0, -tekSuffix.length) : titleText;
+
+  useEffect(() => {
+    ensureGoogleSigninConfigured();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -56,6 +77,7 @@ export default function LoginScreen({navigation}: Props) {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      ensureGoogleSigninConfigured();
       await GoogleSignin.hasPlayServices();
       // Ensure user can pick an account every time instead of reusing cached session.
       try {

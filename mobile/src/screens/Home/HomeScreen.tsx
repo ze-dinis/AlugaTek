@@ -195,8 +195,22 @@ export default function HomeScreen() {
           <Text style={styles.heroTitle}>✨ Descobrir Tecnologia</Text>
           <TouchableOpacity
             style={styles.calculatorButton}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir calculadora de ganhos"
             onPress={handleOpenEarningsCalculator}>
-            <Text style={styles.calculatorButtonText}>Calculadora</Text>
+            <View style={styles.calculatorIcon}>
+              <View style={styles.calculatorIconDisplay} />
+              <View style={styles.calculatorIconKeyRow}>
+                <View style={styles.calculatorIconKey} />
+                <View style={styles.calculatorIconKey} />
+                <View style={styles.calculatorIconKey} />
+              </View>
+              <View style={styles.calculatorIconKeyRow}>
+                <View style={styles.calculatorIconKey} />
+                <View style={styles.calculatorIconKey} />
+                <View style={styles.calculatorIconKey} />
+              </View>
+            </View>
           </TouchableOpacity>
         </View>
         <Text style={styles.heroSubtitle}>Escolha o equipamento ideal para alugar hoje.</Text>
@@ -298,10 +312,34 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: '#cfe0ff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  calculatorButtonText: {color: '#1a73e8', fontWeight: '700', fontSize: 12},
+  calculatorIcon: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calculatorIconDisplay: {
+    width: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#1a73e8',
+  },
+  calculatorIconKeyRow: {
+    width: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  calculatorIconKey: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#1a73e8',
+  },
   heroSubtitle: {fontSize: 13, color: '#526072', marginTop: 4},
   earningsHintCard: {
     marginTop: 10,
