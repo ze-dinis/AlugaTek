@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alugatek | Aluga tecnologia quando precisares</title>
+    <title>Alugatek | APP para alugar tecnologia</title>
     <meta
       name="description"
       content="A plataforma para alugar portateis, telemoveis, cameras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
@@ -11,7 +11,7 @@
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://alugatek.pt/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Alugatek | Aluga tecnologia quando precisares" />
+    <meta property="og:title" content="Alugatek | APP para alugar tecnologia" />
     <meta
       property="og:description"
       content="A plataforma para alugar portateis, telemoveis, cameras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
@@ -122,7 +122,7 @@
         display: grid;
         grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
         gap: 28px;
-        align-items: center;
+        align-items: start;
         padding: 32px 0 72px;
       }
 
@@ -166,6 +166,18 @@
         color: var(--muted);
         font-size: 1.08rem;
         line-height: 1.75;
+      }
+
+      .lead,
+      .section-heading p,
+      .metric,
+      .panel p,
+      .trust-item span,
+      .cta p,
+      .screenshot-caption {
+        text-align: justify;
+        text-align-last: left;
+        hyphens: auto;
       }
 
       .hero-actions {
@@ -224,7 +236,16 @@
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 16px;
-        margin-top: 18px;
+        margin-top: 34px;
+        grid-column: 1 / -1;
+      }
+
+      .metrics-fullwidth {
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+        padding-left: clamp(12px, 4vw, 56px);
+        padding-right: clamp(12px, 4vw, 56px);
       }
 
       .metric {
@@ -233,6 +254,7 @@
         background: var(--card);
         border: 1px solid var(--line);
         backdrop-filter: blur(8px);
+        line-height: 1.7;
       }
 
       .metric strong {
@@ -245,6 +267,7 @@
       .showcase {
         position: relative;
         padding: 28px;
+        margin-top: -24px;
         border-radius: 34px;
         background:
           radial-gradient(circle at top right, rgba(94, 200, 255, 0.24), transparent 26%),
@@ -269,13 +292,14 @@
         position: relative;
         z-index: 1;
         display: grid;
-        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
         gap: 20px;
         align-items: center;
       }
 
       .showcase-copy {
         padding-top: 4px;
+        min-width: 0;
       }
 
       .showcase-badge-row {
@@ -296,7 +320,6 @@
         height: 56px;
         display: grid;
         place-items: center;
-        box-shadow: 0 18px 28px rgba(2, 16, 34, 0.28);
       }
 
       .showcase-app-name {
@@ -329,16 +352,18 @@
       }
 
       .showcase-hero-title {
-        margin: 34px 0 0;
-        font-size: clamp(3rem, 5vw, 4.7rem);
-        line-height: 0.92;
-        letter-spacing: -0.05em;
+        margin: 30px 0 0;
+        font-size: clamp(1.9rem, 3vw, 3.1rem);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+        overflow-wrap: break-word;
+        word-break: break-word;
       }
 
       .showcase-hero-subtitle {
-        margin-top: 18px;
+        margin-top: 14px;
         color: var(--blue-deep);
-        font-size: clamp(1.4rem, 2vw, 2.25rem);
+        font-size: clamp(1.05rem, 1.5vw, 1.5rem);
         font-weight: 700;
       }
 
@@ -502,7 +527,11 @@
       .cta {
         position: relative;
         overflow: hidden;
-        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 100%;
+        padding: 38px;
         border-radius: 32px;
         background: linear-gradient(135deg, var(--blue-deep), var(--blue) 60%, var(--blue-bright) 100%);
         color: #fff;
@@ -526,6 +555,13 @@
         margin: 0;
       }
 
+      .cta h2 {
+        font-size: clamp(1.7rem, 2.4vw, 2.3rem);
+        line-height: 1.2;
+        letter-spacing: -0.03em;
+        max-width: 460px;
+      }
+
       .cta p {
         max-width: 620px;
         margin-top: 12px;
@@ -536,7 +572,7 @@
       .cta .hero-actions {
         position: relative;
         z-index: 1;
-        margin-top: 24px;
+        margin-top: 26px;
       }
 
       .button-light {
@@ -548,6 +584,18 @@
         border-color: rgba(255, 255, 255, 0.28);
         color: #fff;
         background: rgba(255, 255, 255, 0.06);
+      }
+
+      .store-badge-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .store-badge {
+        display: block;
+        height: 54px;
+        width: auto;
       }
 
       .footer {
@@ -576,8 +624,17 @@
           padding-top: 10px;
         }
 
+        .metrics-fullwidth {
+          margin-left: 0;
+          margin-right: 0;
+          width: 100%;
+          padding-left: 0;
+          padding-right: 0;
+        }
+
         .showcase {
           order: -1;
+          margin-top: 0;
         }
       }
 
@@ -612,12 +669,7 @@
         }
 
         .showcase-hero-title {
-          font-size: 2.6rem;
-        }
-
-        .phone-card.primary {
-          left: 50%;
-          width: 214px;
+          font-size: 2.2rem;
         }
       }
     </style>
@@ -659,27 +711,6 @@
               <a class="button button-primary" href="#download">Quero experimentar</a>
               <a class="button button-secondary" href="#como-funciona">Ver como funciona</a>
             </div>
-
-            <div class="hero-notes">
-              <span class="hero-note">Pagamentos com protecao e caucoes</span>
-              <span class="hero-note">Chat integrado entre cliente e proprietario</span>
-              <span class="hero-note">Suporte para disputas quando necessario</span>
-            </div>
-
-            <div class="metrics" aria-label="Resumo de beneficios">
-              <div class="metric">
-                <strong>Tecnologia</strong>
-                Equipamentos como laptops, smartphones, cameras e mais.
-              </div>
-              <div class="metric">
-                <strong>Local</strong>
-                Pesquisa por distrito para encontrar o item certo perto de ti.
-              </div>
-              <div class="metric">
-                <strong>Seguro</strong>
-                Confirmacao, pagamento, devolucao e suporte num unico fluxo.
-              </div>
-            </div>
           </div>
 
           <aside class="showcase" aria-label="Pre-visualizacao da aplicacao">
@@ -694,10 +725,8 @@
                     </div>
                     <div>
                       <div class="showcase-app-name">AlugaTek</div>
-                      <div class="showcase-download">Download Agora</div>
                     </div>
                   </div>
-                  <div class="showcase-laurel">Lancada<br />Recentemente</div>
                 </div>
 
                 <h2 class="showcase-hero-title">Alugue<br />Tecnologia</h2>
@@ -720,6 +749,21 @@
               </div>
             </div>
           </aside>
+
+          <div class="metrics metrics-fullwidth" aria-label="Resumo de beneficios">
+            <div class="metric">
+              <strong>Tecnologia</strong>
+              Equipamentos como laptops, smartphones, cameras e mais.
+            </div>
+            <div class="metric">
+              <strong>Local</strong>
+              Pesquisa por distrito para encontrar o item certo perto de ti.
+            </div>
+            <div class="metric">
+              <strong>Seguro</strong>
+              Confirmacao, pagamento, devolucao e suporte num unico fluxo.
+            </div>
+          </div>
         </section>
 
         <section id="como-funciona">
@@ -801,10 +845,15 @@
             </div>
 
             <aside class="cta" id="download">
-              <h2>Coloca a tua tecnologia a render ou encontra o equipamento certo para o proximo projeto.</h2>
-              <p>Usa estes botoes como ponto de partida para ligares o teu download, lista de espera ou formulario de contacto.</p>
+              <h2 align="justify">Coloca a tua tecnologia a render ou encontra o equipamento certo para o proximo projeto.</h2>
               <div class="hero-actions">
-                <a class="button button-light" href="mailto:ola@alugatek.pt">Pedir demo / contacto</a>
+                <a class="store-badge-link" href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer" aria-label="Disponivel no Google Play">
+                  <img
+                    class="store-badge"
+                    src="https://play.google.com/intl/en_us/badges/static/images/badges/pt_badge_web_generic.png"
+                    alt="Disponivel no Google Play"
+                  />
+                </a>
                 <a class="button button-outline-light" href="#top">Voltar ao topo</a>
               </div>
             </aside>
@@ -814,7 +863,6 @@
 
       <footer class="footer">
         <span>Alugatek · Plataforma de aluguer de tecnologia</span>
-        <span>Substitui os links de contacto e download pelos teus destinos reais.</span>
       </footer>
     </div>
   </body>
