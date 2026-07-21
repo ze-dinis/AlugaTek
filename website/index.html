@@ -6,7 +6,7 @@
     <title>Alugatek | APP para alugar tecnologia</title>
     <meta
       name="description"
-      content="A plataforma para alugar portateis, telemoveis, cameras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
+      content="A plataforma para alugar portáteis, telemóveis, câmaras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
     />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://alugatek.pt/" />
@@ -14,7 +14,7 @@
     <meta property="og:title" content="Alugatek | APP para alugar tecnologia" />
     <meta
       property="og:description"
-      content="A plataforma para alugar portateis, telemoveis, cameras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
+      content="A plataforma para alugar portáteis, telemóveis, câmaras e outros equipamentos de tecnologia com pagamentos seguros, chat integrado e suporte dedicado."
     />
     <meta property="og:url" content="https://alugatek.pt/" />
     <meta property="og:image" content="https://alugatek.pt/Screenshot_01.png" />
@@ -638,16 +638,58 @@
         }
       }
 
+      .nav-toggle {
+        display: none;
+        background: none;
+        border: 1px solid rgba(13, 41, 72, 0.15);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        color: var(--ink);
+        font-size: 1.1rem;
+        line-height: 1;
+      }
+
       @media (max-width: 720px) {
-        .topbar,
-        .footer,
-        .nav {
-          flex-direction: column;
-          align-items: flex-start;
+        .nav-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .nav {
-          gap: 14px;
+          display: none;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 100;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0;
+          background: rgba(255, 255, 255, 0.97);
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(13, 41, 72, 0.1);
+          padding: 8px 0;
+        }
+
+        .nav.open {
+          display: flex;
+        }
+
+        .nav a {
+          width: 100%;
+          padding: 13px 20px;
+          font-size: 1rem;
+        }
+
+        .topbar {
+          position: relative;
+        }
+
+        .footer {
+          flex-direction: column;
+          align-items: flex-start;
         }
 
         h1 {
@@ -686,11 +728,14 @@
           <span>Alugatek</span>
         </a>
 
-        <nav class="nav" aria-label="Navegacao principal">
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#vantagens">Vantagens</a>
-          <a href="#seguranca">Seguranca</a>
-          <a href="#download">Download</a>
+        <button class="nav-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="main-nav" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='true'?'false':'true'); document.getElementById('main-nav').classList.toggle('open');">
+          &#9776;
+        </button>
+        <nav class="nav" id="main-nav" aria-label="Navegação principal">
+          <a href="#como-funciona" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Como funciona</a>
+          <a href="#vantagens" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Vantagens</a>
+          <a href="#seguranca" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Segurança</a>
+          <a href="#download" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Download</a>
         </nav>
       </header>
 
@@ -699,12 +744,12 @@
           <div class="hero-copy">
             <span class="eyebrow">Plataforma de aluguer de tecnologia</span>
             <h1>
-              Precisas de um portatil, camera ou telemovel
-              <span class="accent">so por alguns dias?</span>
+              Precisas de um portátil, câmara ou telemóvel
+              <span class="accent">só por alguns dias?</span>
             </h1>
             <p class="lead">
-              A Alugatek liga pessoas que precisam de tecnologia a proprietarios que querem rentabilizar os seus equipamentos.
-              Descobre anuncios por categoria e distrito, fala diretamente no chat e gere o aluguer com pagamentos seguros.
+              A Alugatek liga pessoas que precisam de tecnologia a proprietários que querem rentabilizar os seus equipamentos.
+              Descobre anúncios por categoria e distrito, fala diretamente no chat e gere o aluguer com pagamentos seguros.
             </p>
 
             <div class="hero-actions">
@@ -713,7 +758,7 @@
             </div>
           </div>
 
-          <aside class="showcase" aria-label="Pre-visualizacao da aplicacao">
+          <aside class="showcase" aria-label="Pré-visualização da aplicação">
             <div class="showcase-grid">
               <div class="showcase-copy">
                 <div class="showcase-badge-row">
@@ -739,8 +784,18 @@
                   </div>
                   <div class="showcase-point">
                     <span class="showcase-check">&#10003;</span>
-                    <span>Anuncie o que ja nao usa</span>
+                    <span>Anuncie o que já não usa</span>
                   </div>
+                </div>
+
+                <div style="margin-top: 28px;">
+                  <a class="store-badge-link" href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer" aria-label="Disponível no Google Play">
+                    <img
+                      class="store-badge"
+                      src="https://play.google.com/intl/en_us/badges/static/images/badges/pt_badge_web_generic.png"
+                      alt="Disponível no Google Play"
+                    />
+                  </a>
                 </div>
               </div>
 
@@ -753,7 +808,7 @@
           <div class="metrics metrics-fullwidth" aria-label="Resumo de beneficios">
             <div class="metric">
               <strong>Tecnologia</strong>
-              Equipamentos como laptops, smartphones, cameras e mais.
+              Equipamentos como laptops, smartphones, câmaras e mais.
             </div>
             <div class="metric">
               <strong>Local</strong>
@@ -761,7 +816,7 @@
             </div>
             <div class="metric">
               <strong>Seguro</strong>
-              Confirmacao, pagamento, devolucao e suporte num unico fluxo.
+              Confirmação, pagamento, devolução e suporte num único fluxo.
             </div>
           </div>
         </section>
@@ -769,9 +824,9 @@
         <section id="como-funciona">
           <div class="section-heading">
             <span class="section-kicker">Como funciona</span>
-            <h2>Uma experiencia simples para alugar ou anunciar.</h2>
+            <h2>Uma experiência simples para alugar ou anunciar.</h2>
             <p>
-              A Alugatek foi pensada para reduzir friccao: procurar, falar com o proprietario, reservar, pagar e devolver sem sair da app.
+              A Alugatek foi pensada para reduzir fricção: procurar, falar com o proprietário, reservar, pagar e devolver sem sair da app.
             </p>
           </div>
 
@@ -779,19 +834,19 @@
             <article class="panel">
               <span class="panel-number">1</span>
               <h3>Descobre o equipamento ideal</h3>
-              <p>Pesquisa por categoria, distrito e necessidade real. Encontra desde equipamentos para trabalho remoto ate material para conteudo e eventos.</p>
+              <p>Pesquisa por categoria, distrito e necessidade real. Encontra desde equipamentos para trabalho remoto até material para conteúdo e eventos.</p>
             </article>
 
             <article class="panel">
               <span class="panel-number">2</span>
               <h3>Combina tudo no chat</h3>
-              <p>Fala diretamente com o proprietario, esclarece detalhes, partilha imagens e acompanha pedidos de aluguer sem trocas de contexto.</p>
+              <p>Fala diretamente com o proprietário, esclarece detalhes, partilha imagens e acompanha pedidos de aluguer sem trocas de contexto.</p>
             </article>
 
             <article class="panel">
               <span class="panel-number">3</span>
-              <h3>Gere pagamento e devolucao</h3>
-              <p>A app acompanha confirmacao, pagamento, pedido de devolucao e suporte em caso de problema durante o aluguer.</p>
+              <h3>Gere pagamento e devolução</h3>
+              <p>A app acompanha confirmação, pagamento, pedido de devolução e suporte em caso de problema durante o aluguer.</p>
             </article>
           </div>
         </section>
@@ -799,14 +854,14 @@
         <section id="vantagens">
           <div class="section-heading">
             <span class="section-kicker">Porque escolher</span>
-            <h2>Tecnologia acessivel sem comprares mais do que precisas.</h2>
-            <p>Ideal para freelancers, estudantes, equipas pequenas e qualquer pessoa que precise de um equipamento especifico por um periodo curto.</p>
+            <h2>Tecnologia acessível sem comprares mais do que precisas.</h2>
+              Ideal para freelancers, estudantes, equipas pequenas e qualquer pessoa que precise de um equipamento específico por um período curto.
           </div>
 
           <div class="grid-three">
             <article class="panel">
-              <h3>Rentabiliza o que ja tens</h3>
-              <p>Se tens equipamento parado, cria anuncios e transforma ativos subutilizados numa fonte extra de rendimento.</p>
+              <h3>Rentabiliza o que já tens</h3>
+              <p>Se tens equipamento parado, cria anúncios e transforma ativos subutilizados numa fonte extra de rendimento.</p>
             </article>
 
             <article class="panel">
@@ -815,28 +870,28 @@
             </article>
 
             <article class="panel">
-              <h3>Feedback e transparencias</h3>
-              <p>Acompanhamento do aluguer, fluxo de devolucao e sistema de reviews ajudam a criar mais confianca entre as partes.</p>
+              <h3>Feedback e transparências</h3>
+              <p>Acompanhamento do aluguer, fluxo de devolução e sistema de reviews ajudam a criar mais confiança entre as partes.</p>
             </article>
           </div>
         </section>
 
         <section id="seguranca">
           <div class="section-heading">
-            <span class="section-kicker">Confianca</span>
+            <span class="section-kicker">Confiança</span>
             <h2>Fluxos pensados para reduzir risco e aumentar clareza.</h2>
-            <p>O produto ja contem suporte a caucoes, pagamentos, chat entre utilizadores e um fluxo de disputa para quando alguma coisa nao corre como esperado.</p>
+              O produto já contém suporte a cauções, pagamentos, chat entre utilizadores e um fluxo de disputa para quando alguma coisa não corre como esperado.
           </div>
 
           <div class="trust-layout">
             <div class="panel trust-list">
               <div class="trust-item">
                 <strong>Pagamentos estruturados</strong>
-                <span>Confirmacao e pagamento fazem parte do processo do aluguer, com notas claras sobre valores e caucoes.</span>
+                <span>Confirmação e pagamento fazem parte do processo do aluguer, com notas claras sobre valores e cauções.</span>
               </div>
               <div class="trust-item">
-                <strong>Devolucao acompanhada</strong>
-                <span>O estado do aluguer evolui durante todo o ciclo, ajudando cliente e proprietario a saber o que falta fazer.</span>
+                <strong>Devolução acompanhada</strong>
+                <span>O estado do aluguer evolui durante todo o ciclo, ajudando cliente e proprietário a saber o que falta fazer.</span>
               </div>
               <div class="trust-item">
                 <strong>Suporte para disputas</strong>
@@ -845,13 +900,13 @@
             </div>
 
             <aside class="cta" id="download">
-              <h2 align="justify">Coloca a tua tecnologia a render ou encontra o equipamento certo para o proximo projeto.</h2>
+              <h2 align="justify">Coloca a tua tecnologia a render ou encontra o equipamento certo para o próximo projeto.</h2>
               <div class="hero-actions">
-                <a class="store-badge-link" href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer" aria-label="Disponivel no Google Play">
+                <a class="store-badge-link" href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer" aria-label="Disponível no Google Play">
                   <img
                     class="store-badge"
                     src="https://play.google.com/intl/en_us/badges/static/images/badges/pt_badge_web_generic.png"
-                    alt="Disponivel no Google Play"
+                    alt="Disponível no Google Play"
                   />
                 </a>
                 <a class="button button-outline-light" href="#top">Voltar ao topo</a>
