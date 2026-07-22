@@ -13,7 +13,7 @@ namespace Alugatek.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class RentalsController(AppDbContext db, IPaymentService payments, ILogger<RentalsController> logger) : ControllerBase
+public class RentalsController(AppDbContext db, IPaymentService payments, IPushNotificationService pushNotifications, ILogger<RentalsController> logger) : ControllerBase
 {
     private const decimal PlatformBaseCommission = 3.0m;
     private const decimal PlatformPercentageCommissionRate = 0.10m;
@@ -84,6 +84,38 @@ public class RentalsController(AppDbContext db, IPaymentService payments, ILogge
         await db.SaveChangesAsync();
 
         var renter = await db.Users.FindAsync(renterId);
+
+        var ownerTokens = await db.DevicePushTokens
+            .Where(t => t.UserId == item.OwnerId && t.Platform == "android")
+            .Select(t => t.Token)
+            .Distinct()
+            .ToListAsync();
+
+        if (ownerTokens.Count > 0)
+        {
+            var invalidTokens = await pushNotifications.SendChatMessageAsync(
+                ownerTokens,
+                rentRequestMessage.Id,
+                renterId,
+                renter!.Name,
+                item.Id,
+                item.Title,
+                rentRequestMessage.Content);
+
+            if (invalidTokens.Count > 0)
+            {
+                var staleTokens = await db.DevicePushTokens
+                    .Where(t => invalidTokens.Contains(t.Token))
+                    .ToListAsync();
+
+                if (staleTokens.Count > 0)
+                {
+                    db.DevicePushTokens.RemoveRange(staleTokens);
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
+
         return CreatedAtAction(nameof(GetById), new { id = rental.Id }, MapToDto(rental, item, renter!));
     }
 
