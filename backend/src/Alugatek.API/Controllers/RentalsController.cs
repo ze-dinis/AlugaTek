@@ -578,7 +578,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
 
         rental.Status = RentalStatus.ReturnRequested;
 
-        db.Messages.Add(new Message
+        var returnRequestMessage = new Message
         {
             SenderId = userId,
             ReceiverId = rental.Item.OwnerId,
@@ -587,9 +587,42 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
             ItemId = rental.ItemId,
             RentalId = rental.Id,
             MessageType = "ReturnRequest"
-        });
+        };
+        db.Messages.Add(returnRequestMessage);
 
         await db.SaveChangesAsync();
+
+        var ownerTokens = await db.DevicePushTokens
+            .Where(t => t.UserId == rental.Item.OwnerId && t.Platform == "android")
+            .Select(t => t.Token)
+            .Distinct()
+            .ToListAsync();
+
+        if (ownerTokens.Count > 0)
+        {
+            var invalidTokens = await pushNotifications.SendChatMessageAsync(
+                ownerTokens,
+                returnRequestMessage.Id,
+                userId,
+                rental.Renter.Name,
+                rental.ItemId,
+                rental.Item.Title,
+                returnRequestMessage.Content);
+
+            if (invalidTokens.Count > 0)
+            {
+                var staleTokens = await db.DevicePushTokens
+                    .Where(t => invalidTokens.Contains(t.Token))
+                    .ToListAsync();
+
+                if (staleTokens.Count > 0)
+                {
+                    db.DevicePushTokens.RemoveRange(staleTokens);
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
+
         return Ok(MapToDto(rental, rental.Item, rental.Renter));
     }
 

@@ -20,7 +20,6 @@ import {
   initializeNotificationService,
   showNewMessageNotification,
 } from './src/services/notificationService';
-import {chatService} from './src/services/chatService';
 import {pushTokenService} from './src/services/pushTokenService';
 import {STRIPE_PUBLISHABLE_KEY} from './src/config';
 
@@ -49,8 +48,6 @@ export default function App() {
   const loadFromStorage = useAuthStore(s => s.loadFromStorage);
   const user = useAuthStore(s => s.user);
   const pendingChatRouteRef = useRef<PendingChatRoute | null>(null);
-  const unreadByConversationRef = useRef<Record<string, number>>({});
-  const hasUnreadBaselineRef = useRef(false);
   const recentNotificationKeysRef = useRef<Record<string, number>>({});
 
   const shouldDisplayNotification = (
@@ -289,77 +286,6 @@ export default function App() {
     };
   }, [user]);
 
-  // Polling fallback: detects new messages without depending on FCM delivery.
-  // Works immediately in dev/emulator. FCM push (above) handles background/killed.
-  useEffect(() => {
-    if (!user) {
-      unreadByConversationRef.current = {};
-      hasUnreadBaselineRef.current = false;
-      return;
-    }
-
-    let isMounted = true;
-
-    const checkConversations = async () => {
-      try {
-        const {data: conversations} = await chatService.getConversations();
-        if (!isMounted) {
-          return;
-        }
-
-        const previousUnread = unreadByConversationRef.current;
-        const nextUnread: Record<string, number> = {};
-
-        for (const conversation of conversations) {
-          const conversationKey = `${conversation.itemId}:${conversation.otherUserId}`;
-          const currentUnread = conversation.unreadCount ?? 0;
-          const previous = previousUnread[conversationKey] ?? 0;
-          nextUnread[conversationKey] = currentUnread;
-
-          if (hasUnreadBaselineRef.current && currentUnread > previous) {
-            const messagePreview = conversation.lastMessage;
-            const messageTimestampMs = parseApiTimestampToMs(conversation.lastMessageTime);
-            const pollingEventId = `poll:${conversation.itemId}:${conversation.otherUserId}:${messageTimestampMs ?? 0}`;
-            if (!shouldDisplayNotification(
-              conversation.otherUserId,
-              conversation.itemId,
-              messagePreview,
-              messageTimestampMs,
-              pollingEventId,
-            )) {
-              continue;
-            }
-
-            await showNewMessageNotification({
-              otherId: conversation.otherUserId,
-              otherName: conversation.otherName,
-              itemId: conversation.itemId,
-              itemTitle: conversation.itemTitle,
-              senderName: conversation.otherName,
-              messagePreview,
-              unreadCount: currentUnread,
-              timestampMs: messageTimestampMs,
-              eventId: pollingEventId,
-            });
-          }
-        }
-
-        unreadByConversationRef.current = nextUnread;
-        hasUnreadBaselineRef.current = true;
-      } catch {
-        // silently fail
-      }
-    };
-
-    checkConversations();
-    const intervalId = setInterval(checkConversations, 10000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [user]);
-
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} urlScheme="alugatek">
       <SafeAreaProvider>
@@ -403,27 +329,6 @@ function extractNotificationIdentityFromRemoteData(
     : messageId;
 
   return {messageId, eventId};
-}
-
-function parseApiTimestampToMs(value?: string): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const hasTimezone = /(?:[zZ]|[+-]\d{2}:\d{2})$/.test(value);
-  const normalized = hasTimezone ? value : `${value}Z`;
-  const parsed = Date.parse(normalized);
-
-  if (Number.isNaN(parsed)) {
-    return undefined;
-  }
-
-  const year = new Date(parsed).getUTCFullYear();
-  if (year < 2000) {
-    return undefined;
-  }
-
-  return parsed;
 }
 
 function getRemoteDataString(

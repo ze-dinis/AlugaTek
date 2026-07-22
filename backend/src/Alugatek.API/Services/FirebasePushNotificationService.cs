@@ -138,6 +138,7 @@ public class FirebasePushNotificationService : IPushNotificationService
                         ChannelId = "chat-messages-v2",
                         DefaultSound = true,
                         DefaultVibrateTimings = true,
+                        EventTimestamp = DateTime.UtcNow,
                     }
                 }
             };
@@ -234,6 +235,7 @@ public class FirebasePushNotificationService : IPushNotificationService
                         ChannelId = "chat-messages-v2",
                         DefaultSound = true,
                         DefaultVibrateTimings = true,
+                        EventTimestamp = DateTime.UtcNow,
                     }
                 }
             };

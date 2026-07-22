@@ -15,6 +15,7 @@ import {
   Image,
 } from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
@@ -22,7 +23,7 @@ import {itemsService} from '../../services/itemsService';
 import {rentalsService} from '../../services/rentalsService';
 import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
-import {Message} from '../../types';
+import {Message, RentalStatus} from '../../types';
 import {i18n} from '../../locales';
 import PaymentModal from '../../components/PaymentModal';
 import DisputeModal from '../../components/DisputeModal';
@@ -44,6 +45,7 @@ type PendingChatImage = {
 export default function ChatDetailScreen({route, navigation}: Props) {
   const {itemId, itemTitle, otherUserId} = route.params;
   const {user} = useAuthStore();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -52,6 +54,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [paymentActionLoading, setPaymentActionLoading] = useState<Record<string, boolean>>({});
   const [returnActionLoading, setReturnActionLoading] = useState<Record<string, boolean>>({});
   const [handledRequests, setHandledRequests] = useState<string[]>([]);
+  const [rentalStatuses, setRentalStatuses] = useState<Record<string, RentalStatus>>({});
   const [paidRequests, setPaidRequests] = useState<string[]>([]);
   const [confirmedReturns, setConfirmedReturns] = useState<string[]>([]);
   const [payTarget, setPayTarget] = useState<{rentalId: string; amount: number; caucaoAmount: number} | null>(null);
@@ -111,6 +114,68 @@ export default function ChatDetailScreen({route, navigation}: Props) {
 
     loadMessages();
   }, [itemId, otherUserId]);
+
+  // Rental action buttons must reflect the rental's real status, not just
+  // in-session actions. Fetch the status for each incoming request so resolved
+  // requests (confirmed, declined, cancelled, expired, returned) don't keep
+  // their buttons.
+  useEffect(() => {
+    const rentalIdsToFetch = Array.from(
+      new Set(
+        messages
+          .filter(
+            message =>
+              (message.messageType === 'RentalRequest' ||
+                message.messageType === 'ReturnRequest') &&
+              !!message.rentalId &&
+              message.sender.id !== user?.id,
+          )
+          .map(message => message.rentalId as string),
+      ),
+    ).filter(rentalId => !(rentalId in rentalStatuses));
+
+    if (rentalIdsToFetch.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const results = await Promise.all(
+        rentalIdsToFetch.map(async rentalId => {
+          try {
+            const {data} = await rentalsService.getById(rentalId);
+            return [rentalId, data.status] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const resolved = results.filter(
+        (entry): entry is readonly [string, RentalStatus] => entry !== null,
+      );
+      if (resolved.length === 0) {
+        return;
+      }
+
+      setRentalStatuses(prev => {
+        const next = {...prev};
+        for (const [rentalId, status] of resolved) {
+          next[rentalId] = status;
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, user?.id, rentalStatuses]);
 
   const handleSend = async () => {
     if (sendInFlightRef.current) return;
@@ -343,7 +408,8 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     const returnRequestId = item.messageType === 'ReturnRequest' ? item.rentalId : null;
     const showActions = !isOwn
       && !!rentalRequestId
-      && !handledRequests.includes(rentalRequestId);
+      && !handledRequests.includes(rentalRequestId)
+      && rentalStatuses[rentalRequestId] === 'Pending';
     const isActionLoading = rentalRequestId ? !!requestActionLoading[rentalRequestId] : false;
     const isLastMessage = index === messages.length - 1;
     const showPayAction = isLastMessage
@@ -355,7 +421,8 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     const showReturnConfirm = !isOwn
       && item.id === latestReturnRequestMessageId
       && !!returnRequestId
-      && !confirmedReturns.includes(returnRequestId);
+      && !confirmedReturns.includes(returnRequestId)
+      && rentalStatuses[returnRequestId] === 'ReturnRequested';
     const isReturnActionLoading = returnRequestId ? !!returnActionLoading[returnRequestId] : false;
     const messageImages = (item.imageUrls ?? [])
       .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
@@ -467,7 +534,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
         }
       />
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, {paddingBottom: insets.bottom}]}>
         <Text style={styles.safetyDisclaimer}>
           Mantém-te seguro. Nunca abras links para outros websites e não partilhes contactos nem informação financeira.
         </Text>
