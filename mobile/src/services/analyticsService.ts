@@ -1,4 +1,5 @@
-import analytics from '@react-native-firebase/analytics';
+import {getApp} from '@react-native-firebase/app';
+import {getAnalytics, logEvent, logSignUp} from '@react-native-firebase/analytics';
 import {Rental} from '../types';
 
 type ItemListedPayload = {
@@ -11,12 +12,14 @@ type ItemListedPayload = {
 };
 
 class AnalyticsService {
+  private readonly analytics = getAnalytics(getApp());
+
   private async safeLog(
     eventName: string,
     params?: Record<string, string | number | boolean | null | undefined>,
   ): Promise<void> {
     try {
-      await analytics().logEvent(eventName, params);
+      await logEvent(this.analytics, eventName, params);
     } catch {
       // Avoid breaking user flows if analytics fails.
     }
@@ -24,7 +27,7 @@ class AnalyticsService {
 
   async trackSignUp(method = 'email'): Promise<void> {
     try {
-      await analytics().logSignUp({method});
+      await logSignUp(this.analytics, {method});
     } catch {
       // Avoid breaking user flows if analytics fails.
     }

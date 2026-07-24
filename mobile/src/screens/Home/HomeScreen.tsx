@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, {useEffect, useState, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -26,17 +26,16 @@ import {useAuthStore} from '../../store/authStore';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 const EARNINGS_HINT_KEY_PREFIX = 'earnings_hint_seen';
+const PAGE_SIZE = 8;
 
-function normalizeDistrict(value: string | undefined): string {
-  if (!value) {
-    return '';
-  }
+function mergeItemsById(existingItems: TechItem[], nextItems: TechItem[]): TechItem[] {
+  const itemsById = new Map(existingItems.map(item => [item.id, item]));
 
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
+  nextItems.forEach(item => {
+    itemsById.set(item.id, item);
+  });
+
+  return Array.from(itemsById.values());
 }
 
 export default function HomeScreen() {
@@ -50,8 +49,15 @@ export default function HomeScreen() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [myOpenRentalItemIds, setMyOpenRentalItemIds] = useState<string[]>([]);
   const [showEarningsHint, setShowEarningsHint] = useState(false);
+  const pageRef = useRef(1);
+  const requestedPageRef = useRef<number | null>(null);
+  const canLoadMoreRef = useRef(false);
+  const listHeightRef = useRef(0);
+  const contentHeightRef = useRef(0);
 
   const getEarningsHintStorageKey = useCallback(() => {
     const userId = user?.id ?? 'anonymous';
@@ -89,23 +95,27 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (page = 1, append = false) => {
+    requestedPageRef.current = page;
+
     try {
       const {data} = await itemsService.getAll({
         categoryId: selectedCategory,
         search: search || undefined,
         district: selectedDistrict || undefined,
+        page,
+        pageSize: PAGE_SIZE,
       });
-      const selectedDistrictKey = normalizeDistrict(selectedDistrict);
-      const filtered = selectedDistrict
-        ? data.filter(item => normalizeDistrict(item.district) === selectedDistrictKey)
-        : data;
-      setItems(filtered);
+      pageRef.current = page;
+      setItems(prev => (append ? mergeItemsById(prev, data) : data));
+      setHasMore(data.length === PAGE_SIZE);
     } catch {
       // silently fail; items will remain as-is
     } finally {
+      requestedPageRef.current = null;
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, [selectedCategory, search, selectedDistrict]);
 
@@ -147,18 +157,60 @@ export default function HomeScreen() {
 
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(fetchItems, 300);
+    setHasMore(true);
+    pageRef.current = 1;
+    requestedPageRef.current = null;
+    canLoadMoreRef.current = false;
+    const timer = setTimeout(() => fetchItems(1, false), 300);
     return () => clearTimeout(timer);
   }, [fetchItems]);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      void fetchItems();
+      setHasMore(true);
+      pageRef.current = 1;
+      requestedPageRef.current = null;
+      canLoadMoreRef.current = false;
+      void fetchItems(1, false);
       void fetchMyRentals();
       void fetchCategories();
     }, [fetchItems, fetchMyRentals, fetchCategories]),
   );
+
+  const loadNextPage = useCallback((requireUserScroll: boolean) => {
+    const hasScrollableContent = contentHeightRef.current > listHeightRef.current;
+    const nextPage = pageRef.current + 1;
+
+    if (
+      loading ||
+      refreshing ||
+      loadingMore ||
+      !hasMore ||
+      items.length === 0 ||
+      requestedPageRef.current === nextPage ||
+      (requireUserScroll && (!canLoadMoreRef.current || !hasScrollableContent)) ||
+      (!requireUserScroll && hasScrollableContent)
+    ) {
+      return;
+    }
+
+    canLoadMoreRef.current = false;
+    setLoadingMore(true);
+    void fetchItems(nextPage, true);
+  }, [fetchItems, hasMore, items.length, loading, loadingMore, refreshing]);
+
+  const maybeAutoFillList = useCallback(() => {
+    if (listHeightRef.current <= 0 || contentHeightRef.current <= 0) {
+      return;
+    }
+
+    loadNextPage(false);
+  }, [loadNextPage]);
+
+  useEffect(() => {
+    maybeAutoFillList();
+  }, [items.length, maybeAutoFillList]);
 
   const handleToggleFavorite = useCallback((item: TechItem) => {
     const nextIsFavorite = !item.isFavorite;
@@ -308,8 +360,32 @@ export default function HomeScreen() {
           contentContainerStyle={items.length === 0 ? styles.gridEmpty : styles.grid}
           renderItem={renderItem}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchItems();}} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                setHasMore(true);
+                pageRef.current = 1;
+                requestedPageRef.current = null;
+                canLoadMoreRef.current = false;
+                void fetchItems(1, false);
+              }}
+            />
           }
+          onLayout={event => {
+            listHeightRef.current = event.nativeEvent.layout.height;
+            maybeAutoFillList();
+          }}
+          onContentSizeChange={(_, height) => {
+            contentHeightRef.current = height;
+            maybeAutoFillList();
+          }}
+          onScrollBeginDrag={() => {
+            canLoadMoreRef.current = true;
+          }}
+          onEndReached={() => loadNextPage(true)}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#1a73e8" /> : null}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>📭</Text>

@@ -223,8 +223,8 @@ public class FirebasePushNotificationService : IPushNotificationService
                 {
                     Title = "Aluguer a expirar em 24h",
                     Body = hasValidEndDate
-                        ? $"{itemTitle} termina a {endDateText}. Renove para continuar com o item."
-                        : $"{itemTitle} termina em breve. Renove para continuar com o item."
+                        ? $"{itemTitle} termina a {endDateText}. Renove para continuar com o item ou devolva-o."
+                        : $"{itemTitle} termina em breve. Renove para continuar com o item ou devolva-o."
                 },
                 Data = data,
                 Android = new AndroidConfig
