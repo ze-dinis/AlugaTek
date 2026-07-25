@@ -66,7 +66,9 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var normalizedSearch = RemoveDiacritics(search.Trim());
-            query = query.Where(i => EF.Functions.ILike(EF.Functions.Unaccent(i.Title), $"%{normalizedSearch}%"));
+            query = query.Where(i =>
+                EF.Functions.ILike(EF.Functions.Unaccent(i.Title), $"%{normalizedSearch}%") ||
+                EF.Functions.ILike(EF.Functions.Unaccent(i.Description), $"%{normalizedSearch}%"));
         }
 
         if (!string.IsNullOrWhiteSpace(district))
@@ -148,6 +150,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.Title,
             request.Description,
             request.District,
+            request.Localidade,
             request.DailyRate,
             request.Caucao,
             imageUrls,
@@ -193,6 +196,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             request.Title,
             request.Description,
             request.District,
+            request.Localidade,
             request.DailyRate,
             request.Caucao,
             imageUrls,
@@ -253,6 +257,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         string title,
         string description,
         string district,
+        string? localidade,
         decimal dailyRate,
         decimal caucao,
         IReadOnlyList<string> imageUrls,
@@ -278,6 +283,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
             Title = title,
             Description = description,
             District = canonicalDistrict,
+            Localidade = NormalizeOptionalText(localidade),
             DailyRate = dailyRate,
             Caucao = caucao,
             ImageUrl = imageUrls.FirstOrDefault(),
@@ -316,6 +322,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         item.Title = request.Title;
         item.Description = request.Description;
         item.District = canonicalDistrict;
+        item.Localidade = NormalizeOptionalText(request.Localidade);
         item.DailyRate = request.DailyRate;
         item.Caucao = request.Caucao < 0 ? 0 : request.Caucao;
         if (request.ImageUrls is { Count: > MaxPhotosCount })
@@ -464,7 +471,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         var imageUrls = ParseImageUrls(i.ImageUrlsJson, i.ImageUrl);
 
         return new TechItemDto(
-        i.Id, i.Title, i.Description, i.District, i.DailyRate, i.Caucao, i.ImageUrl, imageUrls, isAvailableOverride ?? i.IsAvailable,
+        i.Id, i.Title, i.Description, i.District, i.Localidade, i.DailyRate, i.Caucao, i.ImageUrl, imageUrls, isAvailableOverride ?? i.IsAvailable,
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,
@@ -512,6 +519,14 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
 
     private static string NormalizeDistrictKey(string district) =>
         RemoveDiacritics(district.Trim()).ToLowerInvariant();
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value.Trim();
+    }
 
     private static string RemoveDiacritics(string input)
     {

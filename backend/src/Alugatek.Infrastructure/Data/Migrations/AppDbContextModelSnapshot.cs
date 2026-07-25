@@ -335,6 +335,10 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Localidade")
+                        .HasMaxLength(100)
+                        .HasColumnType("text");
+
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uuid");
 

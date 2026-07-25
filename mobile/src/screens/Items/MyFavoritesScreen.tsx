@@ -70,7 +70,9 @@ export default function MyFavoritesScreen() {
               {item.title}
             </Text>
             <Text style={styles.cardCategory}>🏷️ {item.categoryName}</Text>
-            <Text style={styles.cardDistrict}>📍 {item.district}</Text>
+            <Text style={styles.cardDistrict}>
+              📍 {item.localidade ? `${item.localidade}, ${item.district}` : item.district}
+            </Text>
             <Text style={styles.cardRate}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
           </View>
         </TouchableOpacity>

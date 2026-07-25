@@ -19,6 +19,7 @@ public record CreateItemRequest(
     string Title,
     string Description,
     string District,
+    string? Localidade,
     decimal DailyRate,
     decimal Caucao,
     string? ImageUrl,
@@ -30,6 +31,7 @@ public class CreateItemWithPhotoRequest
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
+    public string? Localidade { get; set; }
     public decimal DailyRate { get; set; }
     public decimal Caucao { get; set; } = 0;
     public string? ImageUrl { get; set; }
@@ -42,6 +44,7 @@ public record UpdateItemRequest(
     string Title,
     string Description,
     string District,
+    string? Localidade,
     decimal DailyRate,
     decimal Caucao,
     string? ImageUrl,
@@ -53,6 +56,7 @@ public record TechItemDto(
     string Title,
     string Description,
     string District,
+    string? Localidade,
     decimal DailyRate,
     decimal Caucao,
     string? ImageUrl,
@@ -139,4 +143,3 @@ public record BanUserByEmailRequest(string Email, string Reason, int? DurationDa
 
 // User reports
 public record CreateReportRequest(Guid ReportedUserId, Guid ItemId, string Reason);
-

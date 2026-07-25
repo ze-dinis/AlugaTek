@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback, useRef} from 'react';
+import React, {useEffect, useState, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -58,6 +58,13 @@ export default function HomeScreen() {
   const canLoadMoreRef = useRef(false);
   const listHeightRef = useRef(0);
   const contentHeightRef = useRef(0);
+  const selectedCategoryName = useMemo(
+    () => categories.find(category => category.id === selectedCategory)?.name,
+    [categories, selectedCategory],
+  );
+  const searchPlaceholder = selectedCategoryName
+    ? `Procurar ${selectedCategoryName.toLocaleLowerCase('pt-PT')}...`
+    : i18n.home.searchPlaceholder;
 
   const getEarningsHintStorageKey = useCallback(() => {
     const userId = user?.id ?? 'anonymous';
@@ -249,7 +256,9 @@ export default function HomeScreen() {
       <View style={styles.cardContent}>
         <Text style={[styles.cardTitle, isInProgress && styles.textDisabled]} numberOfLines={1}>{item.title}</Text>
         <Text style={[styles.cardCategory, isInProgress && styles.textDisabled]}>🏷️ {item.categoryName}</Text>
-        <Text style={[styles.cardDistrict, isInProgress && styles.textDisabled]}>📍 {item.district}</Text>
+        <Text style={[styles.cardDistrict, isInProgress && styles.textDisabled]}>
+          📍 {item.localidade ? `${item.localidade}, ${item.district}` : item.district}
+        </Text>
         <Text style={[styles.cardRate, isInProgress && styles.textDisabled]}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
         {isInProgress && <Text style={styles.inProgressTag}>⏳ {i18n.itemDetail.rentalInProgress}</Text>}
         {item.averageRating && (
@@ -311,7 +320,7 @@ export default function HomeScreen() {
           <Text style={styles.searchIcon}>🔎</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder={i18n.home.searchPlaceholder}
+          placeholder={searchPlaceholder}
           placeholderTextColor="#8b95a5"
           value={search}
           onChangeText={setSearch}

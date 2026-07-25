@@ -21,6 +21,7 @@ export const itemsService = {
     title: string;
     description: string;
     district: string;
+    localidade?: string;
     dailyRate: number;
     caucao: number;
     images?: Array<{
@@ -34,6 +35,9 @@ export const itemsService = {
     formData.append('title', data.title);
     formData.append('description', data.description);
     formData.append('district', data.district);
+    if (data.localidade?.trim()) {
+      formData.append('localidade', data.localidade.trim());
+    }
     formData.append('dailyRate', data.dailyRate.toString());
     formData.append('caucao', data.caucao.toString());
     formData.append('categoryId', data.categoryId.toString());
@@ -60,6 +64,7 @@ export const itemsService = {
       title: string;
       description: string;
       district: string;
+      localidade?: string;
       dailyRate: number;
       caucao: number;
       imageUrl?: string;

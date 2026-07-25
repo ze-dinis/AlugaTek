@@ -779,7 +779,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
             : [item.ImageUrl];
 
         var itemDto = new TechItemDto(
-            item.Id, item.Title, item.Description, item.District, item.DailyRate, item.Caucao, item.ImageUrl, imageUrls,
+            item.Id, item.Title, item.Description, item.District, item.Localidade, item.DailyRate, item.Caucao, item.ImageUrl, imageUrls,
             item.IsAvailable, item.Category.Name,
             new UserDto(item.Owner.Id, item.Owner.Name, item.Owner.Email, item.Owner.AvatarUrl, item.Owner.Phone),
             item.Reviews.Count > 0 ? item.Reviews.Average(rev => rev.Rating) : null,

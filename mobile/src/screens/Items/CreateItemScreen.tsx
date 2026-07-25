@@ -26,6 +26,7 @@ export default function CreateItemScreen({route}: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [district, setDistrict] = useState('');
+  const [localidade, setLocalidade] = useState('');
   const [dailyRate, setDailyRate] = useState('');
   const [caucao, setCaucao] = useState('');
   const [images, setImages] = useState<ItemImage[]>([]);
@@ -47,6 +48,7 @@ export default function CreateItemScreen({route}: Props) {
           setTitle(item.title);
           setDescription(item.description);
           setDistrict(item.district ?? '');
+          setLocalidade(item.localidade ?? '');
           setDailyRate(item.dailyRate.toString());
           setCaucao(item.caucao.toString());
           setCategoryId(item.categoryName ? fetchedCategories.find(c => c.name === item.categoryName)?.id || null : null);
@@ -157,6 +159,7 @@ export default function CreateItemScreen({route}: Props) {
           title,
           description,
           district,
+          localidade,
           dailyRate: rate,
           caucao: deposit,
           imageUrl: imageUrls[0],
@@ -171,6 +174,7 @@ export default function CreateItemScreen({route}: Props) {
           title,
           description,
           district,
+          localidade,
           dailyRate: rate,
           caucao: deposit,
           images,
@@ -240,6 +244,15 @@ export default function CreateItemScreen({route}: Props) {
           ))}
         </Picker>
       </View>
+
+      <Text style={styles.label}>📌 {i18n.item.localidade}</Text>
+      <TextInput
+        style={styles.input}
+        value={localidade}
+        onChangeText={setLocalidade}
+        placeholder={i18n.item.localidade}
+        placeholderTextColor="#8b95a5"
+      />
 
       <Text style={styles.label}>💶 {i18n.item.dailyRate} *</Text>
       <TextInput

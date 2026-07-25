@@ -17,6 +17,7 @@ export interface TechItem {
   title: string;
   description: string;
   district: string;
+  localidade?: string;
   dailyRate: number;
   caucao: number;
   imageUrl?: string;

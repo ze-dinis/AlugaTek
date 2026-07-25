@@ -234,7 +234,9 @@ export default function ItemDetailScreen({route, navigation}: Props) {
       <View style={styles.content}>
         <Text style={styles.title}>✨ {item.title}</Text>
         <Text style={styles.category}>🏷️ {item.categoryName}</Text>
-        <Text style={styles.district}>📍 {item.district}</Text>
+        <Text style={styles.district}>
+          📍 {item.localidade ? `${item.localidade}, ${item.district}` : item.district}
+        </Text>
 
         <View style={styles.rateRow}>
           <Text style={styles.rate}>💶 {item.dailyRate.toFixed(2)}€<Text style={styles.rateLabel}>€/dia</Text></Text>
