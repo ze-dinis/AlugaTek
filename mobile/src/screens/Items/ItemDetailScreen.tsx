@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   useWindowDimensions,
+  Modal,
+  Pressable,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useFocusEffect} from '@react-navigation/native';
@@ -32,7 +34,7 @@ const PLATFORM_PERCENTAGE_COMMISSION_RATE = 0.1;
 export default function ItemDetailScreen({route, navigation}: Props) {
   const {itemId} = route.params;
   const {user} = useAuthStore();
-  const {width} = useWindowDimensions();
+  const {width, height} = useWindowDimensions();
   const [item, setItem] = useState<TechItem | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,10 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [rentalDays, setRentalDays] = useState(3);
   const [reporting, setReporting] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerActiveImageIndex, setViewerActiveImageIndex] = useState(0);
   const galleryRef = useRef<FlatList<string> | null>(null);
+  const viewerGalleryRef = useRef<FlatList<string> | null>(null);
 
   const loadItemData = useCallback(() => {
     setLoading(true);
@@ -168,6 +173,27 @@ export default function ItemDetailScreen({route, navigation}: Props) {
     );
   };
 
+  const galleryImages = (
+    item?.imageUrls?.length ? item.imageUrls : item?.imageUrl ? [item.imageUrl] : []
+  )
+    .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
+    .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
+
+  useEffect(() => {
+    if (!viewerVisible || !galleryImages.length) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      viewerGalleryRef.current?.scrollToIndex({
+        index: viewerActiveImageIndex,
+        animated: false,
+      });
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [galleryImages.length, viewerActiveImageIndex, viewerVisible]);
+
   if (loading) {
     return <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />;
   }
@@ -176,67 +202,82 @@ export default function ItemDetailScreen({route, navigation}: Props) {
     return <Text style={{textAlign: 'center', marginTop: 40}}>Item not found.</Text>;
   }
 
-  const galleryImages = (item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])
-    .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
-    .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
   const isRentalInProgress = !item.isAvailable && !reservedByCurrentUser;
 
-  const handleGalleryScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const createHorizontalScrollHandler = (setIndex: (index: number) => void) => (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const width = event.nativeEvent.layoutMeasurement.width || 1;
     const nextIndex = Math.round(offsetX / width);
-    setActiveImageIndex(nextIndex);
+    setIndex(nextIndex);
+  };
+
+  const handleGalleryScroll = createHorizontalScrollHandler(setActiveImageIndex);
+  const handleViewerScroll = createHorizontalScrollHandler(setViewerActiveImageIndex);
+
+  const handleOpenImageViewer = (index: number) => {
+    setViewerActiveImageIndex(index);
+    setViewerVisible(true);
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {galleryImages.length > 1 && (
-        <View style={styles.galleryHeader}>
-          <Text style={styles.galleryTitle}>📷 Fotos do artigo</Text>
-          <Text style={styles.galleryHint}>Deslize para ver mais</Text>
-        </View>
-      )}
-      <View style={styles.imageContainer}>
-        {galleryImages.length > 1 ? (
-          <FlatList
-            ref={galleryRef}
-            data={galleryImages}
-            keyExtractor={(uri, index) => `${uri}-${index}`}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            nestedScrollEnabled
-            getItemLayout={(_, index) => ({
-              length: width,
-              offset: width * index,
-              index,
-            })}
-            onScrollToIndexFailed={({index, averageItemLength}) => {
-              const fallbackOffset = (averageItemLength || width) * index;
-              galleryRef.current?.scrollToOffset({offset: fallbackOffset, animated: true});
-            }}
-            onMomentumScrollEnd={handleGalleryScroll}
-            renderItem={({item: imageUri}) => (
-              <SafeImage uri={imageUri} style={[styles.image, {width}]} />
-            )}
-          />
-        ) : (
-          <SafeImage uri={galleryImages[0]} style={[styles.image, {width}]} />
-        )}
-        {isRentalInProgress && <View style={styles.imageGreyOverlay} />}
+    <>
+      <ScrollView style={styles.container}>
         {galleryImages.length > 1 && (
-          <View style={styles.imageCounter}>
-            <Text style={styles.imageCounterText}>{activeImageIndex + 1}/{galleryImages.length}</Text>
+          <View style={styles.galleryHeader}>
+            <Text style={styles.galleryTitle}>📷 Fotos do artigo</Text>
+            <Text style={styles.galleryHint}>Deslize para ver mais</Text>
           </View>
         )}
-      </View>
+        <View style={styles.imageContainer}>
+          {galleryImages.length > 1 ? (
+            <FlatList
+              ref={galleryRef}
+              data={galleryImages}
+              keyExtractor={(uri, index) => `${uri}-${index}`}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              nestedScrollEnabled
+              getItemLayout={(_, index) => ({
+                length: width,
+                offset: width * index,
+                index,
+              })}
+              onScrollToIndexFailed={({index, averageItemLength}) => {
+                const fallbackOffset = (averageItemLength || width) * index;
+                galleryRef.current?.scrollToOffset({offset: fallbackOffset, animated: true});
+              }}
+              onMomentumScrollEnd={handleGalleryScroll}
+              renderItem={({item: imageUri, index}) => (
+                <TouchableOpacity activeOpacity={0.95} onPress={() => handleOpenImageViewer(index)}>
+                  <SafeImage uri={imageUri} style={[styles.image, {width}]} />
+                </TouchableOpacity>
+              )}
+            />
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.95}
+              onPress={() => handleOpenImageViewer(0)}
+              disabled={galleryImages.length === 0}>
+              <SafeImage uri={galleryImages[0]} style={[styles.image, {width}]} />
+            </TouchableOpacity>
+          )}
+          {isRentalInProgress && <View style={styles.imageGreyOverlay} />}
+          {galleryImages.length > 1 && (
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>{activeImageIndex + 1}/{galleryImages.length}</Text>
+            </View>
+          )}
+        </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>✨ {item.title}</Text>
-        <Text style={styles.category}>🏷️ {item.categoryName}</Text>
-        <Text style={styles.district}>
-          📍 {item.localidade ? `${item.localidade}, ${item.district}` : item.district}
-        </Text>
+        <View style={styles.content}>
+          <Text style={styles.title}>✨ {item.title}</Text>
+          <Text style={styles.category}>🏷️ {item.categoryName}</Text>
+          <Text style={styles.district}>
+            📍 {item.localidade ? `${item.localidade}, ${item.district}` : item.district}
+          </Text>
 
         <View style={styles.rateRow}>
           <Text style={styles.rate}>💶 {item.dailyRate.toFixed(2)}€<Text style={styles.rateLabel}>€/dia</Text></Text>
@@ -353,8 +394,52 @@ export default function ItemDetailScreen({route, navigation}: Props) {
             ))}
           </>
         )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+
+      <Modal
+        visible={viewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerVisible(false)}>
+        <View style={styles.viewerBackdrop}>
+          <Pressable style={styles.viewerCloseButton} onPress={() => setViewerVisible(false)}>
+            <Text style={styles.viewerCloseButtonText}>✕</Text>
+          </Pressable>
+          <FlatList
+            ref={viewerGalleryRef}
+            data={galleryImages}
+            keyExtractor={(uri, index) => `viewer-${uri}-${index}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            initialScrollIndex={viewerActiveImageIndex}
+            onScrollToIndexFailed={({index, averageItemLength}) => {
+              const fallbackOffset = (averageItemLength || width) * index;
+              viewerGalleryRef.current?.scrollToOffset({offset: fallbackOffset, animated: true});
+            }}
+            onMomentumScrollEnd={handleViewerScroll}
+            renderItem={({item: imageUri}) => (
+              <View style={[styles.viewerImageContainer, {width, height}]}>
+                <SafeImage uri={imageUri} style={styles.viewerImage} resizeMode="contain" />
+              </View>
+            )}
+          />
+          {galleryImages.length > 1 && (
+            <View style={styles.viewerCounter}>
+              <Text style={styles.viewerCounterText}>
+                {viewerActiveImageIndex + 1}/{galleryImages.length}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -394,6 +479,43 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   imageCounterText: {color: '#fff', fontSize: 12, fontWeight: '700'},
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+  },
+  viewerCloseButton: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    zIndex: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(15,23,42,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerCloseButtonText: {color: '#fff', fontSize: 22, fontWeight: '700', lineHeight: 24},
+  viewerImageContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  viewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  viewerCounter: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(15,23,42,0.72)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  viewerCounterText: {color: '#fff', fontSize: 13, fontWeight: '700'},
   content: {padding: 20, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -18},
   title: {fontSize: 24, fontWeight: 'bold'},
   category: {color: '#888', marginTop: 4},
