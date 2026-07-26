@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
@@ -6,17 +6,20 @@ import {itemsService} from '../../services/itemsService';
 import {Category} from '../../types';
 import {useNavigation} from '@react-navigation/native';
 import {launchImageLibrary} from 'react-native-image-picker';
-import {Picker} from '@react-native-picker/picker';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 import SafeImage from '../../components/SafeImage';
 import {analyticsService} from '../../services/analyticsService';
+import BackendCommunicationError from '../../components/BackendCommunicationError';
+import CompactDropdown from '../../components/CompactDropdown';
+import {isBackendCommunicationError} from '../../utils/networkError';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem' | 'EditItem'>;
 type ItemImage = {uri: string; type?: string; name?: string; imageUrl?: string};
 
 const MAX_IMAGES = 5;
+const DISTRICT_OPTIONS = PORTUGUESE_DISTRICTS.map(district => ({label: district, value: district}));
 
 export default function CreateItemScreen({route}: Props) {
   const navigation = useNavigation();
@@ -34,42 +37,48 @@ export default function CreateItemScreen({route}: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditing);
+  const [initialLoadFailed, setInitialLoadFailed] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const categoriesRes = await itemsService.getCategories();
+      const fetchedCategories = categoriesRes.data;
+      setCategories(fetchedCategories);
+
+      if (isEditing && itemId) {
+        const itemRes = await itemsService.getById(itemId);
+        const item = itemRes.data;
+        setTitle(item.title);
+        setDescription(item.description);
+        setDistrict(item.district ?? '');
+        setLocalidade(item.localidade ?? '');
+        setDailyRate(item.dailyRate.toString());
+        setCaucao(item.caucao.toString());
+        setCategoryId(item.categoryName ? fetchedCategories.find(c => c.name === item.categoryName)?.id || null : null);
+        const backendImageUrls = (item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])
+          .slice(0, MAX_IMAGES);
+        setImages(
+          backendImageUrls.map(url => ({
+            imageUrl: url,
+            uri: resolveApiAssetUrl(url) ?? url,
+          })),
+        );
+      }
+      setInitialLoadFailed(false);
+    } catch (error) {
+      if (isBackendCommunicationError(error)) {
+        setInitialLoadFailed(true);
+      } else {
+        Alert.alert(i18n.common.error, i18n.auth.errorNetworkDetail);
+      }
+    } finally {
+      setInitialLoading(false);
+    }
+  }, [isEditing, itemId]);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const categoriesRes = await itemsService.getCategories();
-        const fetchedCategories = categoriesRes.data;
-        setCategories(fetchedCategories);
-
-        if (isEditing && itemId) {
-          const itemRes = await itemsService.getById(itemId);
-          const item = itemRes.data;
-          setTitle(item.title);
-          setDescription(item.description);
-          setDistrict(item.district ?? '');
-          setLocalidade(item.localidade ?? '');
-          setDailyRate(item.dailyRate.toString());
-          setCaucao(item.caucao.toString());
-          setCategoryId(item.categoryName ? fetchedCategories.find(c => c.name === item.categoryName)?.id || null : null);
-          const backendImageUrls = (item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])
-            .slice(0, MAX_IMAGES);
-          setImages(
-            backendImageUrls.map(url => ({
-              imageUrl: url,
-              uri: resolveApiAssetUrl(url) ?? url,
-            })),
-          );
-        }
-      } catch {
-        Alert.alert(i18n.common.error, i18n.auth.errorNetworkDetail);
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-
     void loadData();
-  }, []);
+  }, [loadData]);
 
   const handleChoosePhoto = async () => {
     if (images.length >= MAX_IMAGES) {
@@ -207,6 +216,18 @@ export default function CreateItemScreen({route}: Props) {
     );
   }
 
+  if (initialLoadFailed) {
+    return (
+      <BackendCommunicationError
+        onRetry={() => {
+          setInitialLoading(true);
+          setInitialLoadFailed(false);
+          void loadData();
+        }}
+      />
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.heading}>{isEditing ? '🛠️ Editar anúncio' : '🚀 Novo anúncio'}</Text>
@@ -233,16 +254,12 @@ export default function CreateItemScreen({route}: Props) {
 
       <Text style={styles.label}>📍 {i18n.item.district} *</Text>
       <View style={styles.pickerContainer}>
-        <Picker
-          style={styles.picker}
-          dropdownIconColor="#1f2937"
+        <CompactDropdown
+          options={[{label: i18n.item.selectDistrict, value: ''}, ...DISTRICT_OPTIONS]}
           selectedValue={district}
-          onValueChange={(value: string) => setDistrict(value)}>
-          <Picker.Item label={i18n.item.selectDistrict} value="" />
-          {PORTUGUESE_DISTRICTS.map(d => (
-            <Picker.Item key={d} label={d} value={d} />
-          ))}
-        </Picker>
+          onValueChange={setDistrict}
+          placeholder={i18n.item.selectDistrict}
+        />
       </View>
 
       <Text style={styles.label}>📌 {i18n.item.localidade}</Text>
@@ -323,14 +340,8 @@ const styles = StyleSheet.create({
   multiline: {height: 100, textAlignVertical: 'top'},
   categories: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24},
   pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#d8e0ea',
-    borderRadius: 10,
     marginBottom: 16,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
   },
-  picker: {color: '#1f2937'},
   chip: {borderWidth: 1, borderColor: '#1a73e8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6},
   chipSelected: {backgroundColor: '#1a73e8'},
   chipText: {color: '#1a73e8'},

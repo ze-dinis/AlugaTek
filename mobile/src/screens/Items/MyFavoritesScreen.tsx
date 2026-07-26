@@ -16,6 +16,8 @@ import {TechItem} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
 import SafeImage from '../../components/SafeImage';
+import BackendCommunicationError from '../../components/BackendCommunicationError';
+import {isBackendCommunicationError} from '../../utils/networkError';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -24,13 +26,15 @@ export default function MyFavoritesScreen() {
   const [items, setItems] = useState<TechItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
 
   const fetchItems = useCallback(async () => {
     try {
       const {data} = await itemsService.getFavorites();
       setItems(data);
-    } catch {
-      // silently fail
+      setBackendUnavailable(false);
+    } catch (error) {
+      setBackendUnavailable(isBackendCommunicationError(error));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -92,6 +96,17 @@ export default function MyFavoritesScreen() {
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#1a73e8" />
       </View>
+    );
+  }
+
+  if (backendUnavailable && items.length === 0) {
+    return (
+      <BackendCommunicationError
+        onRetry={() => {
+          setLoading(true);
+          void fetchItems();
+        }}
+      />
     );
   }
 

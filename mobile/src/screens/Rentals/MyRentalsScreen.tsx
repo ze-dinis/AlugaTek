@@ -6,8 +6,10 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {rentalsService} from '../../services/rentalsService';
 import PaymentModal from '../../components/PaymentModal';
 import DisputeModal from '../../components/DisputeModal';
+import BackendCommunicationError from '../../components/BackendCommunicationError';
 import {Rental} from '../../types';
 import {i18n} from '../../locales';
+import {isBackendCommunicationError} from '../../utils/networkError';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -49,25 +51,32 @@ export default function MyRentalsScreen() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
 
-  const loadRentals = () => {
-    rentalsService.getMyRentals()
-      .then(r => setRentals(r.data))
-      .finally(() => setLoading(false));
-  };
+  const loadRentals = useCallback(async () => {
+    try {
+      const response = await rentalsService.getMyRentals();
+      setRentals(response.data);
+      setBackendUnavailable(false);
+    } catch (error) {
+      setBackendUnavailable(isBackendCommunicationError(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      loadRentals();
-    }, []),
+      void loadRentals();
+    }, [loadRentals]),
   );
 
   const handleReturnRental = async (rentalId: string) => {
     setReturningRentalId(rentalId);
     try {
       await rentalsService.returnRental(rentalId);
-      loadRentals();
+      void loadRentals();
     } catch {
       Alert.alert('Erro', 'Não foi possível devolver o item.');
     } finally {
@@ -118,7 +127,7 @@ export default function MyRentalsScreen() {
       });
       setDisputeRental(null);
       Alert.alert('Sucesso', 'Disputa aberta. A equipa de suporte irá analisar.');
-      loadRentals();
+      void loadRentals();
     } catch {
       Alert.alert('Erro', 'Não foi possível abrir a disputa.');
     } finally {
@@ -127,6 +136,16 @@ export default function MyRentalsScreen() {
   };
 
   if (loading) return <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />;
+  if (backendUnavailable && rentals.length === 0) {
+    return (
+      <BackendCommunicationError
+        onRetry={() => {
+          setLoading(true);
+          void loadRentals();
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -163,7 +182,7 @@ export default function MyRentalsScreen() {
           onSuccess={() => {
             setRenewPaymentTarget(null);
             Alert.alert(i18n.common.success, i18n.myRentals.renewSuccess);
-            loadRentals();
+            void loadRentals();
           }}
         />
       )}
@@ -300,7 +319,7 @@ export default function MyRentalsScreen() {
           onSuccess={() => {
             setPayingRental(null);
             Alert.alert(i18n.payment.successTitle, i18n.payment.successMessage);
-            loadRentals();
+            void loadRentals();
           }}
         />
       )}

@@ -16,6 +16,8 @@ import {chatService} from '../../services/chatService';
 import {Conversation} from '../../types';
 import {i18n} from '../../locales';
 import {resolveApiAssetUrl} from '../../config';
+import BackendCommunicationError from '../../components/BackendCommunicationError';
+import {isBackendCommunicationError} from '../../utils/networkError';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -48,13 +50,15 @@ export default function ChatListScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
 
   const fetchConversations = useCallback(async () => {
     try {
       const {data} = await chatService.getConversations();
       setConversations(data);
-    } catch {
-      // silently fail
+      setBackendUnavailable(false);
+    } catch (error) {
+      setBackendUnavailable(isBackendCommunicationError(error));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -109,6 +113,17 @@ export default function ChatListScreen() {
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#1a73e8" />
       </View>
+    );
+  }
+
+  if (backendUnavailable && conversations.length === 0) {
+    return (
+      <BackendCommunicationError
+        onRetry={() => {
+          setLoading(true);
+          void fetchConversations();
+        }}
+      />
     );
   }
 

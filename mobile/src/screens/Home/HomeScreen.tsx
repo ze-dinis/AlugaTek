@@ -18,11 +18,13 @@ import {rentalsService} from '../../services/rentalsService';
 import {TechItem, Category, Rental} from '../../types';
 import {resolveApiAssetUrl} from '../../config';
 import {i18n} from '../../locales';
-import {Picker} from '@react-native-picker/picker';
 import {PORTUGUESE_DISTRICTS} from '../../constants/districts';
 import SafeImage from '../../components/SafeImage';
+import BackendCommunicationError from '../../components/BackendCommunicationError';
+import CompactDropdown from '../../components/CompactDropdown';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useAuthStore} from '../../store/authStore';
+import {isBackendCommunicationError} from '../../utils/networkError';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 const EARNINGS_HINT_KEY_PREFIX = 'earnings_hint_seen';
@@ -53,6 +55,7 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [myOpenRentalItemIds, setMyOpenRentalItemIds] = useState<string[]>([]);
   const [showEarningsHint, setShowEarningsHint] = useState(false);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
   const pageRef = useRef(1);
   const requestedPageRef = useRef<number | null>(null);
   const canLoadMoreRef = useRef(false);
@@ -61,6 +64,13 @@ export default function HomeScreen() {
   const selectedCategoryName = useMemo(
     () => categories.find(category => category.id === selectedCategory)?.name,
     [categories, selectedCategory],
+  );
+  const districtOptions = useMemo(
+    () => [
+      {label: i18n.home.allDistricts, value: ''},
+      ...PORTUGUESE_DISTRICTS.map(district => ({label: district, value: district})),
+    ],
+    [],
   );
   const searchPlaceholder = selectedCategoryName
     ? `Procurar ${selectedCategoryName.toLocaleLowerCase('pt-PT')}...`
@@ -116,8 +126,9 @@ export default function HomeScreen() {
       pageRef.current = page;
       setItems(prev => (append ? mergeItemsById(prev, data) : data));
       setHasMore(data.length === PAGE_SIZE);
-    } catch {
-      // silently fail; items will remain as-is
+      setBackendUnavailable(false);
+    } catch (error) {
+      setBackendUnavailable(isBackendCommunicationError(error));
     } finally {
       requestedPageRef.current = null;
       setLoading(false);
@@ -347,20 +358,29 @@ export default function HomeScreen() {
 
       <View style={styles.districtFilterContainer}>
         <Text style={styles.districtFilterLabel}>📍 {i18n.item.district}</Text>
-        <Picker
-          style={styles.districtPicker}
-          dropdownIconColor="#1f2937"
+        <CompactDropdown
+          options={districtOptions}
           selectedValue={selectedDistrict}
-          onValueChange={(value: string) => setSelectedDistrict(value)}>
-          <Picker.Item label={i18n.home.allDistricts} value="" />
-          {PORTUGUESE_DISTRICTS.map(d => (
-            <Picker.Item key={d} label={d} value={d} />
-          ))}
-        </Picker>
+          onValueChange={setSelectedDistrict}
+          placeholder={i18n.home.allDistricts}
+        />
       </View>
 
       {loading ? (
         <ActivityIndicator style={{flex: 1}} size="large" color="#1a73e8" />
+      ) : backendUnavailable && items.length === 0 ? (
+        <BackendCommunicationError
+          onRetry={() => {
+            setLoading(true);
+            setHasMore(true);
+            pageRef.current = 1;
+            requestedPageRef.current = null;
+            canLoadMoreRef.current = false;
+            void fetchItems(1, false);
+            void fetchMyRentals();
+            void fetchCategories();
+          }}
+        />
       ) : (
         <FlatList
           data={items}
@@ -486,7 +506,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: {fontSize: 16, marginRight: 6},
   searchInput: {flex: 1, paddingVertical: 10, fontSize: 15, color: '#1f2937'},
-  categoryListWrapper: {maxHeight: 60},
+  categoryListWrapper: {maxHeight: 60, marginHorizontal: 4, marginBottom: 2},
   categoryList: {paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center'},
   chip: {
     borderWidth: 1,
@@ -511,8 +531,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#fff',
   },
-  districtFilterLabel: {fontSize: 12, color: '#5e6b7a', paddingHorizontal: 12, paddingTop: 8},
-  districtPicker: {color: '#1f2937'},
+  districtFilterLabel: {fontSize: 12, color: '#5e6b7a', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4},
   grid: {padding: 8},
   gridEmpty: {flexGrow: 1, padding: 16, justifyContent: 'center'},
   card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.12, shadowRadius: 6},
