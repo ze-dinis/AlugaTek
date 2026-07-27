@@ -272,9 +272,6 @@ export default function HomeScreen() {
         </Text>
         <Text style={[styles.cardRate, isInProgress && styles.textDisabled]}>💶 {item.dailyRate.toFixed(2)}€/dia</Text>
         {isInProgress && <Text style={styles.inProgressTag}>⏳ {i18n.itemDetail.rentalInProgress}</Text>}
-        {item.averageRating && (
-          <Text style={[styles.rating, isInProgress && styles.textDisabled]}>⭐ {item.averageRating.toFixed(1)}</Text>
-        )}
       </View>
     </TouchableOpacity>
       );

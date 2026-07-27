@@ -119,7 +119,7 @@ public class AuthController(
         if (banMessage is not null)
             return StatusCode(StatusCodes.Status403Forbidden, new { message = banMessage });
 
-        return Ok(BuildAuthResponse(user));
+        return Ok(await BuildAuthResponseAsync(user));
     }
 
     [HttpGet("verify-email")]
@@ -251,12 +251,20 @@ public class AuthController(
         if (banMessage is not null)
             return StatusCode(StatusCodes.Status403Forbidden, new { message = banMessage });
 
-        return Ok(BuildAuthResponse(user));
+        return Ok(await BuildAuthResponseAsync(user));
     }
+    private async Task<AuthResponse> BuildAuthResponseAsync(User user)
+    {
+        var reviewQuery = db.RentalReviews.Where(r => r.RevieweeId == user.Id);
+        var reviewCount = await reviewQuery.CountAsync();
+        var averageRating = reviewCount > 0
+            ? await reviewQuery.AverageAsync(r => (double?)r.Rating)
+            : null;
 
-    private AuthResponse BuildAuthResponse(User user) =>
-        new(jwt.GenerateToken(user),
-            new UserDto(user.Id, user.Name, user.Email, user.AvatarUrl, user.Phone));
+        return new AuthResponse(
+            jwt.GenerateToken(user),
+            new UserDto(user.Id, user.Name, user.Email, user.AvatarUrl, user.Phone, averageRating, reviewCount));
+    }
 
     private static bool RefreshExpiredBan(User user)
     {

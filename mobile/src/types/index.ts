@@ -4,6 +4,8 @@ export interface User {
   email: string;
   avatarUrl?: string;
   phone?: string;
+  averageRentalRating?: number | null;
+  rentalReviewCount?: number;
 }
 
 export interface Category {
@@ -25,9 +27,9 @@ export interface TechItem {
   isAvailable: boolean;
   categoryName: string;
   owner: User;
-  averageRating?: number;
   createdAt: string;
   isFavorite?: boolean;
+  canDelete?: boolean;
 }
 
 export type RentalStatus = 'Pending' | 'Active' | 'Completed' | 'ReturnRequested' | 'Returned' | 'Cancelled';
@@ -50,12 +52,32 @@ export interface Rental {
   extendedAuthorizationStatus?: string;
 }
 
-export interface Review {
+export interface RentalUserReview {
   id: string;
+  rentalId: string;
   rating: number;
   comment: string;
-  author: User;
+  reviewer: User;
+  reviewee: User;
   createdAt: string;
+}
+
+export interface UserRentalReviewComment {
+  id: string;
+  rentalId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  reviewer: User;
+  itemTitle: string;
+}
+
+export interface RentalReviewEligibility {
+  rentalId: string;
+  canReview: boolean;
+  hasReviewed: boolean;
+  reviewee?: User;
+  reason?: string;
 }
 
 export interface AuthResponse {

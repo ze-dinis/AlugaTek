@@ -57,7 +57,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         var query = db.TechItems
             .Include(i => i.Category)
             .Include(i => i.Owner)
-            .Include(i => i.Reviews)
+            .Where(i => !i.IsDeleted)
             .AsQueryable();
 
         if (categoryId.HasValue)
@@ -108,8 +108,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         var item = await db.TechItems
             .Include(i => i.Category)
             .Include(i => i.Owner)
-            .Include(i => i.Reviews).ThenInclude(r => r.Author)
-            .FirstOrDefaultAsync(i => i.Id == id);
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
 
         if (item is null)
             return NotFound();
@@ -122,7 +121,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
 
         var favoriteItemIds = await GetFavoriteItemIdsAsync([id]);
 
-        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation, favoriteItemIds.Contains(id)));
+        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation, favoriteItemIds.Contains(id), !hasConfirmedReservation));
     }
 
     [Authorize]
@@ -306,8 +305,8 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var item = await db.TechItems
-            .Include(i => i.Category).Include(i => i.Owner).Include(i => i.Reviews)
-            .FirstOrDefaultAsync(i => i.Id == id);
+            .Include(i => i.Category).Include(i => i.Owner)
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
 
         if (item is null) return NotFound();
         if (item.OwnerId != userId) return Forbid();
@@ -354,9 +353,20 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         var item = await db.TechItems.FindAsync(id);
 
         if (item is null) return NotFound();
+        if (item.IsDeleted) return NotFound();
         if (item.OwnerId != userId) return Forbid();
 
-        db.TechItems.Remove(item);
+        var hasOngoingRental = await db.Rentals
+            .AnyAsync(r => r.ItemId == id
+                && (r.Status == RentalStatus.Active
+                    || r.Status == RentalStatus.Completed
+                    || r.Status == RentalStatus.ReturnRequested));
+
+        if (hasOngoingRental)
+            return BadRequest(new { message = "You cannot delete an item while a rental is ongoing." });
+
+        item.IsDeleted = true;
+        item.IsAvailable = false;
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -370,8 +380,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         var items = await db.TechItems
             .Include(i => i.Category)
             .Include(i => i.Owner)
-            .Include(i => i.Reviews)
-            .Where(i => i.OwnerId == userId)
+            .Where(i => i.OwnerId == userId && !i.IsDeleted)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
 
@@ -399,8 +408,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         var items = await db.TechItems
             .Include(i => i.Category)
             .Include(i => i.Owner)
-            .Include(i => i.Reviews)
-            .Where(i => favoriteItemIds.Contains(i.Id))
+            .Where(i => favoriteItemIds.Contains(i.Id) && !i.IsDeleted)
             .ToListAsync();
 
         var itemsById = items.ToDictionary(i => i.Id);
@@ -417,7 +425,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var itemExists = await db.TechItems.AnyAsync(i => i.Id == id);
+        var itemExists = await db.TechItems.AnyAsync(i => i.Id == id && !i.IsDeleted);
         if (!itemExists)
             return NotFound();
 
@@ -466,7 +474,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         return favoriteIds.ToHashSet();
     }
 
-    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null, bool isFavorite = false)
+    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null, bool isFavorite = false, bool canDelete = true)
     {
         var imageUrls = ParseImageUrls(i.ImageUrlsJson, i.ImageUrl);
 
@@ -474,9 +482,9 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         i.Id, i.Title, i.Description, i.District, i.Localidade, i.DailyRate, i.Caucao, i.ImageUrl, imageUrls, isAvailableOverride ?? i.IsAvailable,
         i.Category.Name,
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
-        i.Reviews.Count > 0 ? i.Reviews.Average(r => r.Rating) : null,
         i.CreatedAt,
-        isFavorite);
+        isFavorite,
+        canDelete);
     }
 
     private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson, string? imageUrl)

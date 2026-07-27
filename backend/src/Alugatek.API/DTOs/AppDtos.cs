@@ -12,7 +12,25 @@ public record ResendVerificationEmailRequest(string Email);
 public record SupportAuthResponse(string Token, string Name, string Role);
 
 // User
-public record UserDto(Guid Id, string Name, string Email, string? AvatarUrl, string? Phone);
+public record UserDto(
+    Guid Id,
+    string Name,
+    string Email,
+    string? AvatarUrl,
+    string? Phone,
+    double? AverageRentalRating = null,
+    int RentalReviewCount = 0);
+
+public record UserRentalRatingSummaryDto(Guid UserId, double? AverageRating, int ReviewCount);
+
+public record UserRentalReviewCommentDto(
+    Guid Id,
+    Guid RentalId,
+    int Rating,
+    string Comment,
+    DateTime CreatedAt,
+    UserDto Reviewer,
+    string ItemTitle);
 
 // TechItem
 public record CreateItemRequest(
@@ -64,9 +82,9 @@ public record TechItemDto(
     bool IsAvailable,
     string CategoryName,
     UserDto Owner,
-    double? AverageRating,
     DateTime CreatedAt,
-    bool IsFavorite = false);
+    bool IsFavorite = false,
+    bool CanDelete = true);
 
 // Rental
 public record CreateRentalRequest(Guid ItemId, DateTime StartDate, DateTime EndDate);
@@ -97,15 +115,23 @@ public record RentalDto(
     string? ExtendedAuthorizationStatus,
     DateTime? PaymentDeadline);
 
-// Review
-public record CreateReviewRequest(Guid ItemId, int Rating, string Comment);
+public record CreateRentalUserReviewRequest(Guid RentalId, int Rating, string Comment);
 
-public record ReviewDto(
+public record RentalUserReviewDto(
     Guid Id,
+    Guid RentalId,
     int Rating,
     string Comment,
-    UserDto Author,
+    UserDto Reviewer,
+    UserDto Reviewee,
     DateTime CreatedAt);
+
+public record RentalReviewEligibilityDto(
+    Guid RentalId,
+    bool CanReview,
+    bool HasReviewed,
+    UserDto? Reviewee,
+    string? Reason);
 
 // Message
 public record SendMessageRequest(Guid ItemId, string? Content, Guid? ReceiverId, IReadOnlyList<string>? ImageUrls);

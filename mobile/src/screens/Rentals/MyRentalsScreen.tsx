@@ -4,10 +4,12 @@ import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {rentalsService} from '../../services/rentalsService';
+import {rentalReviewsService} from '../../services/rentalReviewsService';
 import PaymentModal from '../../components/PaymentModal';
 import DisputeModal from '../../components/DisputeModal';
+import RentalReviewModal from '../../components/RentalReviewModal';
 import BackendCommunicationError from '../../components/BackendCommunicationError';
-import {Rental} from '../../types';
+import {Rental, RentalReviewEligibility} from '../../types';
 import {i18n} from '../../locales';
 import {isBackendCommunicationError} from '../../utils/networkError';
 
@@ -52,18 +54,55 @@ export default function MyRentalsScreen() {
   const [disputeDescription, setDisputeDescription] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [backendUnavailable, setBackendUnavailable] = useState(false);
+  const [reviewEligibilityByRentalId, setReviewEligibilityByRentalId] = useState<Record<string, RentalReviewEligibility>>({});
+  const [reviewTargetRental, setReviewTargetRental] = useState<Rental | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const loadReviewEligibilities = useCallback(async (rentalList: Rental[]) => {
+    const reviewableStatusRentals = rentalList.filter(r =>
+      r.status === 'Completed' || r.status === 'ReturnRequested' || r.status === 'Returned',
+    );
+
+    if (reviewableStatusRentals.length === 0) {
+      setReviewEligibilityByRentalId({});
+      return;
+    }
+
+    const responses = await Promise.all(
+      reviewableStatusRentals.map(async rental => {
+        try {
+          const {data} = await rentalReviewsService.getEligibility(rental.id);
+          return [rental.id, data] as const;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const eligibilityMap: Record<string, RentalReviewEligibility> = {};
+    responses.forEach(entry => {
+      if (!entry) return;
+      const [rentalId, eligibility] = entry;
+      eligibilityMap[rentalId] = eligibility;
+    });
+
+    setReviewEligibilityByRentalId(eligibilityMap);
+  }, []);
 
   const loadRentals = useCallback(async () => {
     try {
       const response = await rentalsService.getMyRentals();
       setRentals(response.data);
+      await loadReviewEligibilities(response.data);
       setBackendUnavailable(false);
     } catch (error) {
       setBackendUnavailable(isBackendCommunicationError(error));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadReviewEligibilities]);
 
   useFocusEffect(
     useCallback(() => {
@@ -132,6 +171,35 @@ export default function MyRentalsScreen() {
       Alert.alert('Erro', 'Não foi possível abrir a disputa.');
     } finally {
       setSubmittingDispute(false);
+    }
+  };
+
+  const handleOpenReview = (rental: Rental) => {
+    setReviewTargetRental(rental);
+    setReviewRating(5);
+    setReviewComment('');
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTargetRental) return;
+
+    setSubmittingReview(true);
+    try {
+      await rentalReviewsService.create(reviewTargetRental.id, reviewRating, reviewComment.trim());
+      setReviewEligibilityByRentalId(prev => ({
+        ...prev,
+        [reviewTargetRental.id]: {
+          ...(prev[reviewTargetRental.id] ?? {rentalId: reviewTargetRental.id}),
+          canReview: false,
+          hasReviewed: true,
+        },
+      }));
+      setReviewTargetRental(null);
+      Alert.alert(i18n.common.success, i18n.rentalReview.success);
+    } catch {
+      Alert.alert(i18n.common.error, i18n.rentalReview.failed);
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -235,6 +303,18 @@ export default function MyRentalsScreen() {
         onClose={() => setDisputeRental(null)}
       />
 
+      <RentalReviewModal
+        visible={!!reviewTargetRental}
+        targetName={reviewTargetRental?.item.owner.name ?? ''}
+        rating={reviewRating}
+        comment={reviewComment}
+        submitting={submittingReview}
+        onChangeRating={setReviewRating}
+        onChangeComment={setReviewComment}
+        onSubmit={() => void handleSubmitReview()}
+        onClose={() => setReviewTargetRental(null)}
+      />
+
       <FlatList
         data={rentals}
         keyExtractor={r => r.id}
@@ -302,6 +382,16 @@ export default function MyRentalsScreen() {
                       onPress={() => handleOpenDispute(item)}>
                       <Text style={styles.disputeButtonText}>Abrir disputa</Text>
                     </TouchableOpacity>
+                  )}
+                  {(item.status === 'Completed' || item.status === 'ReturnRequested' || item.status === 'Returned') && reviewEligibilityByRentalId[item.id]?.canReview && (
+                    <TouchableOpacity
+                      style={styles.reviewButton}
+                      onPress={() => handleOpenReview(item)}>
+                      <Text style={styles.reviewButtonText}>{i18n.rentalReview.reviewSeller}</Text>
+                    </TouchableOpacity>
+                  )}
+                  {(item.status === 'Completed' || item.status === 'ReturnRequested' || item.status === 'Returned') && reviewEligibilityByRentalId[item.id]?.hasReviewed && (
+                    <Text style={styles.reviewDoneText}>{i18n.rentalReview.alreadySubmitted}</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -427,5 +517,22 @@ const styles = StyleSheet.create({
   disputeButtonText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  reviewButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#2e7d32',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  reviewButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  reviewDoneText: {
+    marginTop: 8,
+    color: '#2e7d32',
+    fontWeight: '600',
   },
 });

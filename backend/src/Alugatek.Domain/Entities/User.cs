@@ -28,7 +28,8 @@ public class User
 
     public ICollection<TechItem> ListedItems { get; set; } = [];
     public ICollection<Rental> Rentals { get; set; } = [];
-    public ICollection<Review> Reviews { get; set; } = [];
+    public ICollection<RentalReview> GivenRentalReviews { get; set; } = [];
+    public ICollection<RentalReview> ReceivedRentalReviews { get; set; } = [];
     public ICollection<Message> SentMessages { get; set; } = [];
     public ICollection<Message> ReceivedMessages { get; set; } = [];
     public ICollection<DevicePushToken> DevicePushTokens { get; set; } = [];

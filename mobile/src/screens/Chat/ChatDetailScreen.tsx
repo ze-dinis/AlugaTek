@@ -21,12 +21,14 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {chatService} from '../../services/chatService';
 import {itemsService} from '../../services/itemsService';
 import {rentalsService} from '../../services/rentalsService';
+import {rentalReviewsService} from '../../services/rentalReviewsService';
 import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
-import {Message, RentalStatus} from '../../types';
+import {Message, RentalReviewEligibility, RentalStatus} from '../../types';
 import {i18n} from '../../locales';
 import PaymentModal from '../../components/PaymentModal';
 import DisputeModal from '../../components/DisputeModal';
+import RentalReviewModal from '../../components/RentalReviewModal';
 import {payoutPreferenceService} from '../../services/payoutPreferenceService';
 import {parsePaymentDestination} from '../../utils/paymentDestinationValidation';
 
@@ -65,6 +67,11 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [reviewEligibilityByRentalId, setReviewEligibilityByRentalId] = useState<Record<string, RentalReviewEligibility>>({});
+  const [reviewTargetRentalId, setReviewTargetRentalId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
   const [pendingImages, setPendingImages] = useState<PendingChatImage[]>([]);
   const flatListRef = useRef<FlatList>(null);
   const sendInFlightRef = useRef(false);
@@ -176,6 +183,76 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       cancelled = true;
     };
   }, [messages, user?.id, rentalStatuses]);
+
+  useEffect(() => {
+    const rentalIdsToFetch = Array.from(
+      new Set(
+        messages
+          .filter(message => !!message.rentalId)
+          .map(message => message.rentalId as string),
+      ),
+    ).filter(rentalId => !(rentalId in reviewEligibilityByRentalId));
+
+    if (rentalIdsToFetch.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const responses = await Promise.all(
+        rentalIdsToFetch.map(async rentalId => {
+          try {
+            const {data} = await rentalReviewsService.getEligibility(rentalId);
+            return [rentalId, data] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const resolved = responses.filter(
+        (entry): entry is readonly [string, RentalReviewEligibility] => entry !== null,
+      );
+      if (resolved.length === 0) {
+        return;
+      }
+
+      setReviewEligibilityByRentalId(prev => {
+        const next = {...prev};
+        for (const [rentalId, eligibility] of resolved) {
+          next[rentalId] = eligibility;
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, reviewEligibilityByRentalId]);
+
+  const latestReviewableMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (!message.rentalId) continue;
+      if (reviewEligibilityByRentalId[message.rentalId]?.canReview) return message.id;
+    }
+    return null;
+  }, [messages, reviewEligibilityByRentalId]);
+
+  const latestReviewedMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (!message.rentalId) continue;
+      if (reviewEligibilityByRentalId[message.rentalId]?.hasReviewed) return message.id;
+    }
+    return null;
+  }, [messages, reviewEligibilityByRentalId]);
 
   const handleSend = async () => {
     if (sendInFlightRef.current) return;
@@ -339,7 +416,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const handleConfirmReturnWithPrompt = (rentalId: string) => {
     Alert.alert(
       'Confirmar devolução',
-      'Tem a certeza que quer confirmar a devolução deste item?',
+      'Tem a certeza que quer confirmar a devolução deste item? A caução será devolvida ao arrendatário.',
       [
         {text: 'Cancelar', style: 'cancel'},
         {
@@ -379,6 +456,35 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       Alert.alert('Erro', 'Não foi possível abrir a disputa.');
     } finally {
       setSubmittingDispute(false);
+    }
+  };
+
+  const handleOpenReview = (rentalId: string) => {
+    setReviewTargetRentalId(rentalId);
+    setReviewRating(5);
+    setReviewComment('');
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTargetRentalId) return;
+
+    setSubmittingReview(true);
+    try {
+      await rentalReviewsService.create(reviewTargetRentalId, reviewRating, reviewComment.trim());
+      setReviewEligibilityByRentalId(prev => ({
+        ...prev,
+        [reviewTargetRentalId]: {
+          ...(prev[reviewTargetRentalId] ?? {rentalId: reviewTargetRentalId}),
+          canReview: false,
+          hasReviewed: true,
+        },
+      }));
+      setReviewTargetRentalId(null);
+      Alert.alert(i18n.common.success, i18n.rentalReview.success);
+    } catch {
+      Alert.alert(i18n.common.error, i18n.rentalReview.failed);
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -424,6 +530,13 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       && !confirmedReturns.includes(returnRequestId)
       && rentalStatuses[returnRequestId] === 'ReturnRequested';
     const isReturnActionLoading = returnRequestId ? !!returnActionLoading[returnRequestId] : false;
+    const reviewEligibility = item.rentalId ? reviewEligibilityByRentalId[item.rentalId] : undefined;
+    const showReviewAction = !!item.rentalId
+      && item.id === latestReviewableMessageId
+      && !!reviewEligibility?.canReview;
+    const showReviewDone = !!item.rentalId
+      && item.id === latestReviewedMessageId
+      && !!reviewEligibility?.hasReviewed;
     const messageImages = (item.imageUrls ?? [])
       .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
       .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
@@ -499,6 +612,18 @@ export default function ChatDetailScreen({route, navigation}: Props) {
                 onPress={() => handleReturnAction(returnRequestId, 'decline')}
                 disabled={isReturnActionLoading}>
                 <Text style={styles.actionButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {showReviewAction && item.rentalId && (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.reviewButton, submittingReview && styles.actionButtonDisabled]}
+                onPress={() => handleOpenReview(item.rentalId!)}
+                disabled={submittingReview}>
+                <Text style={styles.actionButtonText}>
+                  {isOwn ? i18n.rentalReview.reviewBuyer : i18n.rentalReview.reviewSeller}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -609,6 +734,18 @@ export default function ChatDetailScreen({route, navigation}: Props) {
         onClose={() => setDisputeRentalId(null)}
       />
 
+      <RentalReviewModal
+        visible={!!reviewTargetRentalId}
+        targetName={reviewTargetRentalId ? reviewEligibilityByRentalId[reviewTargetRentalId]?.reviewee?.name ?? '' : ''}
+        rating={reviewRating}
+        comment={reviewComment}
+        submitting={submittingReview}
+        onChangeRating={setReviewRating}
+        onChangeComment={setReviewComment}
+        onSubmit={() => void handleSubmitReview()}
+        onClose={() => setReviewTargetRentalId(null)}
+      />
+
       <Modal
         visible={showPayoutModal}
         transparent
@@ -677,8 +814,10 @@ const styles = StyleSheet.create({
   confirmButton: {backgroundColor: '#2e7d32'},
   cancelButton: {backgroundColor: '#c62828'},
   payButton: {backgroundColor: '#1565c0'},
+  reviewButton: {backgroundColor: '#2e7d32'},
   actionButtonDisabled: {opacity: 0.6},
   actionButtonText: {color: '#fff', fontSize: 12, fontWeight: '600'},
+  reviewDoneText: {marginTop: 8, fontSize: 12, color: '#2e7d32', fontWeight: '600'},
   headerActionButton: {
     backgroundColor: '#d84315',
     borderRadius: 8,

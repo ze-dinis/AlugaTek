@@ -9,7 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<TechItem> TechItems => Set<TechItem>();
     public DbSet<Rental> Rentals => Set<Rental>();
-    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<RentalReview> RentalReviews => Set<RentalReview>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserReport> UserReports => Set<UserReport>();
@@ -41,6 +41,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .HasMaxLength(100);
             e.Property(i => i.DailyRate).HasColumnType("decimal(18,2)");
             e.Property(i => i.ImageUrlsJson).HasColumnType("text");
+            e.Property(i => i.IsDeleted).HasDefaultValue(false);
             e.HasOne(i => i.Owner)
              .WithMany(u => u.ListedItems)
              .HasForeignKey(i => i.OwnerId)
@@ -60,11 +61,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<Review>(e =>
+        modelBuilder.Entity<RentalReview>(e =>
         {
-            e.HasOne(r => r.Author)
-             .WithMany(u => u.Reviews)
-             .HasForeignKey(r => r.AuthorId)
+            e.Property(r => r.Comment).HasColumnType("text");
+            e.HasIndex(r => new { r.RentalId, r.ReviewerId }).IsUnique();
+
+            e.HasOne(r => r.Rental)
+             .WithMany()
+             .HasForeignKey(r => r.RentalId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(r => r.Reviewer)
+             .WithMany(u => u.GivenRentalReviews)
+             .HasForeignKey(r => r.ReviewerId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(r => r.Reviewee)
+             .WithMany(u => u.ReceivedRentalReviews)
+             .HasForeignKey(r => r.RevieweeId)
              .OnDelete(DeleteBehavior.Restrict);
         });
 

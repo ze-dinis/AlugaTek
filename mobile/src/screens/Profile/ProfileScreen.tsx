@@ -7,6 +7,8 @@ import {RootStackParamList} from '../../navigation/AppNavigator';
 import {useAuthStore} from '../../store/authStore';
 import {pushTokenService} from '../../services/pushTokenService';
 import {payoutPreferenceService} from '../../services/payoutPreferenceService';
+import {usersService, UserRentalRatingSummary} from '../../services/usersService';
+import {UserRentalReviewComment} from '../../types';
 import {parsePaymentDestination} from '../../utils/paymentDestinationValidation';
 import {i18n} from '../../locales';
 
@@ -19,6 +21,8 @@ export default function ProfileScreen() {
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutDescription, setPayoutDescription] = useState('');
   const [draftPayoutDescription, setDraftPayoutDescription] = useState('');
+  const [rentalRating, setRentalRating] = useState<UserRentalRatingSummary | null>(null);
+  const [rentalReviews, setRentalReviews] = useState<UserRentalReviewComment[]>([]);
 
   useEffect(() => {
     setAvatarError(false);
@@ -33,6 +37,42 @@ export default function ProfileScreen() {
 
     loadPayoutDescription();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setRentalRating(null);
+      setRentalReviews([]);
+      return;
+    }
+
+    let cancelled = false;
+    Promise.allSettled([
+      usersService.getRentalRating(user.id),
+      usersService.getRentalReviews(user.id, {limit: 20, sort: 'recent'}),
+    ]).then(results => {
+      if (cancelled) {
+        return;
+      }
+
+      const [ratingResult, reviewsResult] = results;
+
+      if (ratingResult.status === 'fulfilled') {
+        setRentalRating(ratingResult.value.data);
+      } else {
+        setRentalRating(null);
+      }
+
+      if (reviewsResult.status === 'fulfilled') {
+        setRentalReviews(reviewsResult.value.data);
+      } else {
+        setRentalReviews([]);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const handleOpenPayoutModal = () => {
     setDraftPayoutDescription(payoutDescription);
@@ -98,6 +138,46 @@ export default function ProfileScreen() {
       <Text style={styles.name}>{user?.name}</Text>
       <Text style={styles.email}>{user?.email}</Text>
       {user?.phone && <Text style={styles.phone}>{user.phone}</Text>}
+      {(rentalRating?.reviewCount ?? user?.rentalReviewCount ?? 0) > 0 ? (
+        <Text style={styles.ratingSummary}>
+          ⭐ {rentalRating?.averageRating?.toFixed(1) ?? user?.averageRentalRating?.toFixed(1) ?? '0.0'}
+          {' · '}
+          {rentalRating?.reviewCount ?? user?.rentalReviewCount ?? 0} avaliações
+        </Text>
+      ) : (
+        <Text style={styles.ratingSummaryMuted}>{i18n.profile.noRatings}</Text>
+      )}
+
+      <View style={styles.reviewsSection}>
+        <Text style={styles.reviewsSectionTitle}>{i18n.profile.reviewCommentsTitle}</Text>
+        {rentalReviews.length === 0 ? (
+          <Text style={styles.reviewsEmpty}>{i18n.profile.noReviewComments}</Text>
+        ) : (
+          rentalReviews.map(review => (
+            <View key={review.id} style={styles.reviewCard}>
+              <Text style={styles.reviewMeta}>
+                {'⭐ '}
+                {review.rating.toFixed(1)}
+                {' · '}
+                {review.reviewer.name}
+                {' · '}
+                {new Date(review.createdAt).toLocaleDateString()}
+              </Text>
+              <Text style={styles.reviewItem}>Item: {review.itemTitle}</Text>
+              {!!review.comment?.trim() && (
+                <Text style={styles.reviewComment}>{review.comment}</Text>
+              )}
+            </View>
+          ))
+        )}
+        {!!user?.id && (
+          <TouchableOpacity
+            style={styles.viewAllReviewsButton}
+            onPress={() => navigation.navigate('UserReviews', {userId: user.id, userName: user.name})}>
+            <Text style={styles.viewAllReviewsButtonText}>{i18n.profile.viewAllReviews}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <TouchableOpacity style={styles.myItemsButton} onPress={() => navigation.navigate('MyItems')}>
         <Text style={styles.myItemsText}>{i18n.navigation.myItems}</Text>
@@ -151,6 +231,36 @@ const styles = StyleSheet.create({
   name: {fontSize: 22, fontWeight: 'bold', marginTop: 16},
   email: {color: '#666', marginTop: 4},
   phone: {color: '#666', marginTop: 2},
+  ratingSummary: {color: '#333', marginTop: 6, fontWeight: '600'},
+  ratingSummaryMuted: {color: '#666', marginTop: 6, fontWeight: '500'},
+  reviewsSection: {width: '90%', marginTop: 18},
+  reviewsSectionTitle: {fontSize: 16, fontWeight: '700', color: '#1f2937', marginBottom: 8},
+  reviewsEmpty: {color: '#64748b'},
+  reviewCard: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    backgroundColor: '#f8fafc',
+  },
+  reviewMeta: {fontSize: 12, color: '#475569', fontWeight: '600'},
+  reviewItem: {fontSize: 12, color: '#64748b', marginTop: 4},
+  reviewComment: {fontSize: 14, color: '#0f172a', marginTop: 6},
+  viewAllReviewsButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#1a73e8',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  viewAllReviewsButtonText: {
+    color: '#1a73e8',
+    fontWeight: '700',
+    fontSize: 13,
+  },
   myItemsButton: {marginTop: 14, borderWidth: 1, borderColor: '#1a73e8', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12},
   myItemsText: {color: '#1a73e8', fontWeight: '600', fontSize: 16},
   payoutButton: {marginTop: 14, borderWidth: 1, borderColor: '#00796b', borderRadius: 8, paddingHorizontal: 24, paddingVertical: 12},

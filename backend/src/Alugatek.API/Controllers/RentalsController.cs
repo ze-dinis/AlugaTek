@@ -24,8 +24,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var renterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         var item = await db.TechItems
-            .Include(i => i.Category).Include(i => i.Owner).Include(i => i.Reviews)
-            .FirstOrDefaultAsync(i => i.Id == request.ItemId);
+            .Include(i => i.Category).Include(i => i.Owner)
+            .FirstOrDefaultAsync(i => i.Id == request.ItemId && !i.IsDeleted);
 
         if (item is null) return NotFound(new { message = "Item not found." });
         if (!item.IsAvailable) return BadRequest(new { message = "Item is not available." });
@@ -128,7 +128,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -147,7 +146,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rentals = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .Where(r => r.RenterId == userId)
             .OrderByDescending(r => r.CreatedAt)
@@ -163,7 +161,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -220,7 +217,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -276,7 +272,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -420,7 +415,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -567,7 +561,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -665,7 +658,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -713,7 +705,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -746,7 +737,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var rental = await db.Rentals
             .Include(r => r.Item).ThenInclude(i => i.Category)
             .Include(r => r.Item).ThenInclude(i => i.Owner)
-            .Include(r => r.Item).ThenInclude(i => i.Reviews)
             .Include(r => r.Renter)
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -782,7 +772,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
             item.Id, item.Title, item.Description, item.District, item.Localidade, item.DailyRate, item.Caucao, item.ImageUrl, imageUrls,
             item.IsAvailable, item.Category.Name,
             new UserDto(item.Owner.Id, item.Owner.Name, item.Owner.Email, item.Owner.AvatarUrl, item.Owner.Phone),
-            item.Reviews.Count > 0 ? item.Reviews.Average(rev => rev.Rating) : null,
             item.CreatedAt);
 
         return new RentalDto(

@@ -65,7 +65,6 @@ export const pt = {
   itemDetail: {
     description: 'Descrição',
     owner: 'Proprietário',
-    reviews: 'Avaliações',
     rentalDuration: 'Duração do Aluguer',
     days: 'dia',
     daysPlural: 'dias',
@@ -88,12 +87,16 @@ export const pt = {
     rentalFailed: 'Não foi possível criar o aluguer.',
     deleteSuccess: 'Item apagado!',
     deleteFailed: 'Não foi possível apagar o item.',
+    deleteBlockedByOngoingRental: 'Não pode apagar este item enquanto o aluguer estiver em curso.',
     reportUser: 'Denunciar utilizador',
     reportTitle: 'Motivo da denúncia',
     reportPlaceholder: 'Descreve brevemente o motivo...',
     reportSuccess: 'Denúncia enviada. Obrigado pelo teu feedback.',
     reportFailed: 'Não foi possível enviar a denúncia.',
     reportAlreadySent: 'Já denunciaste este utilizador neste anúncio.',
+    ownerNoRatings: 'Sem avaliações de aluguer ainda',
+    ownerReviewCommentsTitle: 'Comentários de avaliações',
+    ownerViewAllReviews: 'Ver todas as avaliações',
     reportReasons: ['Fraude ou burla', 'Comportamento abusivo', 'Anúncio enganoso', 'Outro'],
   },
 
@@ -166,6 +169,22 @@ export const pt = {
     payoutsResume: 'Continuar configura\u00e7\u00e3o',
     payoutsNote: 'Necess\u00e1rio para receber o valor dos seus alugueres.',
     payoutsError: 'N\u00e3o foi poss\u00edvel iniciar a configura\u00e7\u00e3o.',
+    noRatings: 'Sem avaliações ainda',
+    reviewCommentsTitle: 'Comentários recebidos',
+    noReviewComments: 'Ainda não existem comentários de avaliações.',
+    viewAllReviews: 'Ver todas as avaliações',
+  },
+
+  userReviews: {
+    title: (name: string) => `Avaliações de ${name}`,
+    sortRecent: 'Recentes',
+    sortHighest: 'Melhores',
+    sortLowest: 'Piores',
+    itemLabel: 'Item',
+    empty: 'Ainda não existem avaliações para mostrar.',
+    loadMore: 'Ver mais',
+    loadingMore: 'A carregar...',
+    end: 'Sem mais avaliações.',
   },
 
   // Navigation
@@ -202,5 +221,17 @@ export const pt = {
     failed: 'Não foi possível processar o pagamento.',
     successTitle: 'Pagamento autorizado!',
     successMessage: 'O valor da caução ficará retido até à devolução do item.',
+  },
+
+  rentalReview: {
+    title: 'Avaliar utilizador',
+    subtitle: (name: string) => `Como foi a experiência com ${name}?`,
+    commentPlaceholder: 'Escreva um comentário (opcional)',
+    submit: 'Enviar avaliação',
+    reviewSeller: 'Avaliar vendedor',
+    reviewBuyer: 'Avaliar arrendatário',
+    alreadySubmitted: 'Avaliação enviada',
+    success: 'Avaliação enviada com sucesso.',
+    failed: 'Não foi possível enviar a avaliação.',
   },
 };

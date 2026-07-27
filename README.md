@@ -35,22 +35,78 @@ alugatek/
 
 ### API Endpoints
 
+#### Public endpoints
+
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
+| GET | `/health` | — | Health check (API + DB) |
 | POST | `/api/auth/register` | — | Register with email/password |
 | POST | `/api/auth/login` | — | Login, returns JWT |
+| GET | `/api/auth/verify-email?email=...&token=...` | — | Verify email via query link |
+| POST | `/api/auth/verify-email` | — | Verify email via JSON body |
+| POST | `/api/auth/resend-verification` | — | Resend verification email |
 | POST | `/api/auth/oauth/google` | — | Exchange Google ID token for JWT |
+| POST | `/api/support/auth/login` | — | Support/admin login |
 | GET | `/api/items` | — | List items (filter by category/search) |
 | GET | `/api/items/{id}` | — | Item details |
-| POST | `/api/items` | ✅ | List a new item |
-| PUT | `/api/items/{id}` | ✅ | Update own item |
-| DELETE | `/api/items/{id}` | ✅ | Remove own item |
 | GET | `/api/items/categories` | — | List categories |
+| GET | `/api/users/{userId}/rental-rating` | — | Public user rental rating summary |
+| GET | `/api/users/{userId}/rental-reviews` | — | Public user rental review comments (`limit`, `skip`, `sort=recent|highest|lowest`) |
+
+#### Authenticated user endpoints
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| POST | `/api/items` | ✅ | List a new item |
+| POST | `/api/items/upload` | ✅ | Create item with multipart photos |
+| POST | `/api/items/upload-image` | ✅ | Upload a single image |
+| POST | `/api/items/upload-images` | ✅ | Upload multiple images |
+| PUT | `/api/items/{id}` | ✅ | Update own item |
+| DELETE | `/api/items/{id}` | ✅ | Soft-delete own item (blocked while rental is in progress) |
+| GET | `/api/items/my` | ✅ | List own items |
+| GET | `/api/items/favorites` | ✅ | List favorite items |
+| POST | `/api/items/{id}/favorite` | ✅ | Add item to favorites |
+| DELETE | `/api/items/{id}/favorite` | ✅ | Remove item from favorites |
 | POST | `/api/rentals` | ✅ | Create rental |
+| GET | `/api/rentals/{id}` | ✅ | Rental details |
 | GET | `/api/rentals/my` | ✅ | My rentals |
 | PATCH | `/api/rentals/{id}/cancel` | ✅ | Cancel rental |
-| POST | `/api/reviews` | ✅ | Leave review (post-rental) |
-| GET | `/api/reviews/item/{itemId}` | — | Reviews for an item |
+| PATCH | `/api/rentals/{id}/confirm` | ✅ | Owner confirms pending rental |
+| PATCH | `/api/rentals/{id}/decline` | ✅ | Owner declines pending rental |
+| PATCH | `/api/rentals/{id}/pay` | ✅ | Renter pays for rental |
+| PATCH | `/api/rentals/{id}/renew` | ✅ | Renter renews rental |
+| GET | `/api/rentals/{id}/renew-quote` | ✅ | Renewal price quote |
+| PATCH | `/api/rentals/{id}/return` | ✅ | Renter requests return |
+| PATCH | `/api/rentals/{id}/confirm-return` | ✅ | Owner confirms return |
+| PATCH | `/api/rentals/{id}/decline-return` | ✅ | Owner declines return |
+| POST | `/api/rentals/{id}/dispute` | ✅ | Open rental dispute |
+| GET | `/api/chat/conversations` | ✅ | List chat conversations |
+| GET | `/api/chat/{itemId}?otherUserId=...` | ✅ | Get messages for an item chat thread |
+| POST | `/api/chat` | ✅ | Send chat message |
+| POST | `/api/notifications/device-token/register` | ✅ | Register push token |
+| POST | `/api/notifications/device-token/unregister` | ✅ | Unregister push token |
+| POST | `/api/reports` | ✅ | Report a user/listing |
+| POST | `/api/rental-reviews` | ✅ | Submit renter/owner review |
+| GET | `/api/rental-reviews/rental/{rentalId}/eligibility` | ✅ | Review eligibility for current user |
+
+#### Support/Admin endpoints (`SupportAccess` policy)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/api/support/reports` | ✅ Support | List user reports |
+| GET | `/api/support/disputes` | ✅ Support | List dispute inbox |
+| GET | `/api/support/disputes/{id}` | ✅ Support | Dispute details |
+| POST | `/api/support/disputes/{id}/reply` | ✅ Support | Reply in dispute thread |
+| PATCH | `/api/support/disputes/{id}/assign` | ✅ Support | Assign dispute |
+| PATCH | `/api/support/disputes/{id}/resolve` | ✅ Support | Resolve dispute |
+| POST | `/api/support/users/ban-by-email` | ✅ Support | Ban user by email |
+| POST | `/api/support/users/{userId}/ban` | ✅ Support | Ban user by id |
+
+#### Public webhook endpoint
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| POST | `/api/stripe/webhook` | — | Stripe webhook receiver |
 
 `POST /api/items` supports both:
 - `application/json` body (`title`, `description`, `dailyRate`, `categoryId`, optional `imageUrl`)

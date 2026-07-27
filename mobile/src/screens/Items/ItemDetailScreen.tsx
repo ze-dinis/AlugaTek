@@ -19,8 +19,8 @@ import {useFocusEffect} from '@react-navigation/native';
 import {RootStackParamList} from '../../navigation/AppNavigator';
 import {itemsService} from '../../services/itemsService';
 import {rentalsService} from '../../services/rentalsService';
-import {TechItem, Review, Rental} from '../../types';
-import api from '../../services/api';
+import {TechItem, Rental, UserRentalReviewComment} from '../../types';
+import {usersService, UserRentalRatingSummary} from '../../services/usersService';
 import {resolveApiAssetUrl} from '../../config';
 import {useAuthStore} from '../../store/authStore';
 import {i18n} from '../../locales';
@@ -36,7 +36,6 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const {user} = useAuthStore();
   const {width, height} = useWindowDimensions();
   const [item, setItem] = useState<TechItem | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [renting, setRenting] = useState(false);
   const [reservedByCurrentUser, setReservedByCurrentUser] = useState(false);
@@ -46,26 +45,54 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerActiveImageIndex, setViewerActiveImageIndex] = useState(0);
+  const [ownerRentalRating, setOwnerRentalRating] = useState<UserRentalRatingSummary | null>(null);
+  const [ownerRentalReviews, setOwnerRentalReviews] = useState<UserRentalReviewComment[]>([]);
   const galleryRef = useRef<FlatList<string> | null>(null);
   const viewerGalleryRef = useRef<FlatList<string> | null>(null);
 
-  const loadItemData = useCallback(() => {
+  const loadItemData = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      itemsService.getById(itemId),
-      api.get<Review[]>(`/reviews/item/${itemId}`),
-      rentalsService.getMyRentals(),
-    ]).then(([itemRes, reviewRes, rentalsRes]) => {
+    try {
+      const itemRes = await itemsService.getById(itemId);
       setItem(itemRes.data);
-      setReviews(reviewRes.data);
-      const myRentals = rentalsRes.data as Rental[];
-      const hasExistingReservation = myRentals.some(r =>
-        r.item.id === itemId &&
-        r.status === 'Pending',
-      );
-      setReservedByCurrentUser(hasExistingReservation);
-    }).finally(() => setLoading(false));
-  }, [itemId]);
+
+      const [rentalsResult, ownerRatingResult, ownerReviewsResult] = await Promise.allSettled([
+        user?.id ? rentalsService.getMyRentals() : Promise.resolve({ data: [] as Rental[] }),
+        usersService.getRentalRating(itemRes.data.owner.id),
+        usersService.getRentalReviews(itemRes.data.owner.id, {limit: 5, sort: 'recent'}),
+      ]);
+
+      if (rentalsResult.status === 'fulfilled') {
+        const myRentals = rentalsResult.value.data as Rental[];
+        const hasExistingReservation = myRentals.some(r =>
+          r.item.id === itemId &&
+          r.status === 'Pending',
+        );
+        setReservedByCurrentUser(hasExistingReservation);
+      } else {
+        setReservedByCurrentUser(false);
+      }
+
+      if (ownerRatingResult.status === 'fulfilled') {
+        setOwnerRentalRating(ownerRatingResult.value.data);
+      } else {
+        setOwnerRentalRating(null);
+      }
+
+      if (ownerReviewsResult.status === 'fulfilled') {
+        setOwnerRentalReviews(ownerReviewsResult.value.data);
+      } else {
+        setOwnerRentalReviews([]);
+      }
+    } catch {
+      setItem(null);
+      setOwnerRentalRating(null);
+      setOwnerRentalReviews([]);
+      setReservedByCurrentUser(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [itemId, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,7 +226,7 @@ export default function ItemDetailScreen({route, navigation}: Props) {
   }
 
   if (!item) {
-    return <Text style={{textAlign: 'center', marginTop: 40}}>Item not found.</Text>;
+    return <Text style={{textAlign: 'center', marginTop: 40}}>Item não encontrado.</Text>;
   }
 
   const isRentalInProgress = !item.isAvailable && !reservedByCurrentUser;
@@ -281,9 +308,6 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
         <View style={styles.rateRow}>
           <Text style={styles.rate}>💶 {item.dailyRate.toFixed(2)}€<Text style={styles.rateLabel}>€/dia</Text></Text>
-          {item.averageRating && (
-            <Text style={styles.rating}>⭐ {item.averageRating.toFixed(1)}</Text>
-          )}
         </View>
         {item.caucao > 0 && (
           <Text style={styles.caucaoNote}>🔒 Caução: {item.caucao.toFixed(2)}€ (retida no cartão, devolvida no regresso)</Text>
@@ -321,6 +345,41 @@ export default function ItemDetailScreen({route, navigation}: Props) {
 
         <Text style={styles.sectionTitle}>👤 {i18n.itemDetail.owner}</Text>
         <Text style={styles.owner}>{item.owner.name}</Text>
+        {(ownerRentalRating?.reviewCount ?? item.owner.rentalReviewCount ?? 0) > 0 ? (
+          <Text style={styles.ownerRating}>
+            ⭐ {ownerRentalRating?.averageRating?.toFixed(1) ?? item.owner.averageRentalRating?.toFixed(1) ?? '0.0'}
+            {' · '}
+            {ownerRentalRating?.reviewCount ?? item.owner.rentalReviewCount ?? 0} avaliações
+          </Text>
+        ) : (
+          <Text style={styles.ownerRatingMuted}>{i18n.itemDetail.ownerNoRatings}</Text>
+        )}
+
+        {ownerRentalReviews.length > 0 && (
+          <View style={styles.ownerReviewsContainer}>
+            <Text style={styles.ownerReviewsTitle}>{i18n.itemDetail.ownerReviewCommentsTitle}</Text>
+            {ownerRentalReviews.map(review => (
+              <View key={review.id} style={styles.ownerReviewCard}>
+                <Text style={styles.ownerReviewMeta}>
+                  {'⭐ '}
+                  {review.rating.toFixed(1)}
+                  {' · '}
+                  {review.reviewer.name}
+                  {' · '}
+                  {new Date(review.createdAt).toLocaleDateString()}
+                </Text>
+                {!!review.comment?.trim() && (
+                  <Text style={styles.ownerReviewComment}>{review.comment}</Text>
+                )}
+              </View>
+            ))}
+            <TouchableOpacity
+              style={styles.ownerViewAllReviewsButton}
+              onPress={() => navigation.navigate('UserReviews', {userId: item.owner.id, userName: item.owner.name})}>
+              <Text style={styles.ownerViewAllReviewsButtonText}>{i18n.itemDetail.ownerViewAllReviews}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {user?.id === item.owner.id ? (
           <View style={styles.ownerActions}>
@@ -331,15 +390,18 @@ export default function ItemDetailScreen({route, navigation}: Props) {
               <Text style={styles.editButtonText}>✏️ {i18n.myAdvertisements.edit}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.deleteButton}
+              style={[styles.deleteButton, (deleting || item.canDelete === false) && styles.deleteButtonDisabled]}
               onPress={handleDelete}
-              disabled={deleting}>
+              disabled={deleting || item.canDelete === false}>
               {deleting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.deleteButtonText}>🗑️ {i18n.itemDetail.deleteItem}</Text>
               )}
             </TouchableOpacity>
+            {item.canDelete === false && (
+              <Text style={styles.deleteBlockedText}>{i18n.itemDetail.deleteBlockedByOngoingRental}</Text>
+            )}
           </View>
         ) : (
           <View style={styles.buttonRow}>
@@ -383,17 +445,6 @@ export default function ItemDetailScreen({route, navigation}: Props) {
           </TouchableOpacity>
         )}
 
-        {reviews.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>⭐ {i18n.itemDetail.reviews} ({reviews.length})</Text>
-            {reviews.map(r => (
-              <View key={r.id} style={styles.review}>
-                <Text style={styles.reviewAuthor}>{r.author.name} · {'⭐'.repeat(r.rating)}</Text>
-                <Text style={styles.reviewComment}>{r.comment}</Text>
-              </View>
-            ))}
-          </>
-        )}
         </View>
       </ScrollView>
 
@@ -523,7 +574,6 @@ const styles = StyleSheet.create({
   rateRow: {flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 12},
   rate: {fontSize: 22, fontWeight: '700', color: '#1a73e8'},
   rateLabel: {fontSize: 14, color: '#888'},
-  rating: {fontSize: 16},
   caucaoNote: {fontSize: 13, color: '#555', marginTop: 6, fontStyle: 'italic'},
   rentalSelector: {marginTop: 20},
   daySelector: {flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 12},
@@ -536,6 +586,30 @@ const styles = StyleSheet.create({
   sectionTitle: {fontSize: 16, fontWeight: '600', marginTop: 20, marginBottom: 6},
   description: {color: '#444', lineHeight: 22},
   owner: {color: '#444'},
+  ownerRating: {color: '#475569', marginBottom: 10, fontWeight: '600'},
+  ownerRatingMuted: {color: '#64748b', marginBottom: 10},
+  ownerReviewsContainer: {marginBottom: 10},
+  ownerReviewsTitle: {fontSize: 14, fontWeight: '700', color: '#1f2937', marginBottom: 8},
+  ownerReviewCard: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: '#f8fafc',
+    marginBottom: 8,
+  },
+  ownerReviewMeta: {fontSize: 12, color: '#475569', fontWeight: '600'},
+  ownerReviewComment: {fontSize: 14, color: '#0f172a', marginTop: 6},
+  ownerViewAllReviewsButton: {
+    marginTop: 2,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#1a73e8',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  ownerViewAllReviewsButtonText: {color: '#1a73e8', fontWeight: '700', fontSize: 13},
   buttonRow: {flexDirection: 'row', gap: 12, marginTop: 24},
   halfButton: {flex: 1},
   secondaryActionButton: {
@@ -586,10 +660,9 @@ const styles = StyleSheet.create({
   editButton: {backgroundColor: '#34a853', padding: 16, borderRadius: 10, alignItems: 'center'},
   editButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center'},
+  deleteButtonDisabled: {opacity: 0.6},
   deleteButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
+  deleteBlockedText: {fontSize: 12, color: '#b91c1c', fontWeight: '600'},
   reportButton: {marginTop: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e57373', alignItems: 'center'},
   reportButtonText: {color: '#c62828', fontWeight: '600', fontSize: 14},
-  review: {borderTopWidth: 1, borderColor: '#f0f0f0', paddingTop: 12, marginTop: 12},
-  reviewAuthor: {fontWeight: '600', marginBottom: 4},
-  reviewComment: {color: '#444'},
 });

@@ -13,6 +13,7 @@ public class TechItem
     public string? ImageUrl { get; set; }
     public string? ImageUrlsJson { get; set; }
     public bool IsAvailable { get; set; } = true;
+    public bool IsDeleted { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int CategoryId { get; set; }
@@ -22,5 +23,4 @@ public class TechItem
     public User Owner { get; set; } = null!;
 
     public ICollection<Rental> Rentals { get; set; } = [];
-    public ICollection<Review> Reviews { get; set; } = [];
 }

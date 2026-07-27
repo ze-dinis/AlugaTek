@@ -268,13 +268,10 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.ToTable("Rentals");
                 });
 
-            modelBuilder.Entity("Alugatek.Domain.Entities.Review", b =>
+            modelBuilder.Entity("Alugatek.Domain.Entities.RentalReview", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AuthorId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Comment")
@@ -284,19 +281,28 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("ItemId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("RentalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RevieweeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("AuthorId");
+                    b.HasIndex("RevieweeId");
 
-                    b.HasIndex("ItemId");
+                    b.HasIndex("ReviewerId");
 
-                    b.ToTable("Reviews");
+                    b.HasIndex("RentalId", "ReviewerId")
+                        .IsUnique();
+
+                    b.ToTable("RentalReviews");
                 });
 
             modelBuilder.Entity("Alugatek.Domain.Entities.TechItem", b =>
@@ -334,6 +340,11 @@ namespace Alugatek.Infrastructure.Data.Migrations
 
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Localidade")
                         .HasMaxLength(100)
@@ -526,23 +537,31 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Navigation("Renter");
                 });
 
-            modelBuilder.Entity("Alugatek.Domain.Entities.Review", b =>
+            modelBuilder.Entity("Alugatek.Domain.Entities.RentalReview", b =>
                 {
-                    b.HasOne("Alugatek.Domain.Entities.User", "Author")
-                        .WithMany("Reviews")
-                        .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Alugatek.Domain.Entities.TechItem", "Item")
-                        .WithMany("Reviews")
-                        .HasForeignKey("ItemId")
+                    b.HasOne("Alugatek.Domain.Entities.Rental", "Rental")
+                        .WithMany()
+                        .HasForeignKey("RentalId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Author");
+                    b.HasOne("Alugatek.Domain.Entities.User", "Reviewee")
+                        .WithMany("ReceivedRentalReviews")
+                        .HasForeignKey("RevieweeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Navigation("Item");
+                    b.HasOne("Alugatek.Domain.Entities.User", "Reviewer")
+                        .WithMany("GivenRentalReviews")
+                        .HasForeignKey("ReviewerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Rental");
+
+                    b.Navigation("Reviewee");
+
+                    b.Navigation("Reviewer");
                 });
 
             modelBuilder.Entity("Alugatek.Domain.Entities.TechItem", b =>
@@ -599,21 +618,21 @@ namespace Alugatek.Infrastructure.Data.Migrations
             modelBuilder.Entity("Alugatek.Domain.Entities.TechItem", b =>
                 {
                     b.Navigation("Rentals");
-
-                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("Alugatek.Domain.Entities.User", b =>
                 {
                     b.Navigation("DevicePushTokens");
 
+                    b.Navigation("GivenRentalReviews");
+
                     b.Navigation("ListedItems");
 
                     b.Navigation("ReceivedMessages");
 
-                    b.Navigation("Rentals");
+                    b.Navigation("ReceivedRentalReviews");
 
-                    b.Navigation("Reviews");
+                    b.Navigation("Rentals");
 
                     b.Navigation("SentMessages");
                 });

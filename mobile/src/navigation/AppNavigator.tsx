@@ -14,6 +14,7 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import ItemDetailScreen from '../screens/Items/ItemDetailScreen';
 import MyRentalsScreen from '../screens/Rentals/MyRentalsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import UserReviewsScreen from '../screens/Profile/UserReviewsScreen';
 import CreateItemScreen from '../screens/Items/CreateItemScreen';
 import MyItemsScreen from '../screens/Items/MyItemsScreen';
 import MyFavoritesScreen from '../screens/Items/MyFavoritesScreen';
@@ -31,6 +32,7 @@ export type RootStackParamList = {
   MyFavorites: undefined;
   EditItem: {itemId: string};
   Chat: {itemId: string; itemTitle: string; otherUserId: string; otherName: string};
+  UserReviews: {userId: string; userName: string};
 };
 
 export type AuthStackParamList = {
@@ -182,6 +184,11 @@ export default function AppNavigator() {
               name="Chat"
               component={ChatDetailScreen}
               options={{headerShown: true}}
+            />
+            <RootStack.Screen
+              name="UserReviews"
+              component={UserReviewsScreen}
+              options={{headerShown: true, title: 'Avaliações'}}
             />
           </>
         ) : (
