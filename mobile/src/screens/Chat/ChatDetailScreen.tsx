@@ -541,94 +541,113 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       .map(imageUrl => resolveApiAssetUrl(imageUrl) ?? imageUrl)
       .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
 
+    const createdAt = new Date(item.createdAt);
+    const createdAtDayKey = createdAt.toDateString();
+    const previousMessage = index > 0 ? messages[index - 1] : null;
+    const previousDayKey = previousMessage ? new Date(previousMessage.createdAt).toDateString() : null;
+    const showDayHeader = index === 0 || createdAtDayKey !== previousDayKey;
+    const dayHeaderText = createdAt.toLocaleDateString([], {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const timestampText = createdAt.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
     return (
-      <View style={[styles.messageRow, isOwn ? styles.ownMessageRow : styles.otherMessageRow]}>
-        <View
-          style={[
-            styles.messageBubble,
-            isOwn ? styles.ownBubble : isSupport ? styles.supportBubble : styles.otherBubble,
-          ]}>
-          {isSupport && (
-            <Text style={styles.supportLabel}>Suporte</Text>
-          )}
-          <Text style={[styles.messageText, isOwn ? styles.ownText : isSupport ? styles.supportText : styles.otherText]}>
-            {item.content}
-          </Text>
-          {messageImages.length > 0 && (
-            <View style={styles.messageImageList}>
-              {messageImages.map((imageUrl, imageIndex) => (
-                <View key={`${item.id}-${imageIndex}`} style={styles.messageImageWrapper}>
-                  <Image source={{uri: imageUrl}} style={styles.messageImage} resizeMode="cover" />
-                </View>
-              ))}
-            </View>
-          )}
-          <Text
+      <>
+        {showDayHeader && (
+          <View style={styles.dayHeaderRow}>
+            <Text style={styles.dayHeaderText}>{dayHeaderText}</Text>
+          </View>
+        )}
+        <View style={[styles.messageRow, isOwn ? styles.ownMessageRow : styles.otherMessageRow]}>
+          <View
             style={[
-              styles.timestamp,
-              isOwn ? styles.ownTimestamp : isSupport ? styles.supportTimestamp : styles.otherTimestamp,
+              styles.messageBubble,
+              isOwn ? styles.ownBubble : isSupport ? styles.supportBubble : styles.otherBubble,
             ]}>
-            {new Date(item.createdAt).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
-          {showActions && rentalRequestId && (
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.confirmButton, isActionLoading && styles.actionButtonDisabled]}
-                onPress={() => handleRentalRequestAction(rentalRequestId, 'confirm')}
-                disabled={isActionLoading}>
-                <Text style={styles.actionButtonText}>Confirmar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton, isActionLoading && styles.actionButtonDisabled]}
-                onPress={() => handleRentalRequestAction(rentalRequestId, 'decline')}
-                disabled={isActionLoading}>
-                <Text style={styles.actionButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {showPayAction && acceptedRentalId && (
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.payButton, isPayLoading && styles.actionButtonDisabled]}
-                onPress={() => handlePayRental(acceptedRentalId)}
-                disabled={isPayLoading}>
-                <Text style={styles.actionButtonText}>Pagar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {showReturnConfirm && returnRequestId && (
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.confirmButton, isReturnActionLoading && styles.actionButtonDisabled]}
-                onPress={() => handleConfirmReturnWithPrompt(returnRequestId)}
-                disabled={isReturnActionLoading}>
-                <Text style={styles.actionButtonText}>Confirmar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton, isReturnActionLoading && styles.actionButtonDisabled]}
-                onPress={() => handleReturnAction(returnRequestId, 'decline')}
-                disabled={isReturnActionLoading}>
-                <Text style={styles.actionButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {showReviewAction && item.rentalId && (
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.reviewButton, submittingReview && styles.actionButtonDisabled]}
-                onPress={() => handleOpenReview(item.rentalId!)}
-                disabled={submittingReview}>
-                <Text style={styles.actionButtonText}>
-                  {isOwn ? i18n.rentalReview.reviewBuyer : i18n.rentalReview.reviewSeller}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            {isSupport && (
+              <Text style={styles.supportLabel}>Suporte</Text>
+            )}
+            <Text style={[styles.messageText, isOwn ? styles.ownText : isSupport ? styles.supportText : styles.otherText]}>
+              {item.content}
+            </Text>
+            {messageImages.length > 0 && (
+              <View style={styles.messageImageList}>
+                {messageImages.map((imageUrl, imageIndex) => (
+                  <View key={`${item.id}-${imageIndex}`} style={styles.messageImageWrapper}>
+                    <Image source={{uri: imageUrl}} style={styles.messageImage} resizeMode="cover" />
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text
+              style={[
+                styles.timestamp,
+                isOwn ? styles.ownTimestamp : isSupport ? styles.supportTimestamp : styles.otherTimestamp,
+              ]}>
+              {timestampText}
+            </Text>
+            {showActions && rentalRequestId && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.confirmButton, isActionLoading && styles.actionButtonDisabled]}
+                  onPress={() => handleRentalRequestAction(rentalRequestId, 'confirm')}
+                  disabled={isActionLoading}>
+                  <Text style={styles.actionButtonText}>Confirmar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.cancelButton, isActionLoading && styles.actionButtonDisabled]}
+                  onPress={() => handleRentalRequestAction(rentalRequestId, 'decline')}
+                  disabled={isActionLoading}>
+                  <Text style={styles.actionButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {showPayAction && acceptedRentalId && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.payButton, isPayLoading && styles.actionButtonDisabled]}
+                  onPress={() => handlePayRental(acceptedRentalId)}
+                  disabled={isPayLoading}>
+                  <Text style={styles.actionButtonText}>Pagar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {showReturnConfirm && returnRequestId && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.confirmButton, isReturnActionLoading && styles.actionButtonDisabled]}
+                  onPress={() => handleConfirmReturnWithPrompt(returnRequestId)}
+                  disabled={isReturnActionLoading}>
+                  <Text style={styles.actionButtonText}>Confirmar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.cancelButton, isReturnActionLoading && styles.actionButtonDisabled]}
+                  onPress={() => handleReturnAction(returnRequestId, 'decline')}
+                  disabled={isReturnActionLoading}>
+                  <Text style={styles.actionButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {showReviewAction && item.rentalId && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.reviewButton, submittingReview && styles.actionButtonDisabled]}
+                  onPress={() => handleOpenReview(item.rentalId!)}
+                  disabled={submittingReview}>
+                  <Text style={styles.actionButtonText}>
+                    {isOwn ? i18n.rentalReview.reviewBuyer : i18n.rentalReview.reviewSeller}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </>
     );
   };
 
@@ -790,6 +809,16 @@ const styles = StyleSheet.create({
   messageList: {paddingVertical: 12},
   emptyContent: {flex: 1, justifyContent: 'center', alignItems: 'center'},
   emptyText: {color: '#aaa', fontSize: 14},
+  dayHeaderRow: {alignItems: 'center', marginTop: 10, marginBottom: 4},
+  dayHeaderText: {
+    fontSize: 12,
+    color: '#5f6b7a',
+    backgroundColor: '#e9eef5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    fontWeight: '600',
+  },
   messageRow: {marginVertical: 4, paddingHorizontal: 12},
   ownMessageRow: {alignItems: 'flex-end'},
   otherMessageRow: {alignItems: 'flex-start'},
