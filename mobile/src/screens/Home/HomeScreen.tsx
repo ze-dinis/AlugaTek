@@ -339,7 +339,10 @@ export default function HomeScreen() {
       <FlatList
         data={categories}
         horizontal
-        style={styles.categoryListWrapper}
+        style={[
+          styles.categoryListWrapper,
+          showEarningsHint && styles.categoryListWrapperWithHint,
+        ]}
         keyExtractor={c => String(c.id)}
         contentContainerStyle={styles.categoryList}
         renderItem={({item: cat}) => (
@@ -503,8 +506,9 @@ const styles = StyleSheet.create({
   },
   searchIcon: {fontSize: 16, marginRight: 6},
   searchInput: {flex: 1, paddingVertical: 10, fontSize: 15, color: '#1f2937'},
-  categoryListWrapper: {maxHeight: 60, marginHorizontal: 4, marginBottom: 2},
-  categoryList: {paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center'},
+  categoryListWrapper: {marginHorizontal: 4, marginTop: 2, marginBottom: 4, minHeight: 54},
+  categoryListWrapperWithHint: {marginTop: 4, marginBottom: 7},
+  categoryList: {paddingHorizontal: 12, paddingVertical: 7, alignItems: 'center'},
   chip: {
     borderWidth: 1,
     borderColor: '#1a73e8',
@@ -513,7 +517,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     marginRight: 8,
     minHeight: 40,
-    marginVertical: 2,
+    marginVertical: 0,
     justifyContent: 'center',
   },
   chipSelected: {backgroundColor: '#1a73e8'},
@@ -521,6 +525,7 @@ const styles = StyleSheet.create({
   chipTextSelected: {color: '#fff'},
   districtFilterContainer: {
     marginHorizontal: 12,
+    marginTop: 2,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#ddd',
