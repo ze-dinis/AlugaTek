@@ -27,8 +27,8 @@ export const disputesService = {
     await api.patch(`/support/disputes/${id}/assign`, { assigneeUserId });
   },
 
-  resolve: async (id: string, resolutionNote: string) => {
-    await api.patch(`/support/disputes/${id}/resolve`, { resolutionNote });
+  resolve: async (id: string, payload: { resolutionNote: string; concludeRental: boolean }) => {
+    await api.patch(`/support/disputes/${id}/resolve`, payload);
   },
 
   banUser: async (userId: string, payload: BanAccountRequest) => {

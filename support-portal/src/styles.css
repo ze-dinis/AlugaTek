@@ -252,6 +252,18 @@ label {
   color: #24384d;
 }
 
+.inline-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.inline-checkbox input {
+  width: auto;
+  margin: 0;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

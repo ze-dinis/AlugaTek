@@ -9,6 +9,7 @@ export function DisputeDetailPage() {
     const queryClient = useQueryClient();
     const [replyText, setReplyText] = useState('');
     const [resolutionText, setResolutionText] = useState('');
+    const [concludeRental, setConcludeRental] = useState(false);
     const [banReason, setBanReason] = useState('');
     const [banDuration, setBanDuration] = useState('');
     const { data, isLoading, isError } = useQuery({
@@ -31,9 +32,14 @@ export function DisputeDetailPage() {
         mutationFn: async () => {
             if (!id || !resolutionText.trim())
                 return;
-            await disputesService.resolve(id, resolutionText.trim());
+            await disputesService.resolve(id, {
+                resolutionNote: resolutionText.trim(),
+                concludeRental,
+            });
         },
         onSuccess: async () => {
+            setResolutionText('');
+            setConcludeRental(false);
             await queryClient.invalidateQueries({ queryKey: ['dispute', id] });
             await queryClient.invalidateQueries({ queryKey: ['disputes'] });
         },
@@ -84,5 +90,5 @@ export function DisputeDetailPage() {
                                     alignSelf: isSupport ? 'flex-end' : 'flex-start',
                                     width: isSupport ? '84%' : '100%',
                                 }, children: [_jsxs("div", { className: "message-meta", children: [_jsx("strong", { children: msg.senderName }), " (", msg.senderRole, ")", _jsx("span", { children: new Date(msg.createdAt).toLocaleString('pt-PT') })] }), _jsx("p", { style: { margin: '6px 0 0' }, children: msg.content })] }, msg.id));
-                        }) })] }), _jsxs("article", { className: "card", children: [_jsx("h3", { children: "Fechar disputa" }), _jsx("textarea", { value: resolutionText, onChange: e => setResolutionText(e.target.value), placeholder: "Nota final da decis\u00E3o", rows: 3 }), _jsx("button", { className: "danger-btn", onClick: () => resolveMutation.mutate(), type: "button", disabled: resolveMutation.isPending || !resolutionText.trim(), children: resolveMutation.isPending ? 'A fechar...' : 'Resolver disputa' })] }), _jsxs("article", { className: "card", children: [_jsx("h3", { children: "Modera\u00E7\u00E3o de contas" }), _jsx("p", { className: "muted", children: "Use apenas em viola\u00E7\u00E3o grave dos termos. Esta a\u00E7\u00E3o deve ficar auditada no backend." }), _jsx("label", { htmlFor: "ban-reason", children: "Motivo do banimento" }), _jsx("textarea", { id: "ban-reason", value: banReason, onChange: e => setBanReason(e.target.value), placeholder: "Ex.: fraude comprovada, abuso recorrente, conta comprometida", rows: 3 }), _jsx("label", { htmlFor: "ban-duration", children: "Dura\u00E7\u00E3o (dias, opcional)" }), _jsx("input", { id: "ban-duration", type: "number", min: 1, value: banDuration, onChange: e => setBanDuration(e.target.value), placeholder: "Vazio = banimento permanente" }), _jsxs("div", { className: "actions-row", children: [_jsxs("button", { className: "danger-btn", type: "button", onClick: () => handleBan(data.openedByUserId, data.openedByName), disabled: banMutation.isPending || !banReason.trim(), children: ["Banir ", data.openedByName] }), _jsxs("button", { className: "danger-btn", type: "button", onClick: () => handleBan(data.againstUserId, data.againstUserName), disabled: banMutation.isPending || !banReason.trim(), children: ["Banir ", data.againstUserName] })] }), banMutation.isError && (_jsx("div", { className: "error-box", children: "Falha ao banir conta. Verifique permiss\u00F5es no backend." }))] })] }));
+                        }) })] }), _jsxs("article", { className: "card", children: [_jsx("h3", { children: "Fechar disputa" }), _jsx("textarea", { value: resolutionText, onChange: e => setResolutionText(e.target.value), placeholder: "Nota final da decis\u00E3o", rows: 3 }), _jsxs("label", { className: "inline-checkbox", htmlFor: "conclude-rental-checkbox", children: [_jsx("input", { id: "conclude-rental-checkbox", type: "checkbox", checked: concludeRental, onChange: e => setConcludeRental(e.target.checked) }), "Marcar tamb\u00E9m este aluguer como conclu\u00EDdo"] }), _jsx("button", { className: "danger-btn", onClick: () => resolveMutation.mutate(), type: "button", disabled: resolveMutation.isPending || !resolutionText.trim(), children: resolveMutation.isPending ? 'A fechar...' : 'Resolver disputa' })] }), _jsxs("article", { className: "card", children: [_jsx("h3", { children: "Modera\u00E7\u00E3o de contas" }), _jsx("p", { className: "muted", children: "Use apenas em viola\u00E7\u00E3o grave dos termos. Esta a\u00E7\u00E3o deve ficar auditada no backend." }), _jsx("label", { htmlFor: "ban-reason", children: "Motivo do banimento" }), _jsx("textarea", { id: "ban-reason", value: banReason, onChange: e => setBanReason(e.target.value), placeholder: "Ex.: fraude comprovada, abuso recorrente, conta comprometida", rows: 3 }), _jsx("label", { htmlFor: "ban-duration", children: "Dura\u00E7\u00E3o (dias, opcional)" }), _jsx("input", { id: "ban-duration", type: "number", min: 1, value: banDuration, onChange: e => setBanDuration(e.target.value), placeholder: "Vazio = banimento permanente" }), _jsxs("div", { className: "actions-row", children: [_jsxs("button", { className: "danger-btn", type: "button", onClick: () => handleBan(data.openedByUserId, data.openedByName), disabled: banMutation.isPending || !banReason.trim(), children: ["Banir ", data.openedByName] }), _jsxs("button", { className: "danger-btn", type: "button", onClick: () => handleBan(data.againstUserId, data.againstUserName), disabled: banMutation.isPending || !banReason.trim(), children: ["Banir ", data.againstUserName] })] }), banMutation.isError && (_jsx("div", { className: "error-box", children: "Falha ao banir conta. Verifique permiss\u00F5es no backend." }))] })] }));
 }

@@ -9,6 +9,7 @@ export function DisputeDetailPage() {
   const queryClient = useQueryClient();
   const [replyText, setReplyText] = useState('');
   const [resolutionText, setResolutionText] = useState('');
+  const [concludeRental, setConcludeRental] = useState(false);
   const [banReason, setBanReason] = useState('');
   const [banDuration, setBanDuration] = useState('');
 
@@ -32,9 +33,14 @@ export function DisputeDetailPage() {
   const resolveMutation = useMutation({
     mutationFn: async () => {
       if (!id || !resolutionText.trim()) return;
-      await disputesService.resolve(id, resolutionText.trim());
+      await disputesService.resolve(id, {
+        resolutionNote: resolutionText.trim(),
+        concludeRental,
+      });
     },
     onSuccess: async () => {
+      setResolutionText('');
+      setConcludeRental(false);
       await queryClient.invalidateQueries({ queryKey: ['dispute', id] });
       await queryClient.invalidateQueries({ queryKey: ['disputes'] });
     },
@@ -172,6 +178,15 @@ export function DisputeDetailPage() {
           placeholder="Nota final da decisão"
           rows={3}
         />
+        <label className="inline-checkbox" htmlFor="conclude-rental-checkbox">
+          <input
+            id="conclude-rental-checkbox"
+            type="checkbox"
+            checked={concludeRental}
+            onChange={e => setConcludeRental(e.target.checked)}
+          />
+          Marcar também este aluguer como concluído
+        </label>
         <button
           className="danger-btn"
           onClick={() => resolveMutation.mutate()}

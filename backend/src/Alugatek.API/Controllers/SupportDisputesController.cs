@@ -1,16 +1,18 @@
 using System.Security.Claims;
+using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Stripe;
 
 namespace Alugatek.API.Controllers;
 
 [ApiController]
 [Route("api/support/disputes")]
 [Authorize(Policy = "SupportAccess")]
-public class SupportDisputesController(AppDbContext db) : ControllerBase
+public class SupportDisputesController(AppDbContext db, IPaymentService payments) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SupportDisputeSummaryDto>>> GetInbox([FromQuery] string? status)
@@ -167,9 +169,37 @@ public class SupportDisputesController(AppDbContext db) : ControllerBase
             return BadRequest(new { message = "Resolution note is required." });
 
         var supportId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var rental = await db.Rentals.FirstOrDefaultAsync(r => r.Id == id);
+        var rental = await db.Rentals
+            .Include(r => r.Item)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (rental is null)
             return NotFound(new { message = "Dispute not found." });
+
+        if (request.ConcludeRental)
+        {
+            if (rental.Status is not RentalStatus.Completed and not RentalStatus.ReturnRequested and not RentalStatus.Returned)
+                return BadRequest(new { message = "Rental cannot be concluded from its current status." });
+
+            if (rental.Status != RentalStatus.Returned)
+            {
+                if (rental.CaucaoPaymentStatus == PaymentStatus.Held && rental.CaucaoPaymentIntentId is not null)
+                {
+                    try
+                    {
+                        // Release held deposit funds when support concludes the rental.
+                        await payments.ReleaseHoldAsync(rental.CaucaoPaymentIntentId);
+                        rental.CaucaoPaymentStatus = PaymentStatus.Released;
+                    }
+                    catch (StripeException ex)
+                    {
+                        return BadRequest(new { message = ex.StripeError?.Message ?? "Failed to release the caução hold." });
+                    }
+                }
+
+                rental.Status = RentalStatus.Returned;
+                rental.Item.IsAvailable = true;
+            }
+        }
 
         db.Messages.Add(new Message
         {
@@ -237,6 +267,6 @@ public class SupportDisputesController(AppDbContext db) : ControllerBase
         List<SupportDisputeMessageDto> Messages);
 
     public record SupportReplyRequest(string Content);
-    public record SupportResolveRequest(string ResolutionNote);
+    public record SupportResolveRequest(string ResolutionNote, bool ConcludeRental);
     public record SupportAssignRequest(Guid AssigneeUserId);
 }

@@ -16,8 +16,8 @@ export const disputesService = {
     assign: async (id, assigneeUserId) => {
         await api.patch(`/support/disputes/${id}/assign`, { assigneeUserId });
     },
-    resolve: async (id, resolutionNote) => {
-        await api.patch(`/support/disputes/${id}/resolve`, { resolutionNote });
+    resolve: async (id, payload) => {
+        await api.patch(`/support/disputes/${id}/resolve`, payload);
     },
     banUser: async (userId, payload) => {
         await api.post(`/support/users/${userId}/ban`, payload);
