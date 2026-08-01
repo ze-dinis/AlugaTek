@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { disputesService } from '../services/disputesService';
+import { resolveApiAssetUrl } from '../lib/api';
 
 export function DisputeDetailPage() {
   const { id } = useParams();
@@ -147,6 +148,9 @@ export function DisputeDetailPage() {
         <div className="message-list">
           {data.messages.map(msg => {
             const isSupport = msg.senderRole === 'Support';
+            const images = (msg.imageUrls ?? [])
+              .map(url => resolveApiAssetUrl(url))
+              .filter((url): url is string => Boolean(url));
             return (
               <div
                 key={msg.id}
@@ -164,19 +168,21 @@ export function DisputeDetailPage() {
                   <span>{new Date(msg.createdAt).toLocaleString('pt-PT')}</span>
                 </div>
                 <p style={{ margin: '6px 0 0' }}>{msg.content}</p>
-                {msg.imageUrls && msg.imageUrls.length > 0 && (
+                {images.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                    {msg.imageUrls.map((url, i) => (
+                    {images.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noopener noreferrer">
                         <img
                           src={url}
                           alt={`Imagem ${i + 1}`}
+                          loading="lazy"
                           style={{
                             maxWidth: '200px',
                             maxHeight: '200px',
                             borderRadius: '6px',
                             objectFit: 'cover',
                             border: '1px solid #ccc',
+                            display: 'block',
                           }}
                         />
                       </a>

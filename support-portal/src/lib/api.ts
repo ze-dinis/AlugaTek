@@ -10,6 +10,19 @@ export const api = axios.create({
   timeout: 15000,
 });
 
+const apiOrigin = baseURL.replace(/\/api\/?$/, '');
+
+export function resolveApiAssetUrl(url?: string | null): string | undefined {
+  if (!url || !url.trim()) return undefined;
+
+  const trimmed = url.trim();
+  if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  return `${apiOrigin}/${trimmed.replace(/^\/+/, '')}`;
+}
+
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('support_token');
   if (token) {

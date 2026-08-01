@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# Compiled output must never sit next to the .tsx sources:
+# Vite resolves .js before .tsx, so stale emits would shadow the real code.
+src/**/*.js
+src/**/*.jsx
+src/**/*.d.ts
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo
