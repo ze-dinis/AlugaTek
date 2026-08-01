@@ -206,6 +206,36 @@ Set your Google OAuth Web Client ID in `GOOGLE_WEB_CLIENT_ID`.
 
 ---
 
+## Tests
+
+### Backend (xUnit)
+
+`backend/tests/Alugatek.Tests` holds unit tests for the domain services and
+integration tests that exercise the controllers against an EF Core in-memory
+database with fake payment/push/storage providers.
+
+```bash
+cd backend
+dotnet test tests/Alugatek.Tests/Alugatek.Tests.csproj
+```
+
+### Mobile (Jest)
+
+Tests live in `mobile/src/**/__tests__`:
+
+- **Unit** — utils, config helpers, the auth store and the API service layer.
+- **Integration** — screens rendered with `@testing-library/react-native`
+  (Login, Register, MyItems, Profile). These drive the real service → axios
+  interceptor → zustand store → AsyncStorage stack; only the HTTP transport is
+  swapped out via `src/testing/httpMock.ts`.
+
+```bash
+cd mobile
+npm test
+```
+
+---
+
 ## Security Notes
 
 - **Change the JWT secret** in production — use a random 64+ character string
