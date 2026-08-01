@@ -89,6 +89,7 @@ export function DisputesInboxPage() {
             <thead>
               <tr>
                 <th>Disputa</th>
+                <th>Anúncio</th>
                 <th>Estado</th>
                 <th>Cliente</th>
                 <th>Contra</th>
@@ -102,6 +103,7 @@ export function DisputesInboxPage() {
                   <td>
                     <Link to={`/disputes/${dispute.id}`}>{dispute.id.slice(0, 8)}</Link>
                   </td>
+                  <td>{dispute.itemTitle ?? '-'}</td>
                   <td>
                     <span className={`status status-${dispute.status}`}>{dispute.status}</span>
                   </td>

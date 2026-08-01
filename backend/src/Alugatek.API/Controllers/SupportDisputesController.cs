@@ -49,7 +49,8 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
                 r.Renter.Name,
                 r.Item.Owner.Name,
                 reason ?? "Pedido de suporte",
-                null);
+                null,
+                r.Item.Title);
         });
 
         if (!string.IsNullOrWhiteSpace(status))
@@ -87,6 +88,7 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
             rental.Item.Owner.Name,
             reason,
             null,
+            rental.Item.Title,
             rental.RenterId,
             rental.Item.OwnerId,
             $"Disputa associada ao aluguer {rental.Id}.",
@@ -243,7 +245,8 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
         string OpenedByName,
         string AgainstUserName,
         string Reason,
-        string? AssignedToName);
+        string? AssignedToName,
+        string ItemTitle);
 
     private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson)
     {
@@ -283,6 +286,7 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
         string AgainstUserName,
         string Reason,
         string? AssignedToName,
+        string ItemTitle,
         Guid OpenedByUserId,
         Guid AgainstUserId,
         string Description,

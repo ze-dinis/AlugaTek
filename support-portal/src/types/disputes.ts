@@ -14,6 +14,7 @@ export interface DisputeSummary {
   againstUserName: string;
   reason: string;
   assignedToName?: string;
+  itemTitle?: string;
 }
 
 export interface DisputeMessage {

@@ -97,6 +97,9 @@ export function DisputeDetailPage() {
         <div>
           <h2>Disputa {data.id}</h2>
           <p className="muted">
+            Anúncio: <strong>{data.itemTitle ?? 'Sem título'}</strong>
+          </p>
+          <p className="muted">
             Rental {data.rentalId} | Estado: <strong>{data.status}</strong>
           </p>
         </div>
@@ -105,6 +108,9 @@ export function DisputeDetailPage() {
       <div className="grid">
         <article className="card">
           <h3>Contexto</h3>
+          <p>
+            <strong>Anúncio:</strong> {data.itemTitle ?? 'Sem título'}
+          </p>
           <p>
             <strong>Aberta por:</strong> {data.openedByName}
           </p>
