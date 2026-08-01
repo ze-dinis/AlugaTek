@@ -83,6 +83,7 @@ export interface RentalReviewEligibility {
 export interface AuthResponse {
   token: string;
   user: User;
+  refreshToken?: string | null;
 }
 
 export interface RegisterResponse {

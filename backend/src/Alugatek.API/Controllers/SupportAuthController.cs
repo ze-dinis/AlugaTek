@@ -34,7 +34,8 @@ public class SupportAuthController(AppDbContext db, JwtService jwt) : Controller
         if (user.Role is not Alugatek.Domain.Entities.User.RoleSupport and not Alugatek.Domain.Entities.User.RoleAdmin)
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Acesso de suporte obrigatório." });
 
-        return Ok(new SupportAuthResponse(jwt.GenerateToken(user), user.Name, user.Role));
+        return Ok(new SupportAuthResponse(
+            jwt.GenerateToken(user, JwtService.SupportTokenLifetime), user.Name, user.Role));
     }
 
     private static bool RefreshExpiredBan(User user)

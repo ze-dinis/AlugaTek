@@ -253,6 +253,91 @@ public class AuthController(
 
         return Ok(await BuildAuthResponseAsync(user));
     }
+    // Exchanges a valid refresh token for a new access token, rotating the refresh
+    // token so a stolen one can only ever be used once.
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            return Unauthorized(new { message = "Sessão expirada. Inicie sessão novamente." });
+
+        var hash = JwtService.HashRefreshToken(request.RefreshToken);
+        var stored = await db.RefreshTokens
+            .Include(t => t.User)
+            .SingleOrDefaultAsync(t => t.TokenHash == hash);
+
+        if (stored is null)
+            return Unauthorized(new { message = "Sessão expirada. Inicie sessão novamente." });
+
+        // Replaying an already-rotated token means it leaked: kill every session for that user.
+        if (stored.RevokedAt is not null)
+        {
+            logger.LogWarning("Refresh token reuse detected for user {UserId}.", stored.UserId);
+            await RevokeAllTokensForUserAsync(stored.UserId);
+            return Unauthorized(new { message = "Sessão expirada. Inicie sessão novamente." });
+        }
+
+        if (stored.ExpiresAt <= DateTime.UtcNow)
+            return Unauthorized(new { message = "Sessão expirada. Inicie sessão novamente." });
+
+        var user = stored.User;
+        if (user is null)
+            return Unauthorized(new { message = "Sessão expirada. Inicie sessão novamente." });
+
+        if (RefreshExpiredBan(user))
+            await db.SaveChangesAsync();
+
+        var banMessage = GetBanMessage(user);
+        if (banMessage is not null)
+        {
+            await RevokeAllTokensForUserAsync(user.Id);
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = banMessage });
+        }
+
+        var response = await BuildAuthResponseAsync(user);
+
+        stored.RevokedAt = DateTime.UtcNow;
+        stored.ReplacedByTokenHash = JwtService.HashRefreshToken(response.RefreshToken!);
+        await db.SaveChangesAsync();
+
+        return Ok(response);
+    }
+
+    // Best-effort sign out: revokes the refresh token so it cannot be reused.
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            var hash = JwtService.HashRefreshToken(request.RefreshToken);
+            var stored = await db.RefreshTokens.SingleOrDefaultAsync(t => t.TokenHash == hash);
+
+            if (stored is not null && stored.RevokedAt is null)
+            {
+                stored.RevokedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        return Ok(new { message = "Sessão terminada." });
+    }
+
+    private async Task RevokeAllTokensForUserAsync(Guid userId)
+    {
+        var active = await db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync();
+
+        if (active.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        foreach (var token in active)
+            token.RevokedAt = now;
+
+        await db.SaveChangesAsync();
+    }
+
     private async Task<AuthResponse> BuildAuthResponseAsync(User user)
     {
         var reviewQuery = db.RentalReviews.Where(r => r.RevieweeId == user.Id);
@@ -261,9 +346,19 @@ public class AuthController(
             ? await reviewQuery.AverageAsync(r => (double?)r.Rating)
             : null;
 
+        var refreshToken = JwtService.GenerateRefreshToken();
+        db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = JwtService.HashRefreshToken(refreshToken),
+            ExpiresAt = DateTime.UtcNow.Add(JwtService.RefreshTokenLifetime),
+        });
+        await db.SaveChangesAsync();
+
         return new AuthResponse(
             jwt.GenerateToken(user),
-            new UserDto(user.Id, user.Name, user.Email, user.AvatarUrl, user.Phone, averageRating, reviewCount));
+            new UserDto(user.Id, user.Name, user.Email, user.AvatarUrl, user.Phone, averageRating, reviewCount),
+            refreshToken);
     }
 
     private static bool RefreshExpiredBan(User user)

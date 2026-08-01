@@ -50,6 +50,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState('');
   const [requestActionLoading, setRequestActionLoading] = useState<Record<string, boolean>>({});
@@ -111,9 +112,10 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       try {
         const {data} = await chatService.getMessages(itemId, otherUserId);
         setMessages(data);
+        setLoadError(false);
         setTimeout(() => flatListRef.current?.scrollToEnd({animated: false}), 100);
       } catch {
-        // silently fail
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -279,6 +281,7 @@ export default function ChatDetailScreen({route, navigation}: Props) {
     } catch {
       setInputText(messageText);
       setPendingImages(imagesToUpload);
+      Alert.alert('Erro', 'Não foi possível enviar a mensagem. Verifique a sua ligação e tente novamente.');
     } finally {
       setSending(false);
       sendInFlightRef.current = false;
@@ -673,7 +676,11 @@ export default function ChatDetailScreen({route, navigation}: Props) {
         onEndReached={() => flatListRef.current?.scrollToEnd()}
         ListEmptyComponent={
           <View style={styles.emptyContent}>
-            <Text style={styles.emptyText}>{i18n.chat.noMessages}</Text>
+            <Text style={styles.emptyText}>
+              {loadError
+                ? 'Não foi possível carregar as mensagens. Verifique a sua ligação e tente novamente.'
+                : i18n.chat.noMessages}
+            </Text>
           </View>
         }
       />

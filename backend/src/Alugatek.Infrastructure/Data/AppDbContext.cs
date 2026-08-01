@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserReport> UserReports => Set<UserReport>();
     public DbSet<FavoriteItem> FavoriteItems => Set<FavoriteItem>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -150,6 +151,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(f => f.Item)
              .WithMany()
              .HasForeignKey(f => f.ItemId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RefreshToken>(e =>
+        {
+            e.Property(t => t.TokenHash).HasColumnType("text").IsRequired();
+            e.Property(t => t.ReplacedByTokenHash).HasColumnType("text");
+            e.Property(t => t.ExpiresAt).HasColumnType("timestamp with time zone");
+            e.Property(t => t.CreatedAt).HasColumnType("timestamp with time zone");
+            e.Property(t => t.RevokedAt).HasColumnType("timestamp with time zone");
+            e.Ignore(t => t.IsActive);
+
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => t.UserId);
+
+            e.HasOne(t => t.User)
+             .WithMany(u => u.RefreshTokens)
+             .HasForeignKey(t => t.UserId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

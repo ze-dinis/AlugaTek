@@ -33,4 +33,5 @@ public class User
     public ICollection<Message> SentMessages { get; set; } = [];
     public ICollection<Message> ReceivedMessages { get; set; } = [];
     public ICollection<DevicePushToken> DevicePushTokens { get; set; } = [];
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
 }

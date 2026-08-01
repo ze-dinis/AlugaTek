@@ -60,7 +60,7 @@ export default function LoginScreen({navigation}: Props) {
     setLoading(true);
     try {
       const {data} = await authService.login(email, password);
-      await setAuth(data.user, data.token);
+      await setAuth(data.user, data.token, data.refreshToken);
     } catch (e: any) {
       const message = e?.response?.data?.message || e?.message || i18n.auth.tryAgain;
       const detail =
@@ -88,7 +88,7 @@ export default function LoginScreen({navigation}: Props) {
       const userInfo = await GoogleSignin.signIn();
       const tokens = await GoogleSignin.getTokens();
       const {data} = await authService.googleOAuth(tokens.idToken);
-      await setAuth(data.user, data.token);
+      await setAuth(data.user, data.token, data.refreshToken);
     } catch (e: any) {
       Alert.alert(i18n.auth.googleLoginFailed, e.message ?? i18n.auth.tryAgain);
     } finally {

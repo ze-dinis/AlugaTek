@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuthStore} from '../authStore';
+import {authClient} from '../../services/authClient';
 import {User} from '../../types';
 
 const user: User = {
@@ -9,9 +10,23 @@ const user: User = {
 };
 
 describe('useAuthStore', () => {
+  let logoutRequest: jest.SpyInstance;
+
   beforeEach(async () => {
     await AsyncStorage.clear();
-    useAuthStore.setState({user: null, token: null, isLoading: true});
+    useAuthStore.setState({
+      user: null,
+      token: null,
+      refreshToken: null,
+      isLoading: true,
+    });
+    logoutRequest = jest
+      .spyOn(authClient, 'post')
+      .mockResolvedValue({data: {message: 'ok'}} as never);
+  });
+
+  afterEach(() => {
+    logoutRequest.mockRestore();
   });
 
   it('starts empty and loading', () => {
@@ -43,15 +58,56 @@ describe('useAuthStore', () => {
     await expect(AsyncStorage.getItem('auth_user')).resolves.toBeNull();
   });
 
+  it('persists the refresh token on setAuth', async () => {
+    await useAuthStore.getState().setAuth(user, 'jwt-token', 'refresh-token');
+
+    expect(useAuthStore.getState().refreshToken).toBe('refresh-token');
+    await expect(AsyncStorage.getItem('auth_refresh_token')).resolves.toBe(
+      'refresh-token',
+    );
+  });
+
+  it('drops a stale refresh token when a session is issued without one', async () => {
+    await useAuthStore.getState().setAuth(user, 'jwt-token', 'refresh-token');
+
+    await useAuthStore.getState().setAuth(user, 'jwt-token-2');
+
+    expect(useAuthStore.getState().refreshToken).toBeNull();
+    await expect(AsyncStorage.getItem('auth_refresh_token')).resolves.toBeNull();
+  });
+
+  it('revokes the refresh token server-side on logout', async () => {
+    await useAuthStore.getState().setAuth(user, 'jwt-token', 'refresh-token');
+
+    await useAuthStore.getState().logout();
+
+    expect(logoutRequest).toHaveBeenCalledWith('/auth/logout', {
+      refreshToken: 'refresh-token',
+    });
+    await expect(AsyncStorage.getItem('auth_refresh_token')).resolves.toBeNull();
+  });
+
+  it('still signs out locally when revoking the refresh token fails', async () => {
+    await useAuthStore.getState().setAuth(user, 'jwt-token', 'refresh-token');
+    logoutRequest.mockRejectedValueOnce(new Error('offline'));
+
+    await useAuthStore.getState().logout();
+
+    expect(useAuthStore.getState().user).toBeNull();
+    await expect(AsyncStorage.getItem('auth_token')).resolves.toBeNull();
+  });
+
   it('rehydrates a persisted session from storage', async () => {
     await AsyncStorage.setItem('auth_token', 'jwt-token');
     await AsyncStorage.setItem('auth_user', JSON.stringify(user));
+    await AsyncStorage.setItem('auth_refresh_token', 'refresh-token');
 
     await useAuthStore.getState().loadFromStorage();
 
     const state = useAuthStore.getState();
     expect(state.user).toEqual(user);
     expect(state.token).toBe('jwt-token');
+    expect(state.refreshToken).toBe('refresh-token');
     expect(state.isLoading).toBe(false);
   });
 

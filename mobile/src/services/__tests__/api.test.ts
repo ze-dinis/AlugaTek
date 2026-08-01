@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AxiosHeaders, InternalAxiosRequestConfig} from 'axios';
 import api from '../api';
+import {authClient} from '../authClient';
+import {useAuthStore} from '../../store/authStore';
 
 type AdapterResult = {
   status: number;
@@ -39,9 +41,19 @@ function stubTransport(result: AdapterResult) {
 }
 
 describe('api client', () => {
+  let authRequest: jest.SpyInstance;
+
   beforeEach(async () => {
+    authRequest = jest
+      .spyOn(authClient, 'post')
+      .mockRejectedValue(new Error('no network'));
+    await useAuthStore.getState().logout();
     await AsyncStorage.clear();
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    authRequest.mockRestore();
   });
 
   it('targets the configured base URL', () => {
@@ -80,6 +92,156 @@ describe('api client', () => {
     await expect(api.get('/rentals/my')).rejects.toBeDefined();
 
     await expect(AsyncStorage.getItem('auth_token')).resolves.toBeNull();
+  });
+
+  it('signs the user out completely when the backend answers 401', async () => {
+    await useAuthStore
+      .getState()
+      .setAuth({id: 'user-1', name: 'Ze'} as never, 'expired-token');
+    stubTransport({status: 401});
+
+    await expect(api.get('/rentals/my')).rejects.toBeDefined();
+
+    await expect(AsyncStorage.getItem('auth_user')).resolves.toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().token).toBeNull();
+  });
+
+  it('renews an expired access token and replays the original request', async () => {
+    await useAuthStore
+      .getState()
+      .setAuth({id: 'user-1', name: 'Ze'} as never, 'expired-token', 'refresh-token');
+
+    authRequest.mockResolvedValueOnce({
+      data: {
+        token: 'fresh-token',
+        refreshToken: 'rotated-refresh-token',
+        user: {id: 'user-1', name: 'Ze'},
+      },
+    } as never);
+
+    let call = 0;
+    const adapter = jest.fn(async (config: InternalAxiosRequestConfig) => {
+      call += 1;
+      const response = {
+        data: call === 1 ? {} : [{id: 'rental-1'}],
+        status: call === 1 ? 401 : 200,
+        statusText: '',
+        headers: {},
+        config,
+      };
+
+      if (call === 1) {
+        throw Object.assign(new Error('Request failed with status 401'), {
+          isAxiosError: true,
+          config,
+          response,
+          toJSON: () => ({}),
+        });
+      }
+
+      return response;
+    });
+    api.defaults.adapter = adapter as never;
+
+    const result = await api.get('/rentals/my');
+
+    expect(result.data).toEqual([{id: 'rental-1'}]);
+    expect(authRequest).toHaveBeenCalledWith(
+      '/auth/refresh',
+      {refreshToken: 'refresh-token'},
+      {baseURL: api.defaults.baseURL},
+    );
+    expect(new AxiosHeaders(adapter.mock.calls[1][0].headers).get('Authorization')).toBe(
+      'Bearer fresh-token',
+    );
+    await expect(AsyncStorage.getItem('auth_refresh_token')).resolves.toBe(
+      'rotated-refresh-token',
+    );
+    expect(useAuthStore.getState().user).not.toBeNull();
+  });
+
+  it('refreshes only once when several requests expire at the same time', async () => {
+    await useAuthStore
+      .getState()
+      .setAuth({id: 'user-1', name: 'Ze'} as never, 'expired-token', 'refresh-token');
+
+    authRequest.mockResolvedValue({
+      data: {
+        token: 'fresh-token',
+        refreshToken: 'rotated-refresh-token',
+        user: {id: 'user-1', name: 'Ze'},
+      },
+    } as never);
+
+    const seen = new Set<string>();
+    const adapter = jest.fn(async (config: InternalAxiosRequestConfig) => {
+      const key = `${config.url}`;
+      const response = {data: {}, status: 200, statusText: '', headers: {}, config};
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        throw Object.assign(new Error('Request failed with status 401'), {
+          isAxiosError: true,
+          config,
+          response: {...response, status: 401},
+          toJSON: () => ({}),
+        });
+      }
+
+      return response;
+    });
+    api.defaults.adapter = adapter as never;
+
+    await Promise.all([
+      api.get('/rentals/my'),
+      api.get('/chat/conversations'),
+      api.get('/items/my'),
+    ]);
+
+    expect(authRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('signs the user out when the refresh token is rejected', async () => {
+    await useAuthStore
+      .getState()
+      .setAuth({id: 'user-1', name: 'Ze'} as never, 'expired-token', 'dead-refresh-token');
+
+    authRequest.mockRejectedValue(new Error('Request failed with status 401'));
+    stubTransport({status: 401});
+
+    await expect(api.get('/rentals/my')).rejects.toBeDefined();
+
+    expect(useAuthStore.getState().user).toBeNull();
+    await expect(AsyncStorage.getItem('auth_user')).resolves.toBeNull();
+    await expect(AsyncStorage.getItem('auth_refresh_token')).resolves.toBeNull();
+  });
+
+  it('signs the user out on 401 when there is no refresh token', async () => {
+    await useAuthStore
+      .getState()
+      .setAuth({id: 'user-1', name: 'Ze'} as never, 'expired-token');
+    stubTransport({status: 401});
+
+    await expect(api.get('/rentals/my')).rejects.toBeDefined();
+
+    expect(authRequest).not.toHaveBeenCalledWith(
+      '/auth/refresh',
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it('keeps the session on a 401 from an auth endpoint', async () => {
+    await useAuthStore
+      .getState()
+      .setAuth({id: 'user-1', name: 'Ze'} as never, 'jwt-token');
+    stubTransport({status: 401});
+
+    await expect(api.post('/auth/login', {})).rejects.toBeDefined();
+
+    expect(useAuthStore.getState().user).not.toBeNull();
   });
 
   it('keeps the stored token for non-401 failures', async () => {

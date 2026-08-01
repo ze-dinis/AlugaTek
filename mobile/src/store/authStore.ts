@@ -1,12 +1,19 @@
 import {create} from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {User} from '../types';
+import {
+  AUTH_REFRESH_TOKEN_KEY,
+  AUTH_TOKEN_KEY,
+  AUTH_USER_KEY,
+  authClient,
+} from '../services/authClient';
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   isLoading: boolean;
-  setAuth: (user: User, token: string) => Promise<void>;
+  setAuth: (user: User, token: string, refreshToken?: string | null) => Promise<void>;
   logout: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
 }
@@ -14,28 +21,57 @@ interface AuthState {
 export const useAuthStore = create<AuthState>(set => ({
   user: null,
   token: null,
+  refreshToken: null,
   isLoading: true,
 
-  setAuth: async (user, token) => {
-    await AsyncStorage.setItem('auth_token', token);
-    await AsyncStorage.setItem('auth_user', JSON.stringify(user));
-    set({user, token});
+  setAuth: async (user, token, refreshToken) => {
+    await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+    await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+
+    if (refreshToken) {
+      await AsyncStorage.setItem(AUTH_REFRESH_TOKEN_KEY, refreshToken);
+    } else {
+      await AsyncStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+    }
+
+    set({user, token, refreshToken: refreshToken ?? null});
   },
 
   logout: async () => {
-    await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
-    set({user: null, token: null});
+    const storedRefreshToken = await AsyncStorage.getItem(AUTH_REFRESH_TOKEN_KEY);
+
+    // Clear locally first so signing out never depends on the network.
+    await AsyncStorage.multiRemove([
+      AUTH_TOKEN_KEY,
+      AUTH_USER_KEY,
+      AUTH_REFRESH_TOKEN_KEY,
+    ]);
+    set({user: null, token: null, refreshToken: null});
+
+    if (storedRefreshToken) {
+      try {
+        await authClient.post('/auth/logout', {refreshToken: storedRefreshToken});
+      } catch {
+        // Best effort: the token expires server-side on its own anyway.
+      }
+    }
   },
 
   loadFromStorage: async () => {
     try {
-      const [token, userStr] = await AsyncStorage.multiGet([
-        'auth_token',
-        'auth_user',
+      const [token, userStr, refreshToken] = await AsyncStorage.multiGet([
+        AUTH_TOKEN_KEY,
+        AUTH_USER_KEY,
+        AUTH_REFRESH_TOKEN_KEY,
       ]);
       const storedToken = token[1];
       const storedUser = userStr[1] ? JSON.parse(userStr[1]) : null;
-      set({user: storedUser, token: storedToken, isLoading: false});
+      set({
+        user: storedUser,
+        token: storedToken,
+        refreshToken: refreshToken[1],
+        isLoading: false,
+      });
     } catch {
       set({isLoading: false});
     }

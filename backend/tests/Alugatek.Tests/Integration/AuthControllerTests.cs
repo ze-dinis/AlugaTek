@@ -327,6 +327,131 @@ public class AuthControllerTests : IDisposable
         Assert.Empty(_mailHandler.Requests);
     }
 
+    [Fact]
+    public async Task Login_IssuesARefreshTokenStoredOnlyAsAHash()
+    {
+        _db.AddUser(email: "ana@example.com", password: "Password123!");
+        var controller = CreateController();
+
+        var result = await controller.Login(new LoginRequest("ana@example.com", "Password123!"));
+
+        var response = Assert.IsType<AuthResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.False(string.IsNullOrWhiteSpace(response.RefreshToken));
+
+        var stored = await _db.RefreshTokens.SingleAsync();
+        Assert.NotEqual(response.RefreshToken, stored.TokenHash);
+        Assert.Equal(JwtService.HashRefreshToken(response.RefreshToken!), stored.TokenHash);
+        Assert.True(stored.ExpiresAt > DateTime.UtcNow.AddDays(50));
+    }
+
+    [Fact]
+    public async Task Refresh_ReturnsANewAccessTokenAndRotatesTheRefreshToken()
+    {
+        _db.AddUser(email: "ana@example.com", password: "Password123!");
+        var controller = CreateController();
+        var login = Assert.IsType<AuthResponse>(
+            Assert.IsType<OkObjectResult>((await controller.Login(new LoginRequest("ana@example.com", "Password123!"))).Result).Value);
+
+        var result = await controller.Refresh(new RefreshTokenRequest(login.RefreshToken!));
+
+        var refreshed = Assert.IsType<AuthResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.False(string.IsNullOrWhiteSpace(refreshed.Token));
+        Assert.NotEqual(login.RefreshToken, refreshed.RefreshToken);
+
+        var oldToken = await _db.RefreshTokens
+            .SingleAsync(t => t.TokenHash == JwtService.HashRefreshToken(login.RefreshToken!));
+        Assert.NotNull(oldToken.RevokedAt);
+        Assert.Equal(JwtService.HashRefreshToken(refreshed.RefreshToken!), oldToken.ReplacedByTokenHash);
+    }
+
+    [Fact]
+    public async Task Refresh_RejectsAnUnknownToken()
+    {
+        var controller = CreateController();
+
+        var result = await controller.Refresh(new RefreshTokenRequest("not-a-real-token"));
+
+        Assert.IsType<UnauthorizedObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Refresh_RejectsAnExpiredToken()
+    {
+        var user = _db.AddUser(email: "ana@example.com");
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = JwtService.HashRefreshToken("stale-token"),
+            ExpiresAt = DateTime.UtcNow.AddDays(-1)
+        });
+        await _db.SaveChangesAsync();
+        var controller = CreateController();
+
+        var result = await controller.Refresh(new RefreshTokenRequest("stale-token"));
+
+        Assert.IsType<UnauthorizedObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Refresh_ReusingARotatedTokenRevokesEverySessionForThatUser()
+    {
+        _db.AddUser(email: "ana@example.com", password: "Password123!");
+        var controller = CreateController();
+        var login = Assert.IsType<AuthResponse>(
+            Assert.IsType<OkObjectResult>((await controller.Login(new LoginRequest("ana@example.com", "Password123!"))).Result).Value);
+        await controller.Refresh(new RefreshTokenRequest(login.RefreshToken!));
+
+        // Replaying the already-rotated token looks like theft.
+        var result = await controller.Refresh(new RefreshTokenRequest(login.RefreshToken!));
+
+        Assert.IsType<UnauthorizedObjectResult>(result.Result);
+        Assert.All(await _db.RefreshTokens.ToListAsync(), t => Assert.NotNull(t.RevokedAt));
+    }
+
+    [Fact]
+    public async Task Refresh_RejectsABannedUserAndRevokesTheirSessions()
+    {
+        var user = _db.AddUser(email: "ana@example.com", password: "Password123!");
+        var controller = CreateController();
+        var login = Assert.IsType<AuthResponse>(
+            Assert.IsType<OkObjectResult>((await controller.Login(new LoginRequest("ana@example.com", "Password123!"))).Result).Value);
+
+        user.IsBanned = true;
+        await _db.SaveChangesAsync();
+
+        var result = await controller.Refresh(new RefreshTokenRequest(login.RefreshToken!));
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+        Assert.All(await _db.RefreshTokens.ToListAsync(), t => Assert.NotNull(t.RevokedAt));
+    }
+
+    [Fact]
+    public async Task Logout_RevokesTheRefreshTokenSoItCannotBeReused()
+    {
+        _db.AddUser(email: "ana@example.com", password: "Password123!");
+        var controller = CreateController();
+        var login = Assert.IsType<AuthResponse>(
+            Assert.IsType<OkObjectResult>((await controller.Login(new LoginRequest("ana@example.com", "Password123!"))).Result).Value);
+
+        await controller.Logout(new RefreshTokenRequest(login.RefreshToken!));
+
+        var stored = await _db.RefreshTokens.SingleAsync();
+        Assert.NotNull(stored.RevokedAt);
+
+        var reuse = await controller.Refresh(new RefreshTokenRequest(login.RefreshToken!));
+        Assert.IsType<UnauthorizedObjectResult>(reuse.Result);
+    }
+
+    [Fact]
+    public async Task Logout_WithoutATokenSucceeds()
+    {
+        var controller = CreateController();
+
+        var result = await controller.Logout(new RefreshTokenRequest(string.Empty));
+
+        Assert.IsType<OkObjectResult>(result);
+    }
+
     private string ExtractTokenFromLastEmail()
     {
         var body = _mailHandler.Requests[^1].Body;

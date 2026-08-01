@@ -204,6 +204,41 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("Alugatek.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("Alugatek.Domain.Entities.Rental", b =>
                 {
                     b.Property<Guid>("Id")
@@ -518,6 +553,17 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("Alugatek.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("Alugatek.Domain.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Alugatek.Domain.Entities.Rental", b =>
                 {
                     b.HasOne("Alugatek.Domain.Entities.TechItem", "Item")
@@ -631,6 +677,8 @@ namespace Alugatek.Infrastructure.Data.Migrations
                     b.Navigation("ReceivedMessages");
 
                     b.Navigation("ReceivedRentalReviews");
+
+                    b.Navigation("RefreshTokens");
 
                     b.Navigation("Rentals");
 

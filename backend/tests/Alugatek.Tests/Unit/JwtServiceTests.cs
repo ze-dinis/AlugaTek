@@ -57,13 +57,50 @@ public class JwtServiceTests
     }
 
     [Fact]
-    public void GenerateToken_UsesConfiguredIssuerAudienceAndSevenDayExpiry()
+    public void GenerateToken_UsesConfiguredIssuerAudienceAndShortLivedExpiry()
     {
         var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateService().GenerateToken(CreateUser()));
 
         Assert.Equal(Issuer, token.Issuer);
         Assert.Equal(Audience, Assert.Single(token.Audiences));
-        Assert.InRange(token.ValidTo, DateTime.UtcNow.AddDays(7).AddMinutes(-2), DateTime.UtcNow.AddDays(7).AddMinutes(2));
+        Assert.InRange(
+            token.ValidTo,
+            DateTime.UtcNow.Add(JwtService.AccessTokenLifetime).AddMinutes(-2),
+            DateTime.UtcNow.Add(JwtService.AccessTokenLifetime).AddMinutes(2));
+    }
+
+    [Fact]
+    public void GenerateToken_HonoursAnExplicitLifetime()
+    {
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(
+            CreateService().GenerateToken(CreateUser(), JwtService.SupportTokenLifetime));
+
+        Assert.InRange(
+            token.ValidTo,
+            DateTime.UtcNow.Add(JwtService.SupportTokenLifetime).AddMinutes(-2),
+            DateTime.UtcNow.Add(JwtService.SupportTokenLifetime).AddMinutes(2));
+    }
+
+    [Fact]
+    public void GenerateRefreshToken_IsUniqueAndHighEntropy()
+    {
+        var first = JwtService.GenerateRefreshToken();
+        var second = JwtService.GenerateRefreshToken();
+
+        Assert.NotEqual(first, second);
+        Assert.True(Convert.FromBase64String(first).Length >= 32);
+    }
+
+    [Fact]
+    public void HashRefreshToken_IsDeterministicAndHidesTheRawToken()
+    {
+        var token = JwtService.GenerateRefreshToken();
+
+        var hash = JwtService.HashRefreshToken(token);
+
+        Assert.Equal(hash, JwtService.HashRefreshToken(token));
+        Assert.NotEqual(token, hash);
+        Assert.NotEqual(hash, JwtService.HashRefreshToken(JwtService.GenerateRefreshToken()));
     }
 
     [Fact]
