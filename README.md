@@ -6,7 +6,7 @@ A technology item rental platform — rent laptops, phones, cameras, and more.
 
 ```
 alugatek/
-├── backend/          # ASP.NET Core 9 Web API
+├── backend/          # ASP.NET Core 10 Web API
 │   ├── src/
 │   │   ├── Alugatek.API/           # Controllers, DTOs, Program.cs
 │   │   ├── Alugatek.Domain/        # Entities, enums
@@ -25,11 +25,11 @@ alugatek/
 └── docker-compose.yml
 ```
 
-## Backend (ASP.NET Core 9)
+## Backend (ASP.NET Core 10)
 
 ### Tech Stack
-- **Framework**: ASP.NET Core 9 Web API
-- **ORM**: Entity Framework Core 9 + Npgsql (PostgreSQL)
+- **Framework**: ASP.NET Core 10 Web API
+- **ORM**: Entity Framework Core 10 + Npgsql (PostgreSQL)
 - **Auth**: JWT Bearer + Google OAuth (ID-token exchange)
 - **Docs**: Swagger / OpenAPI (Swashbuckle)
 

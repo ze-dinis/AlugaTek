@@ -23,6 +23,7 @@ export interface DisputeMessage {
   senderName: string;
   senderRole: 'Customer' | 'Support' | 'System';
   content: string;
+  imageUrls: string[];
   createdAt: string;
 }
 

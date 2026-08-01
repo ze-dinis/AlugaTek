@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
@@ -97,6 +98,7 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
                     m.Sender.Name,
                     MapSenderRole(m.Sender.Role),
                     m.Content,
+                    ParseImageUrls(m.ImageUrlsJson),
                     m.CreatedAt))
                 .ToList());
 
@@ -243,6 +245,25 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
         string Reason,
         string? AssignedToName);
 
+    private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrlsJson))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(imageUrlsJson)?
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Select(url => url.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList() ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public record SupportDisputeMessageDto(
         Guid Id,
         Guid DisputeId,
@@ -250,6 +271,7 @@ public class SupportDisputesController(AppDbContext db, IPaymentService payments
         string SenderName,
         string SenderRole,
         string Content,
+        IReadOnlyList<string> ImageUrls,
         DateTime CreatedAt);
 
     public record SupportDisputeDetailDto(

@@ -164,6 +164,25 @@ export function DisputeDetailPage() {
                   <span>{new Date(msg.createdAt).toLocaleString('pt-PT')}</span>
                 </div>
                 <p style={{ margin: '6px 0 0' }}>{msg.content}</p>
+                {msg.imageUrls && msg.imageUrls.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                    {msg.imageUrls.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={url}
+                          alt={`Imagem ${i + 1}`}
+                          style={{
+                            maxWidth: '200px',
+                            maxHeight: '200px',
+                            borderRadius: '6px',
+                            objectFit: 'cover',
+                            border: '1px solid #ccc',
+                          }}
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
