@@ -38,6 +38,38 @@ function ensureGoogleSigninConfigured(): void {
   }
 }
 
+function isGoogleNetworkError(error: any): boolean {
+  const code = error?.code;
+  // 7 is Play Services' numeric NETWORK_ERROR status.
+  return code === 'NETWORK_ERROR' || code === 7;
+}
+
+// Returns null when the user dismisses the account picker.
+async function getGoogleIdToken(): Promise<string | null> {
+  const response: any = await GoogleSignin.signIn();
+
+  if (response?.type === 'cancelled') {
+    return null;
+  }
+
+  // Prefer the token already included in the sign-in response: the separate
+  // getTokens() call is an extra round trip to Play Services that routinely
+  // fails with NETWORK_ERROR right after signOut(), and only succeeds on retry.
+  const idToken: string | undefined = response?.data?.idToken ?? response?.idToken;
+  if (idToken) {
+    return idToken;
+  }
+
+  try {
+    return (await GoogleSignin.getTokens()).idToken;
+  } catch (error) {
+    if (!isGoogleNetworkError(error)) {
+      throw error;
+    }
+    return (await GoogleSignin.getTokens()).idToken;
+  }
+}
+
 export default function LoginScreen({navigation}: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -78,19 +110,27 @@ export default function LoginScreen({navigation}: Props) {
     setLoading(true);
     try {
       ensureGoogleSigninConfigured();
-      await GoogleSignin.hasPlayServices();
+      await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
       // Ensure user can pick an account every time instead of reusing cached session.
       try {
         await GoogleSignin.signOut();
       } catch {
         // Ignore when there is no previous session.
       }
-      const userInfo = await GoogleSignin.signIn();
-      const tokens = await GoogleSignin.getTokens();
-      const {data} = await authService.googleOAuth(tokens.idToken);
+
+      const idToken = await getGoogleIdToken();
+      if (!idToken) {
+        return;
+      }
+
+      const {data} = await authService.googleOAuth(idToken);
       await setAuth(data.user, data.token, data.refreshToken);
     } catch (e: any) {
-      Alert.alert(i18n.auth.googleLoginFailed, e.message ?? i18n.auth.tryAgain);
+      const detail = isGoogleNetworkError(e) || e?.code === 'ERR_NETWORK'
+        ? i18n.auth.errorNetworkDetail
+        : e?.message ?? i18n.auth.tryAgain;
+
+      Alert.alert(i18n.auth.googleLoginFailed, detail);
     } finally {
       setLoading(false);
     }

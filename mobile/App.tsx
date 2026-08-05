@@ -44,6 +44,14 @@ type NotificationIdentity = {
 
 const NOTIFICATION_DEDUPE_WINDOW_MS = 15000;
 
+function safeGetMessaging(): ReturnType<typeof getMessaging> | null {
+  try {
+    return getMessaging();
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const loadFromStorage = useAuthStore(s => s.loadFromStorage);
   const user = useAuthStore(s => s.user);
@@ -149,9 +157,22 @@ export default function App() {
       return;
     }
 
-    let unsubscribe = () => {};
-    try {
-      unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
+    // Native modules may still be initializing during the very first cold start.
+    // Anything that throws here takes down the JS thread and closes the app
+    // before it renders (which is why it then opens fine on the second try), so
+    // every native subscription is registered defensively.
+    const cleanups: Array<() => void> = [];
+
+    const subscribe = (register: () => () => void) => {
+      try {
+        cleanups.push(register());
+      } catch {
+        // silently fail
+      }
+    };
+
+    subscribe(() =>
+      notifee.onForegroundEvent(({type, detail}) => {
         if (type !== EventType.PRESS && type !== EventType.ACTION_PRESS) {
           return;
         }
@@ -160,80 +181,92 @@ export default function App() {
         if (route) {
           openChatFromNotification(route);
         }
-      });
+      }),
+    );
+
+    try {
+      notifee
+        .getInitialNotification()
+        .then(initial => {
+          const route = extractChatRouteFromNotification(initial?.notification);
+          if (route) {
+            openChatFromNotification(route);
+          }
+        })
+        .catch(() => {
+          // silently fail
+        });
     } catch {
       // silently fail
     }
 
-    const fcm = getMessaging();
+    const fcm = safeGetMessaging();
 
-    const unsubscribeNotificationOpened = onNotificationOpenedApp(fcm, remoteMessage => {
-      const route = extractChatRouteFromRemoteData(remoteMessage?.data);
-      if (route) {
-        openChatFromNotification(route);
-      }
-    });
+    if (fcm) {
+      subscribe(() =>
+        onNotificationOpenedApp(fcm, remoteMessage => {
+          const route = extractChatRouteFromRemoteData(remoteMessage?.data);
+          if (route) {
+            openChatFromNotification(route);
+          }
+        }),
+      );
 
-    const unsubscribeForegroundMessages = onMessage(fcm, async remoteMessage => {
-      const route = extractChatRouteFromRemoteData(remoteMessage.data);
-      if (!route) {
-        return;
-      }
-      const identity = extractNotificationIdentityFromRemoteData(remoteMessage.data);
+      subscribe(() =>
+        onMessage(fcm, async remoteMessage => {
+          const route = extractChatRouteFromRemoteData(remoteMessage.data);
+          if (!route) {
+            return;
+          }
+          const identity = extractNotificationIdentityFromRemoteData(remoteMessage.data);
 
-      const messagePreview = remoteMessage.notification?.body
-        ?? getRemoteDataString(remoteMessage.data, 'content')
-        ?? 'New message';
-      if (!shouldDisplayNotification(
-        route.otherUserId,
-        route.itemId,
-        messagePreview,
-        remoteMessage.sentTime,
-        identity.eventId,
-      )) {
-        return;
-      }
+          const messagePreview = remoteMessage.notification?.body
+            ?? getRemoteDataString(remoteMessage.data, 'content')
+            ?? 'New message';
+          if (!shouldDisplayNotification(
+            route.otherUserId,
+            route.itemId,
+            messagePreview,
+            remoteMessage.sentTime,
+            identity.eventId,
+          )) {
+            return;
+          }
 
-      await showNewMessageNotification({
-        otherId: route.otherUserId,
-        otherName: route.otherName,
-        itemId: route.itemId,
-        itemTitle: route.itemTitle,
-        senderName: route.otherName,
-        messagePreview,
-        unreadCount: 1,
-        timestampMs: remoteMessage.sentTime,
-        eventId: identity.eventId,
-      });
-    });
+          await showNewMessageNotification({
+            otherId: route.otherUserId,
+            otherName: route.otherName,
+            itemId: route.itemId,
+            itemTitle: route.itemTitle,
+            senderName: route.otherName,
+            messagePreview,
+            unreadCount: 1,
+            timestampMs: remoteMessage.sentTime,
+            eventId: identity.eventId,
+          });
+        }),
+      );
 
-    notifee
-      .getInitialNotification()
-      .then(initial => {
-        const route = extractChatRouteFromNotification(initial?.notification);
-        if (route) {
-          openChatFromNotification(route);
-        }
-      })
-      .catch(() => {
-        // silently fail
-      });
-
-    getInitialNotification(fcm)
-      .then(initial => {
-        const route = extractChatRouteFromRemoteData(initial?.data);
-        if (route) {
-          openChatFromNotification(route);
-        }
-      })
-      .catch(() => {
-        // silently fail
-      });
+      getInitialNotification(fcm)
+        .then(initial => {
+          const route = extractChatRouteFromRemoteData(initial?.data);
+          if (route) {
+            openChatFromNotification(route);
+          }
+        })
+        .catch(() => {
+          // silently fail
+        });
+    }
 
     return () => {
-      unsubscribe();
-      unsubscribeNotificationOpened();
-      unsubscribeForegroundMessages();
+      for (const cleanup of cleanups) {
+        try {
+          cleanup();
+        } catch {
+          // silently fail
+        }
+      }
     };
   }, []);
 
@@ -273,13 +306,22 @@ export default function App() {
 
     registerPushToken();
 
-    const unsubscribeTokenRefresh = onTokenRefresh(getMessaging(), async token => {
+    const messaging = safeGetMessaging();
+    let unsubscribeTokenRefresh = () => {};
+
+    if (messaging) {
       try {
-        await pushTokenService.registerDeviceToken(token, 'android');
+        unsubscribeTokenRefresh = onTokenRefresh(messaging, async token => {
+          try {
+            await pushTokenService.registerDeviceToken(token, 'android');
+          } catch {
+            // silently fail
+          }
+        });
       } catch {
         // silently fail
       }
-    });
+    }
 
     return () => {
       unsubscribeTokenRefresh();
