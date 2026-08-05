@@ -353,7 +353,20 @@ export default function ChatDetailScreen({route, navigation}: Props) {
       setHandledRequests(prev => [...prev, rentalId]);
       Alert.alert('Sucesso', action === 'confirm' ? 'Pedido confirmado.' : 'Pedido cancelado.');
     } catch {
-      Alert.alert('Erro', 'Não foi possível processar o pedido.');
+      // A timed-out or dropped response can still have been applied server-side,
+      // so only report a failure when the rental is really still pending.
+      const appliedStatus = await rentalsService
+        .getById(rentalId)
+        .then(({data}) => data.status)
+        .catch(() => null);
+
+      if (appliedStatus && appliedStatus !== 'Pending') {
+        setHandledRequests(prev => [...prev, rentalId]);
+        setRentalStatuses(prev => ({...prev, [rentalId]: appliedStatus}));
+        Alert.alert('Sucesso', action === 'confirm' ? 'Pedido confirmado.' : 'Pedido cancelado.');
+      } else {
+        Alert.alert('Erro', 'Não foi possível processar o pedido.');
+      }
     } finally {
       setRequestActionLoading(prev => ({...prev, [rentalId]: false}));
     }

@@ -281,11 +281,25 @@ public class RentalsControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task Confirm_RejectsARentalThatIsNotPending()
+    public async Task Confirm_OfAnAlreadyActiveRental_IsIdempotent()
     {
         var owner = _db.AddUser();
         var renter = _db.AddUser();
         var rental = _db.AddRental(_db.AddItem(owner), renter, RentalStatus.Active);
+
+        var result = await CreateController(owner).Confirm(rental.Id, null);
+
+        var dto = Assert.IsType<RentalDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(nameof(RentalStatus.Active), dto.Status);
+        Assert.Empty(_db.Messages);
+    }
+
+    [Fact]
+    public async Task Confirm_RejectsARentalThatIsNotPending()
+    {
+        var owner = _db.AddUser();
+        var renter = _db.AddUser();
+        var rental = _db.AddRental(_db.AddItem(owner), renter, RentalStatus.Cancelled);
 
         var result = await CreateController(owner).Confirm(rental.Id, null);
 

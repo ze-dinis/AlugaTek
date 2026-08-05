@@ -222,6 +222,10 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
 
         if (rental is null) return NotFound();
         if (rental.Item.OwnerId != userId) return Forbid();
+        // A retried confirm (e.g. the client timed out on the first, successful call)
+        // must not look like a failure to the owner.
+        if (rental.Status == RentalStatus.Active)
+            return Ok(MapToDto(rental, rental.Item, rental.Renter));
         if (rental.Status != RentalStatus.Pending)
             return BadRequest(new { message = "Only pending rentals can be confirmed." });
 
