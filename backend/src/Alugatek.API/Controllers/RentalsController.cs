@@ -362,8 +362,8 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
                 // The rental price was already charged. Log the failure but do not block
                 // the rental from proceeding — the owner can follow up manually.
                 logger.LogError(ex,
-                    "Stripe caução hold failed for rental {RentalId}. Code: {Code}, Message: {Message}",
-                    rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
+                    "Stripe caução hold failed for rental {RentalId}. Code: {Code}, DeclineCode: {DeclineCode}, Type: {Type}, Message: {Message}",
+                    rental.Id, ex.StripeError?.Code, ex.StripeError?.DeclineCode, ex.StripeError?.Type, ex.StripeError?.Message);
                 rental.CaucaoPaymentStatus = PaymentStatus.Failed;
             }
         }

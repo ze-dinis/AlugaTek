@@ -69,6 +69,9 @@ public class StripePaymentService : IPaymentService
             PaymentMethod = paymentMethodId,
             Confirm = true,
             PaymentMethodTypes = ["card"],
+            // Records an off-session mandate on this first, customer-present charge. Without it the
+            // follow-up caução hold is rejected with authentication_required under live-mode SCA.
+            SetupFutureUsage = "off_session",
             Description = description,
             Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId, ["type"] = "rental_price" },
         };
@@ -76,6 +79,20 @@ public class StripePaymentService : IPaymentService
         var intent = await _paymentIntents.CreateAsync(options, cancellationToken: cancellationToken);
         _logger.LogInformation("Charged rental price for rental {RentalId}: intent {IntentId}, status {Status}.",
             rentalId, intent.Id, intent.Status);
+
+        if (intent.Status != "succeeded")
+        {
+            _logger.LogError(
+                "Rental price intent {IntentId} for rental {RentalId} did not succeed. Status: {Status}, NextAction: {NextAction}.",
+                intent.Id, rentalId, intent.Status, intent.NextAction?.Type);
+
+            throw Failure(
+                intent.Status == "requires_action" ? "authentication_required" : "payment_intent_unexpected_state",
+                intent.Status == "requires_action"
+                    ? "O banco exige autenticação (3D Secure) para este cartão. Use outro cartão."
+                    : "O pagamento não foi concluído. Tente novamente ou use outro cartão.");
+        }
+
         return intent.Id;
     }
 
@@ -121,6 +138,28 @@ public class StripePaymentService : IPaymentService
             "Placed caução hold for rental {RentalId}: intent {IntentId}, status {Status}, captureBefore {CaptureBefore}.",
             rentalId, intent.Id, intent.Status, captureBefore);
 
+        // A usable hold ends up in requires_capture. Anything else (requires_action, processing)
+        // means no funds are actually reserved, so fail loudly instead of storing a phantom hold.
+        if (intent.Status != "requires_capture")
+        {
+            _logger.LogError(
+                "Caução hold {IntentId} for rental {RentalId} is not capturable. Status: {Status}, NextAction: {NextAction}.",
+                intent.Id, rentalId, intent.Status, intent.NextAction?.Type);
+
+            try
+            {
+                await _paymentIntents.CancelAsync(intent.Id, cancellationToken: cancellationToken);
+            }
+            catch (StripeException cancelEx)
+            {
+                _logger.LogWarning(cancelEx, "Could not cancel non-capturable caução intent {IntentId}.", intent.Id);
+            }
+
+            throw Failure(
+                intent.Status == "requires_action" ? "authentication_required" : "payment_intent_unexpected_state",
+                "Não foi possível reter a caução neste cartão. Use um cartão que suporte pré-autorizações.");
+        }
+
         return new PaymentHoldResult(intent.Id, intent.ClientSecret, captureBefore, extendedAuthStatus);
     }
 
@@ -144,6 +183,9 @@ public class StripePaymentService : IPaymentService
             cancellationToken: cancellationToken);
         _logger.LogInformation("Refunded rental price for intent {IntentId}.", paymentIntentId);
     }
+
+    private static StripeException Failure(string code, string message) =>
+        new(message) { StripeError = new StripeError { Code = code, Message = message } };
 
     private static long ToMinorUnits(decimal amount) =>
         (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
