@@ -386,6 +386,7 @@ export default function HomeScreen() {
           data={items}
           keyExtractor={i => i.id}
           numColumns={2}
+          style={styles.itemsList}
           contentContainerStyle={items.length === 0 ? styles.gridEmpty : styles.grid}
           renderItem={renderItem}
           refreshControl={
@@ -506,7 +507,15 @@ const styles = StyleSheet.create({
   },
   searchIcon: {fontSize: 16, marginRight: 6},
   searchInput: {flex: 1, paddingVertical: 10, fontSize: 15, color: '#1f2937'},
-  categoryListWrapper: {marginHorizontal: 4, marginTop: 2, marginBottom: 4, minHeight: 54},
+  // A horizontal ScrollView defaults to flexGrow/flexShrink 1, which would stretch this row vertically.
+  categoryListWrapper: {
+    marginHorizontal: 4,
+    marginTop: 2,
+    marginBottom: 4,
+    height: 54,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   categoryListWrapperWithHint: {marginTop: 4, marginBottom: 7},
   categoryList: {paddingHorizontal: 12, paddingVertical: 7, alignItems: 'center'},
   chip: {
@@ -534,6 +543,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   districtFilterLabel: {fontSize: 12, color: '#5e6b7a', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4},
+  itemsList: {flex: 1},
   grid: {padding: 8},
   gridEmpty: {flexGrow: 1, padding: 16, justifyContent: 'center'},
   card: {flex: 1, margin: 6, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.12, shadowRadius: 6},

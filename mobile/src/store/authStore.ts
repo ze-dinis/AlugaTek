@@ -66,6 +66,15 @@ export const useAuthStore = create<AuthState>(set => ({
       ]);
       const storedToken = token[1];
       const storedUser = userStr[1] ? JSON.parse(userStr[1]) : null;
+
+      // A user without a token (or vice versa) is a half-written session: it
+      // renders the logged-in shell while every request 401s. Treat it as
+      // signed out instead.
+      if (!storedToken || !storedUser) {
+        set({user: null, token: null, refreshToken: null, isLoading: false});
+        return;
+      }
+
       set({
         user: storedUser,
         token: storedToken,
@@ -73,7 +82,7 @@ export const useAuthStore = create<AuthState>(set => ({
         isLoading: false,
       });
     } catch {
-      set({isLoading: false});
+      set({user: null, token: null, refreshToken: null, isLoading: false});
     }
   },
 }));

@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {Text} from 'react-native';
+import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
 import {NavigationContainer, createNavigationContainerRef, useFocusEffect} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
@@ -142,7 +142,21 @@ function MainTabNavigator() {
 }
 
 export default function AppNavigator() {
-  const {user} = useAuthStore();
+  const user = useAuthStore(s => s.user);
+  const isLoading = useAuthStore(s => s.isLoading);
+
+  // Until the persisted session is read back, `user` is still null. Rendering
+  // the navigator now would mount the whole Auth stack and then tear it down a
+  // tick later when hydration finishes — that mount/unmount race during cold
+  // start is what crashed the app on the first open while native modules were
+  // still warming up (the second open then worked).
+  if (isLoading) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -198,3 +212,12 @@ export default function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+});

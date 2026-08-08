@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {Platform} from 'react-native';
+import {InteractionManager, Platform} from 'react-native';
 import {StripeProvider} from '@stripe/stripe-react-native';
 import notifee, {EventType, Notification} from '@notifee/react-native';
 import {
@@ -304,12 +304,20 @@ export default function App() {
       }
     };
 
-    registerPushToken();
-
-    const messaging = safeGetMessaging();
     let unsubscribeTokenRefresh = () => {};
 
-    if (messaging) {
+    // On a restored session this effect fires during the cold start, at the
+    // same moment the main navigator mounts. Waiting for the first render pass
+    // keeps the Firebase/notifee permission calls off the critical path where
+    // native modules are still initializing.
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      registerPushToken();
+
+      const messaging = safeGetMessaging();
+      if (!messaging) {
+        return;
+      }
+
       try {
         unsubscribeTokenRefresh = onTokenRefresh(messaging, async token => {
           try {
@@ -321,9 +329,10 @@ export default function App() {
       } catch {
         // silently fail
       }
-    }
+    });
 
     return () => {
+      interaction.cancel();
       unsubscribeTokenRefresh();
     };
   }, [user]);
