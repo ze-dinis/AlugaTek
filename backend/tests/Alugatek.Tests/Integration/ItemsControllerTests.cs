@@ -275,6 +275,23 @@ public class ItemsControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Update_IsBlockedWhileARentalIsOngoing()
+    {
+        var owner = _db.AddUser();
+        var renter = _db.AddUser();
+        var item = _db.AddItem(owner);
+        _db.AddRental(item, renter, RentalStatus.Active);
+
+        var result = await CreateController(owner).Update(item.Id, new UpdateItemRequest(
+            "Sony A7", "Updated", "porto", null, 30m, 150m, "/uploads/new.jpg", null, false));
+
+        Assert.Equal(
+            "You cannot edit an item while a rental is ongoing.",
+            Assert.IsType<BadRequestObjectResult>(result.Result).GetMessage());
+        Assert.Equal("Canon EOS R5", (await _db.TechItems.SingleAsync()).Title);
+    }
+
+    [Fact]
     public async Task Delete_SoftDeletesTheItem()
     {
         var owner = _db.AddUser();

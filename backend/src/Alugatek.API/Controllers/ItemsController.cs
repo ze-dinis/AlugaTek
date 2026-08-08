@@ -121,7 +121,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
 
         var favoriteItemIds = await GetFavoriteItemIdsAsync([id]);
 
-        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation, favoriteItemIds.Contains(id), !hasConfirmedReservation));
+        return Ok(MapToDto(item, item.IsAvailable && !hasConfirmedReservation, favoriteItemIds.Contains(id), !hasConfirmedReservation, !hasConfirmedReservation));
     }
 
     [Authorize]
@@ -311,6 +311,15 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         if (item is null) return NotFound();
         if (item.OwnerId != userId) return Forbid();
 
+        var hasOngoingRental = await db.Rentals
+            .AnyAsync(r => r.ItemId == id
+                && (r.Status == RentalStatus.Active
+                    || r.Status == RentalStatus.Completed
+                    || r.Status == RentalStatus.ReturnRequested));
+
+        if (hasOngoingRental)
+            return BadRequest(new { message = "You cannot edit an item while a rental is ongoing." });
+
         if (string.IsNullOrWhiteSpace(request.District))
             return BadRequest(new { message = "District is required." });
 
@@ -386,7 +395,19 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
 
         var favoriteItemIds = await GetFavoriteItemIdsAsync(items.Select(i => i.Id));
 
-        return Ok(items.Select(i => MapToDto(i, isFavorite: favoriteItemIds.Contains(i.Id))));
+        var inProgressItemIds = await db.Rentals
+            .Where(r => r.Status == RentalStatus.Active
+                || r.Status == RentalStatus.Completed
+                || r.Status == RentalStatus.ReturnRequested)
+            .Select(r => r.ItemId)
+            .Distinct()
+            .ToListAsync();
+
+        return Ok(items.Select(i => MapToDto(
+            i,
+            isFavorite: favoriteItemIds.Contains(i.Id),
+            canDelete: !inProgressItemIds.Contains(i.Id),
+            canEdit: !inProgressItemIds.Contains(i.Id))));
     }
 
     [HttpGet("categories")]
@@ -474,7 +495,7 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         return favoriteIds.ToHashSet();
     }
 
-    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null, bool isFavorite = false, bool canDelete = true)
+    private static TechItemDto MapToDto(TechItem i, bool? isAvailableOverride = null, bool isFavorite = false, bool canDelete = true, bool canEdit = true)
     {
         var imageUrls = ParseImageUrls(i.ImageUrlsJson, i.ImageUrl);
 
@@ -484,7 +505,8 @@ public class ItemsController(AppDbContext db, IItemImageStorage imageStorage) : 
         new UserDto(i.Owner.Id, i.Owner.Name, i.Owner.Email, i.Owner.AvatarUrl, i.Owner.Phone),
         i.CreatedAt,
         isFavorite,
-        canDelete);
+        canDelete,
+        canEdit);
     }
 
     private static IReadOnlyList<string> ParseImageUrls(string? imageUrlsJson, string? imageUrl)

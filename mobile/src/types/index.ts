@@ -30,6 +30,7 @@ export interface TechItem {
   createdAt: string;
   isFavorite?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
 }
 
 export type RentalStatus = 'Pending' | 'Active' | 'Completed' | 'ReturnRequested' | 'Returned' | 'Cancelled';

@@ -82,8 +82,9 @@ export default function MyItemsScreen() {
           </View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => navigation.navigate('EditItem', {itemId: item.id})}>
+          style={[styles.editButton, item.canEdit === false && styles.editButtonDisabled]}
+          onPress={() => navigation.navigate('EditItem', {itemId: item.id})}
+          disabled={item.canEdit === false}>
           <Text style={styles.editButtonText}>✏️ {i18n.myAdvertisements.edit}</Text>
         </TouchableOpacity>
       </View>
@@ -172,5 +173,6 @@ const styles = StyleSheet.create({
   badgeUnavailable: {backgroundColor: '#fff8e1'},
   badgeText: {fontSize: 12, fontWeight: '500', color: '#333'},
   editButton: {backgroundColor: '#34a853', padding: 12, justifyContent: 'center', alignItems: 'center'},
+  editButtonDisabled: {opacity: 0.6},
   editButtonText: {color: '#fff', fontWeight: '600', fontSize: 14},
 });

@@ -85,7 +85,8 @@ public record TechItemDto(
     UserDto Owner,
     DateTime CreatedAt,
     bool IsFavorite = false,
-    bool CanDelete = true);
+    bool CanDelete = true,
+    bool CanEdit = true);
 
 // Rental
 public record CreateRentalRequest(Guid ItemId, DateTime StartDate, DateTime EndDate);

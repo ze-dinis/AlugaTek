@@ -384,11 +384,14 @@ export default function ItemDetailScreen({route, navigation}: Props) {
         {user?.id === item.owner.id ? (
           <View style={styles.ownerActions}>
             <TouchableOpacity
-              style={styles.editButton}
+              style={[styles.editButton, (deleting || item.canEdit === false) && styles.editButtonDisabled]}
               onPress={() => navigation.navigate('EditItem', {itemId: item.id})}
-              disabled={deleting}>
+              disabled={deleting || item.canEdit === false}>
               <Text style={styles.editButtonText}>✏️ {i18n.myAdvertisements.edit}</Text>
             </TouchableOpacity>
+            {item.canEdit === false && (
+              <Text style={styles.deleteBlockedText}>{i18n.itemDetail.editBlockedByOngoingRental}</Text>
+            )}
             <TouchableOpacity
               style={[styles.deleteButton, (deleting || item.canDelete === false) && styles.deleteButtonDisabled]}
               onPress={handleDelete}
@@ -658,6 +661,7 @@ const styles = StyleSheet.create({
   },
   ownerActions: {marginTop: 24, gap: 10},
   editButton: {backgroundColor: '#34a853', padding: 16, borderRadius: 10, alignItems: 'center'},
+  editButtonDisabled: {opacity: 0.6},
   editButtonText: {color: '#fff', fontWeight: '700', fontSize: 16},
   deleteButton: {backgroundColor: '#f44336', padding: 16, borderRadius: 10, alignItems: 'center'},
   deleteButtonDisabled: {opacity: 0.6},
