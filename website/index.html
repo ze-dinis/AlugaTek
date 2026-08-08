@@ -415,22 +415,6 @@
           inset 0 0 0 0.5px rgba(0, 0, 0, 0.5);
       }
 
-      .phone-frame::before {
-        content: "";
-        position: absolute;
-        top: -4px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 140px;
-        height: 18px;
-        background: #1f1f1f;
-        border-radius: 0 0 16px 16px;
-        z-index: 10;
-        box-shadow: 
-          inset 0 -2px 8px rgba(0, 0, 0, 0.8),
-          0 2px 6px rgba(0, 0, 0, 0.3);
-      }
-
       .phone-frame::after {
         content: "";
         position: absolute;
@@ -642,6 +626,27 @@
         width: auto;
       }
 
+      .contact-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .contact-item strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .contact-link {
+        color: var(--blue-deep);
+        font-weight: 500;
+        text-decoration: none;
+        word-break: break-word;
+      }
+
+      .contact-link:hover {
+        text-decoration: underline;
+      }
+
       .footer {
         display: flex;
         align-items: center;
@@ -780,6 +785,7 @@
           <a href="#vantagens" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Vantagens</a>
           <a href="#seguranca" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Segurança</a>
           <a href="#download" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Download</a>
+          <a href="#contactos" onclick="document.getElementById('main-nav').classList.remove('open');document.querySelector('.nav-toggle').setAttribute('aria-expanded','false')">Contactos</a>
         </nav>
       </header>
 
@@ -833,7 +839,7 @@
                 </div>
 
                 <div style="margin-top: 28px;">
-                  <a class="store-badge-link" href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer" aria-label="Disponível no Google Play">
+                  <a class="store-badge-link" href="https://play.google.com/store/apps/details?id=com.alugatek" target="_blank" rel="noopener noreferrer" aria-label="Disponível no Google Play">
                     <img
                       class="store-badge"
                       src="https://play.google.com/intl/en_us/badges/static/images/badges/pt_badge_web_generic.png"
@@ -948,7 +954,7 @@
             <aside class="cta" id="download">
               <h2 align="justify">Coloca a tua tecnologia a render ou encontra o equipamento certo para o próximo projeto.</h2>
               <div class="hero-actions">
-                <a class="store-badge-link" href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer" aria-label="Disponível no Google Play">
+                <a class="store-badge-link" href="https://play.google.com/store/apps/details?id=com.alugatek" target="_blank" rel="noopener noreferrer" aria-label="Disponível no Google Play">
                   <img
                     class="store-badge"
                     src="https://play.google.com/intl/en_us/badges/static/images/badges/pt_badge_web_generic.png"
@@ -958,6 +964,23 @@
                 <a class="button button-outline-light" href="#top">Voltar ao topo</a>
               </div>
             </aside>
+          </div>
+        </section>
+
+        <section id="contactos">
+          <div class="section-heading">
+            <span class="section-kicker">Contactos</span>
+            <h2>Fala connosco.</h2>
+            <p>
+              Tens dúvidas, sugestões ou precisas de apoio com um aluguer? Envia-nos um email e respondemos assim que possível.
+            </p>
+          </div>
+
+          <div class="panel contact-panel">
+            <div class="contact-item">
+              <strong>Email</strong>
+              <a class="contact-link" href="mailto:geral@alugatek.pt">geral@alugatek.pt</a>
+            </div>
           </div>
         </section>
       </main>
