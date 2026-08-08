@@ -18,6 +18,12 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
     private const decimal PlatformBaseCommission = 3.0m;
     private const decimal PlatformPercentageCommissionRate = 0.10m;
 
+    private const string ThreeDSecureRenewalMessage =
+        "O banco exige autenticação (3D Secure) para este cartão. Use outro cartão para renovar.";
+
+    private const string CaucaoHoldFailedMessage =
+        "Não foi possível reter a caução no seu cartão. Nenhum valor foi cobrado.";
+
     [HttpPost]
     public async Task<ActionResult<RentalDto>> Create(CreateRentalRequest request)
     {
@@ -329,45 +335,222 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
         var chargeDescription = BuildCaptureDescription(rental, sellerPayoutDestination, rental.TotalPrice);
         var holdDescription = BuildCaptureDescription(rental, sellerPayoutDestination, rental.CaucaoAmount);
 
-        // 1. Charge the rental price + platform commission immediately.
+        // 1. Secure the caução first — a deposit that cannot be held must not leave a charged renter.
+        if (rental.CaucaoAmount > 0)
+        {
+            var (pendingHoldAction, holdFailure) = await PlaceCaucaoHoldAsync(
+                rental, request.PaymentMethodId, customerId, holdDescription);
+
+            if (pendingHoldAction is not null)
+            {
+                await db.SaveChangesAsync();
+                return Accepted(pendingHoldAction);
+            }
+
+            if (holdFailure is not null)
+            {
+                await db.SaveChangesAsync();
+                return BadRequest(new { message = holdFailure });
+            }
+        }
+
+        // 2. Charge the rental price + platform commission.
+        PaymentChargeResult charge;
         try
         {
-            var priceIntentId = await payments.ChargeAsync(
+            charge = await payments.ChargeAsync(
                 totalChargeAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), chargeDescription);
-            rental.PaymentIntentId = priceIntentId;
-            rental.PaymentStatus = PaymentStatus.Captured;
         }
         catch (StripeException ex)
         {
             logger.LogError(ex,
                 "Stripe charge failed for rental {RentalId}. Code: {Code}, Message: {Message}",
                 rental.Id, ex.StripeError?.Code, ex.StripeError?.Message);
+
+            await ReleaseSecuredCaucaoAsync(rental);
+            await db.SaveChangesAsync();
             return BadRequest(new { message = ex.StripeError?.Message ?? "Payment failed." });
         }
 
-        // 2. Place a hold for the caução (if the item has one).
-        if (rental.CaucaoAmount > 0)
+        rental.PaymentIntentId = charge.PaymentIntentId;
+
+        if (charge.Outcome == PaymentOutcome.RequiresAction)
         {
-            try
+            rental.PaymentStatus = PaymentStatus.RequiresAction;
+            await db.SaveChangesAsync();
+            return Accepted(new PaymentActionRequiredDto(rental.Id, PaymentStages.RentalPrice, charge.ClientSecret!));
+        }
+
+        rental.PaymentStatus = PaymentStatus.Captured;
+
+        FinalizePaidRental(rental, userId);
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    /// <summary>
+    /// Settles a payment that was interrupted by a 3D Secure challenge. The client calls this
+    /// after running the challenge with the client secret returned by <see cref="Pay"/>.
+    /// </summary>
+    [HttpPatch("{id:guid}/confirm-payment")]
+    public async Task<ActionResult<RentalDto>> ConfirmPayment(Guid id, ConfirmPaymentRequest? request)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var rental = await db.Rentals
+            .Include(r => r.Item).ThenInclude(i => i.Category)
+            .Include(r => r.Item).ThenInclude(i => i.Owner)
+            .Include(r => r.Renter)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (rental is null) return NotFound();
+        if (rental.RenterId != userId) return Forbid();
+
+        var awaitingCharge = rental.PaymentStatus == PaymentStatus.RequiresAction;
+        var awaitingHold = rental.CaucaoPaymentStatus == PaymentStatus.RequiresAction;
+
+        // The webhook may have settled everything first, or the client may simply be retrying.
+        if (!awaitingCharge && !awaitingHold)
+        {
+            if (rental.PaymentStatus != PaymentStatus.Captured)
+                return BadRequest(new { message = "This rental has no pending card authentication." });
+
+            // A webhook settles the intent but cannot finish the rental, so do it here.
+            if (rental.Status != RentalStatus.Completed)
             {
-                var hold = await payments.PlaceHoldAsync(
-                    rental.CaucaoAmount, "eur", request.PaymentMethodId, customerId, rental.Id.ToString(), holdDescription);
-                rental.CaucaoPaymentIntentId = hold.PaymentIntentId;
+                FinalizePaidRental(rental, userId);
+                await db.SaveChangesAsync();
+            }
+
+            return Ok(MapToDto(rental, rental.Item, rental.Renter));
+        }
+
+        try
+        {
+            if (awaitingHold)
+            {
+                var hold = await payments.GetHoldAsync(rental.CaucaoPaymentIntentId!);
+                if (hold.Outcome == PaymentOutcome.RequiresAction)
+                    return BadRequest(new { message = "A autenticação do cartão não foi concluída." });
+
                 rental.CaucaoPaymentStatus = PaymentStatus.Held;
                 rental.CaptureBefore = hold.CaptureBefore;
                 rental.ExtendedAuthorizationStatus = hold.ExtendedAuthorizationStatus;
+
+                // The rental price waits behind the caução, so it still has to be charged.
+                if (rental.PaymentStatus != PaymentStatus.Captured
+                    && hold.CustomerId is not null
+                    && hold.PaymentMethodId is not null)
+                {
+                    var payoutDestination = ResolveSellerPayoutDestination(rental, request?.PaymentDescription);
+                    if (payoutDestination is null)
+                        return BadRequest(new { message = "Seller payout destination is missing. Ask the seller to add a valid IBAN/MB WAY before payment." });
+
+                    var platformCommission = PlatformBaseCommission + (rental.TotalPrice * PlatformPercentageCommissionRate);
+                    var charge = await payments.ChargeAsync(
+                        rental.TotalPrice + platformCommission,
+                        "eur",
+                        hold.PaymentMethodId,
+                        hold.CustomerId,
+                        rental.Id.ToString(),
+                        BuildCaptureDescription(rental, payoutDestination, rental.TotalPrice));
+
+                    rental.PaymentIntentId = charge.PaymentIntentId;
+
+                    if (charge.Outcome == PaymentOutcome.RequiresAction)
+                    {
+                        rental.PaymentStatus = PaymentStatus.RequiresAction;
+                        await db.SaveChangesAsync();
+                        return Accepted(new PaymentActionRequiredDto(rental.Id, PaymentStages.RentalPrice, charge.ClientSecret!));
+                    }
+
+                    rental.PaymentStatus = PaymentStatus.Captured;
+                }
             }
-            catch (StripeException ex)
+            else
             {
-                // The rental price was already charged. Log the failure but do not block
-                // the rental from proceeding — the owner can follow up manually.
-                logger.LogError(ex,
-                    "Stripe caução hold failed for rental {RentalId}. Code: {Code}, DeclineCode: {DeclineCode}, Type: {Type}, Message: {Message}",
-                    rental.Id, ex.StripeError?.Code, ex.StripeError?.DeclineCode, ex.StripeError?.Type, ex.StripeError?.Message);
-                rental.CaucaoPaymentStatus = PaymentStatus.Failed;
+                var charge = await payments.GetChargeAsync(rental.PaymentIntentId!);
+                if (charge.Outcome == PaymentOutcome.RequiresAction)
+                    return BadRequest(new { message = "A autenticação do cartão não foi concluída." });
+
+                rental.PaymentStatus = PaymentStatus.Captured;
             }
         }
+        catch (StripeException ex)
+        {
+            logger.LogError(ex,
+                "Stripe 3DS confirmation failed for rental {RentalId}. Code: {Code}, DeclineCode: {DeclineCode}, Message: {Message}",
+                rental.Id, ex.StripeError?.Code, ex.StripeError?.DeclineCode, ex.StripeError?.Message);
 
+            await ReleaseSecuredCaucaoAsync(rental);
+            await db.SaveChangesAsync();
+            return BadRequest(new { message = ex.StripeError?.Message ?? "Payment confirmation failed." });
+        }
+
+        FinalizePaidRental(rental, userId);
+        await db.SaveChangesAsync();
+        return Ok(MapToDto(rental, rental.Item, rental.Renter));
+    }
+
+    /// <summary>
+    /// Places the caução hold and records the outcome on the rental. Returns a pending action when
+    /// the renter still has to pass 3D Secure, or a message when the card refused the hold.
+    /// </summary>
+    private async Task<(PaymentActionRequiredDto? PendingAction, string? FailureMessage)> PlaceCaucaoHoldAsync(
+        Rental rental,
+        string paymentMethodId,
+        string customerId,
+        string holdDescription)
+    {
+        try
+        {
+            var hold = await payments.PlaceHoldAsync(
+                rental.CaucaoAmount, "eur", paymentMethodId, customerId, rental.Id.ToString(), holdDescription);
+
+            rental.CaucaoPaymentIntentId = hold.PaymentIntentId;
+
+            if (hold.Outcome == PaymentOutcome.RequiresAction)
+            {
+                rental.CaucaoPaymentStatus = PaymentStatus.RequiresAction;
+                return (new PaymentActionRequiredDto(rental.Id, PaymentStages.Caucao, hold.ClientSecret!), null);
+            }
+
+            rental.CaucaoPaymentStatus = PaymentStatus.Held;
+            rental.CaptureBefore = hold.CaptureBefore;
+            rental.ExtendedAuthorizationStatus = hold.ExtendedAuthorizationStatus;
+            return (null, null);
+        }
+        catch (StripeException ex)
+        {
+            logger.LogError(ex,
+                "Stripe caução hold failed for rental {RentalId}. Code: {Code}, DeclineCode: {DeclineCode}, Type: {Type}, Message: {Message}",
+                rental.Id, ex.StripeError?.Code, ex.StripeError?.DeclineCode, ex.StripeError?.Type, ex.StripeError?.Message);
+
+            rental.CaucaoPaymentStatus = PaymentStatus.Failed;
+            return (null, ex.StripeError?.Message ?? CaucaoHoldFailedMessage);
+        }
+    }
+
+    /// <summary>Frees an already-secured caução so a failed rental charge never leaves funds blocked.</summary>
+    private async Task ReleaseSecuredCaucaoAsync(Rental rental)
+    {
+        if (rental.CaucaoPaymentStatus != PaymentStatus.Held || rental.CaucaoPaymentIntentId is null)
+            return;
+
+        try
+        {
+            await payments.ReleaseHoldAsync(rental.CaucaoPaymentIntentId);
+            rental.CaucaoPaymentStatus = PaymentStatus.Released;
+        }
+        catch (StripeException ex)
+        {
+            logger.LogError(ex,
+                "Could not release caução hold {IntentId} for rental {RentalId} after a failed charge.",
+                rental.CaucaoPaymentIntentId, rental.Id);
+        }
+    }
+
+    private void FinalizePaidRental(Rental rental, Guid userId)
+    {
         // If payment happens after the originally requested start date,
         // shift the rental window forward so it starts on payment day.
         var paymentDay = DateTime.UtcNow.Date;
@@ -391,9 +574,6 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
             IsRead = false,
             ItemId = rental.ItemId
         });
-
-        await db.SaveChangesAsync();
-        return Ok(MapToDto(rental, rental.Item, rental.Renter));
     }
 
     [HttpPatch("{id:guid}/renew")]
@@ -447,13 +627,23 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
                 request.PaymentMethodId,
                 rental.Id.ToString());
 
-            renewalChargeIntentId = await payments.ChargeAsync(
+            var renewalCharge = await payments.ChargeAsync(
                 quote.TotalCharge,
                 "eur",
                 request.PaymentMethodId,
                 renewalCustomerId,
                 rental.Id.ToString(),
                 renewChargeDescription);
+
+            // A renewal cannot be resumed across a 3DS challenge, so drop the intent
+            // before any money moves and ask for a card that authenticates outright.
+            if (renewalCharge.Outcome == PaymentOutcome.RequiresAction)
+            {
+                await payments.ReleaseHoldAsync(renewalCharge.PaymentIntentId);
+                return BadRequest(new { message = ThreeDSecureRenewalMessage });
+            }
+
+            renewalChargeIntentId = renewalCharge.PaymentIntentId;
 
             if (rental.CaucaoAmount > 0)
             {
@@ -464,6 +654,13 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
                     renewalCustomerId,
                     rental.Id.ToString(),
                     renewHoldDescription);
+
+                if (newHold.Outcome == PaymentOutcome.RequiresAction)
+                {
+                    await payments.ReleaseHoldAsync(newHold.PaymentIntentId);
+                    await payments.RefundAsync(renewalChargeIntentId);
+                    return BadRequest(new { message = ThreeDSecureRenewalMessage });
+                }
             }
 
             if (hadPreviousActiveHold)
@@ -851,7 +1048,7 @@ public class RentalsController(AppDbContext db, IPaymentService payments, IPushN
                 {
                     SenderId = rental.Item.OwnerId,
                     ReceiverId = rental.RenterId,
-                    Content = "O prazo de 24 horas para pagar expirou. O pedido foi cancelado.",
+                    Content = "O prazo de 10 minutos para pagar expirou. O pedido foi cancelado.",
                     IsRead = false,
                     ItemId = rental.ItemId,
                     RentalId = rental.Id,

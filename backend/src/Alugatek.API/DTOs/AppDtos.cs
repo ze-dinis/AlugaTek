@@ -96,6 +96,24 @@ public record ConfirmRentalRequest(string? PaymentDescription);
 // PaymentMethod id so the server can place an extended authorization hold.
 public record PayRentalRequest(string PaymentMethodId, string? PaymentDescription);
 
+public record ConfirmPaymentRequest(string? PaymentDescription);
+
+/// <summary>Which leg of the payment is waiting on the renter.</summary>
+public static class PaymentStages
+{
+    public const string RentalPrice = "rental_price";
+    public const string Caucao = "caucao";
+}
+
+/// <summary>
+/// Returned with 202 Accepted when the issuer demands a 3D Secure challenge. The client runs the
+/// challenge with <paramref name="ClientSecret"/> and then calls the confirm-payment endpoint.
+/// </summary>
+public record PaymentActionRequiredDto(Guid RentalId, string Stage, string ClientSecret)
+{
+    public bool RequiresAction { get; } = true;
+}
+
 public record RenewRentalRequest(int ExtraDays, string PaymentMethodId, string? PaymentDescription);
 public record OpenDisputeRequest(string Reason, string Description);
 

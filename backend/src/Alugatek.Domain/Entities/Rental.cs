@@ -20,7 +20,9 @@ public enum PaymentStatus
     /// <summary>The authorization hold was released without capturing.</summary>
     Released,
     /// <summary>The payment failed asynchronously after the hold appeared to succeed.</summary>
-    Failed
+    Failed,
+    /// <summary>Awaiting a 3D Secure challenge from the renter before the intent can settle.</summary>
+    RequiresAction
 }
 
 public class Rental

@@ -1,4 +1,5 @@
 import api from '../api';
+import {handleNextAction} from '@stripe/stripe-react-native';
 import {authService} from '../authService';
 import {chatService} from '../chatService';
 import {itemsService} from '../itemsService';
@@ -189,6 +190,35 @@ describe('rentalsService', () => {
       paymentMethodId: 'pm_card_visa',
       paymentDescription: 'MB WAY +351912345678',
     });
+  });
+
+  it('runs the 3D Secure challenge and then settles the payment', async () => {
+    jest.spyOn(payoutPreferenceService, 'getPaymentDescription').mockResolvedValue(null);
+    mockedApi.patch
+      .mockResolvedValueOnce({
+        data: {requiresAction: true, rentalId: 'rental-1', stage: 'caucao', clientSecret: 'pi_1_secret'},
+      })
+      .mockResolvedValueOnce({data: {id: 'rental-1'}});
+
+    const result = await rentalsService.pay('rental-1', 'pm_card_visa');
+
+    expect(handleNextAction).toHaveBeenCalledWith('pi_1_secret', 'alugatek://stripe-redirect');
+    expect(mockedApi.patch).toHaveBeenLastCalledWith('/rentals/rental-1/confirm-payment', {
+      paymentDescription: null,
+    });
+    expect(result.data).toEqual({id: 'rental-1'});
+  });
+
+  it('surfaces a failed 3D Secure challenge', async () => {
+    jest.spyOn(payoutPreferenceService, 'getPaymentDescription').mockResolvedValue(null);
+    mockedApi.patch.mockResolvedValueOnce({
+      data: {requiresAction: true, rentalId: 'rental-1', stage: 'rental_price', clientSecret: 'pi_1_secret'},
+    });
+    (handleNextAction as jest.Mock).mockResolvedValueOnce({error: {message: 'Authentication cancelled'}});
+
+    await expect(rentalsService.pay('rental-1', 'pm_card_visa')).rejects.toThrow(
+      'Authentication cancelled',
+    );
   });
 
   it('attaches the stored payout preference when renewing', async () => {

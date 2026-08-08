@@ -22,6 +22,18 @@ public sealed class FakePaymentService : IPaymentService
     public bool FailRelease { get; set; }
     public bool FailRefund { get; set; }
 
+    /// <summary>Makes the next charge come back as a pending 3D Secure challenge.</summary>
+    public bool ChargeRequiresAction { get; set; }
+
+    /// <summary>Makes the next hold come back as a pending 3D Secure challenge.</summary>
+    public bool HoldRequiresAction { get; set; }
+
+    /// <summary>Outcome reported by <see cref="GetChargeAsync"/> / <see cref="GetHoldAsync"/>.</summary>
+    public PaymentOutcome RetrievedOutcome { get; set; } = PaymentOutcome.Succeeded;
+
+    public List<string> RetrievedCharges { get; } = [];
+    public List<string> RetrievedHolds { get; } = [];
+
     public DateTime? HoldCaptureBefore { get; set; } = DateTime.UtcNow.AddDays(30);
     public string HoldExtendedAuthorizationStatus { get; set; } = "enabled";
 
@@ -38,7 +50,7 @@ public sealed class FakePaymentService : IPaymentService
         return Task.FromResult(customerId);
     }
 
-    public Task<string> ChargeAsync(
+    public Task<PaymentChargeResult> ChargeAsync(
         decimal amount,
         string currency,
         string paymentMethodId,
@@ -52,7 +64,31 @@ public sealed class FakePaymentService : IPaymentService
 
         Charges.Add(amount);
         Descriptions.Add(paymentDescription);
-        return Task.FromResult($"pi_charge_{Charges.Count}");
+        var intentId = $"pi_charge_{Charges.Count}";
+
+        return Task.FromResult(ChargeRequiresAction
+            ? new PaymentChargeResult(intentId, $"secret_{intentId}", PaymentOutcome.RequiresAction, customerId, paymentMethodId)
+            : new PaymentChargeResult(intentId, $"secret_{intentId}", PaymentOutcome.Succeeded, customerId, paymentMethodId));
+    }
+
+    public Task<PaymentChargeResult> GetChargeAsync(string paymentIntentId, CancellationToken cancellationToken = default)
+    {
+        RetrievedCharges.Add(paymentIntentId);
+        return Task.FromResult(new PaymentChargeResult(
+            paymentIntentId, $"secret_{paymentIntentId}", RetrievedOutcome, "cus_retrieved", "pm_retrieved"));
+    }
+
+    public Task<PaymentHoldResult> GetHoldAsync(string paymentIntentId, CancellationToken cancellationToken = default)
+    {
+        RetrievedHolds.Add(paymentIntentId);
+        return Task.FromResult(new PaymentHoldResult(
+            paymentIntentId,
+            $"secret_{paymentIntentId}",
+            HoldCaptureBefore,
+            HoldExtendedAuthorizationStatus,
+            RetrievedOutcome,
+            "cus_retrieved",
+            "pm_retrieved"));
     }
 
     public Task<PaymentHoldResult> PlaceHoldAsync(
@@ -73,7 +109,10 @@ public sealed class FakePaymentService : IPaymentService
             $"pi_hold_{Holds.Count}",
             $"secret_{Holds.Count}",
             HoldCaptureBefore,
-            HoldExtendedAuthorizationStatus));
+            HoldExtendedAuthorizationStatus,
+            HoldRequiresAction ? PaymentOutcome.RequiresAction : PaymentOutcome.Succeeded,
+            customerId,
+            paymentMethodId));
     }
 
     public Task CaptureHoldAsync(string paymentIntentId, CancellationToken cancellationToken = default)

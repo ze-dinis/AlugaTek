@@ -49,7 +49,7 @@ public class StripePaymentService : IPaymentService
         return customer.Id;
     }
 
-    public async Task<string> ChargeAsync(
+    public async Task<PaymentChargeResult> ChargeAsync(
         decimal amount,
         string currency,
         string paymentMethodId,
@@ -69,9 +69,9 @@ public class StripePaymentService : IPaymentService
             PaymentMethod = paymentMethodId,
             Confirm = true,
             PaymentMethodTypes = ["card"],
-            // Records an off-session mandate on this first, customer-present charge. Without it the
-            // follow-up caução hold is rejected with authentication_required under live-mode SCA.
-            SetupFutureUsage = "off_session",
+            // Makes Stripe hand the 3DS challenge to the mobile SDK instead of a bare redirect.
+            UseStripeSdk = true,
+            ReturnUrl = _options.ReturnUrl,
             Description = description,
             Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId, ["type"] = "rental_price" },
         };
@@ -80,20 +80,39 @@ public class StripePaymentService : IPaymentService
         _logger.LogInformation("Charged rental price for rental {RentalId}: intent {IntentId}, status {Status}.",
             rentalId, intent.Id, intent.Status);
 
-        if (intent.Status != "succeeded")
+        return ToChargeResult(intent, rentalId);
+    }
+
+    public async Task<PaymentChargeResult> GetChargeAsync(
+        string paymentIntentId,
+        CancellationToken cancellationToken = default)
+    {
+        var intent = await _paymentIntents.GetAsync(paymentIntentId, cancellationToken: cancellationToken);
+        _logger.LogInformation("Re-read rental price intent {IntentId}: status {Status}.", intent.Id, intent.Status);
+        return ToChargeResult(intent, intent.Metadata.GetValueOrDefault("rentalId") ?? "unknown");
+    }
+
+    private PaymentChargeResult ToChargeResult(PaymentIntent intent, string rentalId)
+    {
+        switch (intent.Status)
         {
-            _logger.LogError(
-                "Rental price intent {IntentId} for rental {RentalId} did not succeed. Status: {Status}, NextAction: {NextAction}.",
-                intent.Id, rentalId, intent.Status, intent.NextAction?.Type);
+            case "succeeded":
+                return new PaymentChargeResult(
+                    intent.Id, intent.ClientSecret, PaymentOutcome.Succeeded, intent.CustomerId, intent.PaymentMethodId);
 
-            throw Failure(
-                intent.Status == "requires_action" ? "authentication_required" : "payment_intent_unexpected_state",
-                intent.Status == "requires_action"
-                    ? "O banco exige autenticação (3D Secure) para este cartão. Use outro cartão."
-                    : "O pagamento não foi concluído. Tente novamente ou use outro cartão.");
+            case "requires_action":
+                return new PaymentChargeResult(
+                    intent.Id, intent.ClientSecret, PaymentOutcome.RequiresAction, intent.CustomerId, intent.PaymentMethodId);
+
+            default:
+                _logger.LogError(
+                    "Rental price intent {IntentId} for rental {RentalId} did not succeed. Status: {Status}, NextAction: {NextAction}.",
+                    intent.Id, rentalId, intent.Status, intent.NextAction?.Type);
+
+                throw Failure(
+                    "payment_intent_unexpected_state",
+                    "O pagamento não foi concluído. Tente novamente ou use outro cartão.");
         }
-
-        return intent.Id;
     }
 
     public async Task<PaymentHoldResult> PlaceHoldAsync(
@@ -115,52 +134,96 @@ public class StripePaymentService : IPaymentService
             Customer = customerId,
             PaymentMethod = paymentMethodId,
             Confirm = true,
-            OffSession = true,
+            // Deliberately on-session: the renter is still in the app, so the issuer can run a 3DS
+            // challenge. Off-session made this a merchant-initiated transaction, which EEA issuers
+            // reject outright with authentication_required and no way to recover.
+            OffSession = false,
             CaptureMethod = "manual",
             PaymentMethodTypes = ["card"],
+            UseStripeSdk = true,
+            ReturnUrl = _options.ReturnUrl,
             Description = description,
             Metadata = new Dictionary<string, string> { ["rentalId"] = rentalId, ["type"] = "caucao" },
             Expand = ["latest_charge"]
         };
 
-        var intent = await _paymentIntents.CreateAsync(createOptions, cancellationToken: cancellationToken);
-
-        DateTime? captureBefore = null;
-        string? extendedAuthStatus = null;
-        var cardDetails = intent.LatestCharge?.PaymentMethodDetails?.Card;
-        if (cardDetails is not null)
+        PaymentIntent intent;
+        try
         {
-            captureBefore = cardDetails.CaptureBefore;
-            extendedAuthStatus = cardDetails.ExtendedAuthorization?.Status;
+            intent = await _paymentIntents.CreateAsync(createOptions, cancellationToken: cancellationToken);
         }
+        catch (StripeException ex) when (ex.StripeError?.Code == "authentication_required"
+                                         && ex.StripeError.PaymentIntent is not null)
+        {
+            // Defensive: Stripe reports SCA on a confirmation as an error rather than a status.
+            var pending = ex.StripeError.PaymentIntent;
+            _logger.LogInformation(
+                "Caução hold for rental {RentalId} needs 3D Secure. Intent {IntentId}.", rentalId, pending.Id);
+
+            return new PaymentHoldResult(
+                pending.Id, pending.ClientSecret, null, null, PaymentOutcome.RequiresAction);
+        }
+
+        return await ToHoldResultAsync(intent, rentalId, cancellationToken);
+    }
+
+    public async Task<PaymentHoldResult> GetHoldAsync(
+        string paymentIntentId,
+        CancellationToken cancellationToken = default)
+    {
+        var intent = await _paymentIntents.GetAsync(
+            paymentIntentId,
+            new PaymentIntentGetOptions { Expand = ["latest_charge"] },
+            cancellationToken: cancellationToken);
+
+        _logger.LogInformation("Re-read caução intent {IntentId}: status {Status}.", intent.Id, intent.Status);
+        return await ToHoldResultAsync(intent, intent.Metadata.GetValueOrDefault("rentalId") ?? "unknown", cancellationToken);
+    }
+
+    private async Task<PaymentHoldResult> ToHoldResultAsync(
+        PaymentIntent intent,
+        string rentalId,
+        CancellationToken cancellationToken)
+    {
+        var cardDetails = intent.LatestCharge?.PaymentMethodDetails?.Card;
+        var captureBefore = cardDetails?.CaptureBefore;
+        var extendedAuthStatus = cardDetails?.ExtendedAuthorization?.Status;
 
         _logger.LogInformation(
-            "Placed caução hold for rental {RentalId}: intent {IntentId}, status {Status}, captureBefore {CaptureBefore}.",
+            "Caução hold for rental {RentalId}: intent {IntentId}, status {Status}, captureBefore {CaptureBefore}.",
             rentalId, intent.Id, intent.Status, captureBefore);
 
-        // A usable hold ends up in requires_capture. Anything else (requires_action, processing)
-        // means no funds are actually reserved, so fail loudly instead of storing a phantom hold.
-        if (intent.Status != "requires_capture")
+        switch (intent.Status)
         {
-            _logger.LogError(
-                "Caução hold {IntentId} for rental {RentalId} is not capturable. Status: {Status}, NextAction: {NextAction}.",
-                intent.Id, rentalId, intent.Status, intent.NextAction?.Type);
+            case "requires_capture":
+                return new PaymentHoldResult(
+                    intent.Id, intent.ClientSecret, captureBefore, extendedAuthStatus,
+                    PaymentOutcome.Succeeded, intent.CustomerId, intent.PaymentMethodId);
 
-            try
-            {
-                await _paymentIntents.CancelAsync(intent.Id, cancellationToken: cancellationToken);
-            }
-            catch (StripeException cancelEx)
-            {
-                _logger.LogWarning(cancelEx, "Could not cancel non-capturable caução intent {IntentId}.", intent.Id);
-            }
+            case "requires_action":
+                return new PaymentHoldResult(
+                    intent.Id, intent.ClientSecret, captureBefore, extendedAuthStatus,
+                    PaymentOutcome.RequiresAction, intent.CustomerId, intent.PaymentMethodId);
 
-            throw Failure(
-                intent.Status == "requires_action" ? "authentication_required" : "payment_intent_unexpected_state",
-                "Não foi possível reter a caução neste cartão. Use um cartão que suporte pré-autorizações.");
+            default:
+                // Anything else means no funds are reserved, so fail instead of storing a phantom hold.
+                _logger.LogError(
+                    "Caução hold {IntentId} for rental {RentalId} is not capturable. Status: {Status}, NextAction: {NextAction}.",
+                    intent.Id, rentalId, intent.Status, intent.NextAction?.Type);
+
+                try
+                {
+                    await _paymentIntents.CancelAsync(intent.Id, cancellationToken: cancellationToken);
+                }
+                catch (StripeException cancelEx)
+                {
+                    _logger.LogWarning(cancelEx, "Could not cancel non-capturable caução intent {IntentId}.", intent.Id);
+                }
+
+                throw Failure(
+                    "payment_intent_unexpected_state",
+                    "Não foi possível reter a caução neste cartão. Use um cartão que suporte pré-autorizações.");
         }
-
-        return new PaymentHoldResult(intent.Id, intent.ClientSecret, captureBefore, extendedAuthStatus);
     }
 
     public async Task CaptureHoldAsync(string paymentIntentId, CancellationToken cancellationToken = default)

@@ -221,6 +221,7 @@ export const pt = {
     renewHoldNote: 'O valor da renovação será cobrado de imediato no seu cartão.',
     incompleteCard: 'Por favor, preencha os dados do cartão.',
     failed: 'Não foi possível processar o pagamento.',
+    authenticationFailed: 'A autenticação do cartão falhou. Tente novamente ou use outro cartão.',
     successTitle: 'Pagamento autorizado!',
     successMessage: 'O valor da caução ficará retido até à devolução do item.',
   },

@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {InteractionManager, Platform} from 'react-native';
+import {Platform} from 'react-native';
 import {StripeProvider} from '@stripe/stripe-react-native';
 import notifee, {EventType, Notification} from '@notifee/react-native';
 import {
@@ -307,32 +307,36 @@ export default function App() {
     let unsubscribeTokenRefresh = () => {};
 
     // On a restored session this effect fires during the cold start, at the
-    // same moment the main navigator mounts. Waiting for the first render pass
-    // keeps the Firebase/notifee permission calls off the critical path where
+    // same moment the main navigator mounts. Deferring to an idle window keeps
+    // the Firebase/notifee permission calls off the critical path where
     // native modules are still initializing.
-    const interaction = InteractionManager.runAfterInteractions(() => {
-      registerPushToken();
+    const idleHandle = requestIdleCallback(
+      () => {
+        registerPushToken();
 
-      const messaging = safeGetMessaging();
-      if (!messaging) {
-        return;
-      }
+        const messaging = safeGetMessaging();
+        if (!messaging) {
+          return;
+        }
 
-      try {
-        unsubscribeTokenRefresh = onTokenRefresh(messaging, async token => {
-          try {
-            await pushTokenService.registerDeviceToken(token, 'android');
-          } catch {
-            // silently fail
-          }
-        });
-      } catch {
-        // silently fail
-      }
-    });
+        try {
+          unsubscribeTokenRefresh = onTokenRefresh(messaging, async token => {
+            try {
+              await pushTokenService.registerDeviceToken(token, 'android');
+            } catch {
+              // silently fail
+            }
+          });
+        } catch {
+          // silently fail
+        }
+      },
+      // Never let a busy startup postpone push registration indefinitely.
+      {timeout: 5000},
+    );
 
     return () => {
-      interaction.cancel();
+      cancelIdleCallback(idleHandle);
       unsubscribeTokenRefresh();
     };
   }, [user]);

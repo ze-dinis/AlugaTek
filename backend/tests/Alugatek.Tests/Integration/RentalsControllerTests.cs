@@ -1,5 +1,6 @@
 using Alugatek.API.Controllers;
 using Alugatek.API.DTOs;
+using Alugatek.API.Services;
 using Alugatek.Domain.Entities;
 using Alugatek.Infrastructure.Data;
 using Alugatek.Tests.TestSupport;
@@ -403,7 +404,7 @@ public class RentalsControllerTests : IDisposable
     [Fact]
     public async Task Pay_ReturnsBadRequestAndDoesNotCompleteWhenTheCardIsDeclined()
     {
-        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync(caucao: 0m);
         _payments.FailCharge = true;
 
         var result = await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
@@ -415,15 +416,36 @@ public class RentalsControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task Pay_StillCompletesWhenOnlyTheCaucaoHoldFails()
+    public async Task Pay_DoesNotChargeTheRentalWhenTheCaucaoHoldIsDeclined()
     {
         var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
         _payments.FailHold = true;
 
-        var dto = DtoOf(await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null)));
+        var result = await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
 
-        Assert.Equal(nameof(RentalStatus.Completed), dto.Status);
-        Assert.Equal(nameof(PaymentStatus.Failed), dto.CaucaoPaymentStatus);
+        Assert.Equal("Hold failed.", Assert.IsType<BadRequestObjectResult>(result.Result).GetMessage());
+        Assert.Empty(_payments.Charges);
+
+        var stored = await _db.Rentals.SingleAsync();
+        Assert.Equal(RentalStatus.Active, stored.Status);
+        Assert.Equal(PaymentStatus.None, stored.PaymentStatus);
+        Assert.Equal(PaymentStatus.Failed, stored.CaucaoPaymentStatus);
+    }
+
+    [Fact]
+    public async Task Pay_ReleasesTheCaucaoHoldWhenTheRentalChargeIsDeclined()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.FailCharge = true;
+
+        var result = await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        Assert.Equal("Your card was declined.", Assert.IsType<BadRequestObjectResult>(result.Result).GetMessage());
+        Assert.Equal("pi_hold_1", Assert.Single(_payments.ReleasedHolds));
+
+        var stored = await _db.Rentals.SingleAsync();
+        Assert.Equal(RentalStatus.Active, stored.Status);
+        Assert.Equal(PaymentStatus.Released, stored.CaucaoPaymentStatus);
     }
 
     [Fact]
@@ -449,6 +471,129 @@ public class RentalsControllerTests : IDisposable
 
         Assert.Equal(DateTime.UtcNow.Date, dto.StartDate);
         Assert.Equal(DateTime.UtcNow.Date.AddDays(2), dto.EndDate);
+    }
+
+    [Fact]
+    public async Task Pay_ReturnsAClientSecretWhenTheChargeNeedsThreeDSecure()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.ChargeRequiresAction = true;
+
+        var result = await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        var action = Assert.IsType<PaymentActionRequiredDto>(Assert.IsType<AcceptedResult>(result.Result).Value);
+        Assert.Equal(PaymentStages.RentalPrice, action.Stage);
+        Assert.NotEmpty(action.ClientSecret);
+
+        var stored = await _db.Rentals.SingleAsync();
+        Assert.Equal(PaymentStatus.RequiresAction, stored.PaymentStatus);
+        Assert.Equal(PaymentStatus.Held, stored.CaucaoPaymentStatus);
+        Assert.Equal(RentalStatus.Active, stored.Status);
+    }
+
+    [Fact]
+    public async Task Pay_ReturnsAClientSecretWhenTheCaucaoHoldNeedsThreeDSecure()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.HoldRequiresAction = true;
+
+        var result = await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        var action = Assert.IsType<PaymentActionRequiredDto>(Assert.IsType<AcceptedResult>(result.Result).Value);
+        Assert.Equal(PaymentStages.Caucao, action.Stage);
+
+        var stored = await _db.Rentals.SingleAsync();
+        Assert.Equal(PaymentStatus.RequiresAction, stored.CaucaoPaymentStatus);
+        Assert.Equal(RentalStatus.Active, stored.Status);
+        Assert.Empty(_payments.Charges);
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_SettlesTheCaucaoHoldAndThenChargesTheRental()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync(totalPrice: 100m, caucao: 200m);
+        _payments.HoldRequiresAction = true;
+        await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+        Assert.Empty(_payments.Charges);
+
+        var dto = DtoOf(await CreateController(renter).ConfirmPayment(rental.Id, null));
+
+        Assert.Equal(nameof(RentalStatus.Completed), dto.Status);
+        Assert.Equal(nameof(PaymentStatus.Captured), dto.PaymentStatus);
+        Assert.Equal(nameof(PaymentStatus.Held), dto.CaucaoPaymentStatus);
+        Assert.Equal(113m, Assert.Single(_payments.Charges));
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_SettlesAThreeDSecuredRentalCharge()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.ChargeRequiresAction = true;
+        await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        _payments.ChargeRequiresAction = false;
+        var dto = DtoOf(await CreateController(renter).ConfirmPayment(rental.Id, null));
+
+        Assert.Equal(nameof(RentalStatus.Completed), dto.Status);
+        Assert.Equal(nameof(PaymentStatus.Captured), dto.PaymentStatus);
+        Assert.Equal("pi_charge_1", Assert.Single(_payments.RetrievedCharges));
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_RejectsAnUnfinishedChallenge()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.ChargeRequiresAction = true;
+        await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        _payments.RetrievedOutcome = PaymentOutcome.RequiresAction;
+        var result = await CreateController(renter).ConfirmPayment(rental.Id, null);
+
+        Assert.Equal(
+            "A autenticação do cartão não foi concluída.",
+            Assert.IsType<BadRequestObjectResult>(result.Result).GetMessage());
+        Assert.Equal(RentalStatus.Active, (await _db.Rentals.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_IsIdempotentOnceThePaymentHasSettled()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        var dto = DtoOf(await CreateController(renter).ConfirmPayment(rental.Id, null));
+
+        Assert.Equal(nameof(RentalStatus.Completed), dto.Status);
+        Assert.Single(_payments.Charges);
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_CompletesARentalTheWebhookSettledWhileTheAppWasGone()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.ChargeRequiresAction = true;
+        await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        // Stand in for the payment_intent.succeeded webhook arriving first.
+        rental.PaymentStatus = PaymentStatus.Captured;
+        await _db.SaveChangesAsync();
+
+        var dto = DtoOf(await CreateController(renter).ConfirmPayment(rental.Id, null));
+
+        Assert.Equal(nameof(RentalStatus.Completed), dto.Status);
+        Assert.Empty(_payments.RetrievedCharges);
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_ByANonRenter_IsForbidden()
+    {
+        var (rental, renter) = await ActiveRentalReadyForPaymentAsync();
+        _payments.ChargeRequiresAction = true;
+        await CreateController(renter).Pay(rental.Id, new PayRentalRequest("pm_card_visa", null));
+
+        var result = await CreateController(_db.AddUser()).ConfirmPayment(rental.Id, null);
+
+        Assert.IsType<ForbidResult>(result.Result);
     }
 
     [Fact]

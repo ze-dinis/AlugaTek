@@ -57,6 +57,10 @@ public class StripeWebhookController(
                 await HandlePaymentFailedAsync(stripeEvent);
                 break;
 
+            case EventTypes.PaymentIntentSucceeded:
+                await HandlePaymentSucceededAsync(stripeEvent);
+                break;
+
             case EventTypes.PaymentIntentAmountCapturableUpdated:
                 await HandleCapturableUpdatedAsync(stripeEvent);
                 break;
@@ -114,6 +118,22 @@ public class StripeWebhookController(
     }
 
     /// <summary>
+    /// Fired when a rental price intent settles — including after a 3D Secure challenge the app
+    /// may never have reported back (killed mid-challenge, lost connectivity).
+    /// </summary>
+    private async Task HandlePaymentSucceededAsync(Event stripeEvent)
+    {
+        if (stripeEvent.Data.Object is not PaymentIntent intent) return;
+
+        var rental = await db.Rentals.FirstOrDefaultAsync(r => r.PaymentIntentId == intent.Id);
+        if (rental is null || rental.PaymentStatus != PaymentStatus.RequiresAction) return;
+
+        rental.PaymentStatus = PaymentStatus.Captured;
+        await db.SaveChangesAsync();
+        logger.LogInformation("Rental {RentalId} payment settled via webhook after 3D Secure.", rental.Id);
+    }
+
+    /// <summary>
     /// Fired when the capture window or capturable amount changes.
     /// Keeps the stored capture deadline in sync with Stripe.
     /// </summary>
@@ -125,12 +145,25 @@ public class StripeWebhookController(
         var rental = await db.Rentals.FirstOrDefaultAsync(r => r.CaucaoPaymentIntentId == intent.Id);
         if (rental is null) return;
 
+        var changed = false;
+
+        // The hold became capturable, so a pending 3D Secure challenge must have completed.
+        if (rental.CaucaoPaymentStatus == PaymentStatus.RequiresAction)
+        {
+            rental.CaucaoPaymentStatus = PaymentStatus.Held;
+            changed = true;
+            logger.LogInformation("Rental {RentalId} caução hold settled via webhook after 3D Secure.", rental.Id);
+        }
+
         var captureBefore = intent.LatestCharge?.PaymentMethodDetails?.Card?.CaptureBefore;
         if (captureBefore.HasValue)
         {
             rental.CaptureBefore = captureBefore.Value;
-            await db.SaveChangesAsync();
+            changed = true;
             logger.LogInformation("Updated CaptureBefore for rental {RentalId} to {CaptureBefore}.", rental.Id, captureBefore.Value);
         }
+
+        if (changed)
+            await db.SaveChangesAsync();
     }
 }
