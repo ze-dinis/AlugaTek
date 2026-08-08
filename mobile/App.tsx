@@ -14,6 +14,7 @@ import {
   type FirebaseMessagingTypes,
 } from '@react-native-firebase/messaging';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import AppErrorBoundary from './src/components/AppErrorBoundary';
 import AppNavigator, {navigationRef} from './src/navigation/AppNavigator';
 import {useAuthStore} from './src/store/authStore';
 import {
@@ -342,11 +343,13 @@ export default function App() {
   }, [user]);
 
   return (
-    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} urlScheme="alugatek">
-      <SafeAreaProvider>
-        <AppNavigator />
-      </SafeAreaProvider>
-    </StripeProvider>
+    <AppErrorBoundary>
+      <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} urlScheme="alugatek">
+        <SafeAreaProvider>
+          <AppNavigator />
+        </SafeAreaProvider>
+      </StripeProvider>
+    </AppErrorBoundary>
   );
 }
 

@@ -1,14 +1,20 @@
 import {NativeModules, Platform} from 'react-native';
 
+// Both helpers below read native module constants synchronously. This module is
+// imported by almost every other file, so it is evaluated while the JS bundle is
+// still loading — before the native modules are guaranteed to be ready. A throw
+// there kills the JS thread and closes the app before it renders (which is why
+// the next open then works). They are therefore only used in development, where
+// the host detection is actually needed, and never throw.
 function getMetroBundleHost(): string | null {
-  const sourceCode = (NativeModules as any)?.SourceCode;
-  const scriptURL = sourceCode?.scriptURL as string | undefined;
-
-  if (!scriptURL) {
-    return null;
-  }
-
   try {
+    const sourceCode = (NativeModules as any)?.SourceCode;
+    const scriptURL = sourceCode?.scriptURL as string | undefined;
+
+    if (!scriptURL) {
+      return null;
+    }
+
     const parsed = new URL(scriptURL);
     return parsed.hostname || null;
   } catch {
@@ -21,27 +27,35 @@ function isAndroidEmulator(): boolean {
     return false;
   }
 
-  const constants = Platform.constants as Record<string, unknown>;
-  const fingerprint = String(constants.Fingerprint ?? '').toLowerCase();
-  const model = String(constants.Model ?? '').toLowerCase();
-  const brand = String(constants.Brand ?? '').toLowerCase();
-  const manufacturer = String(constants.Manufacturer ?? '').toLowerCase();
-  const product = String(constants.Product ?? '').toLowerCase();
+  try {
+    const constants = Platform.constants as Record<string, unknown>;
+    const fingerprint = String(constants.Fingerprint ?? '').toLowerCase();
+    const model = String(constants.Model ?? '').toLowerCase();
+    const brand = String(constants.Brand ?? '').toLowerCase();
+    const manufacturer = String(constants.Manufacturer ?? '').toLowerCase();
+    const product = String(constants.Product ?? '').toLowerCase();
 
-  return (
-    fingerprint.includes('generic') ||
-    model.includes('emulator') ||
-    model.includes('sdk') ||
-    manufacturer.includes('genymotion') ||
-    (brand.startsWith('generic') && product.startsWith('generic')) ||
-    product.includes('emulator')
-  );
+    return (
+      fingerprint.includes('generic') ||
+      model.includes('emulator') ||
+      model.includes('sdk') ||
+      manufacturer.includes('genymotion') ||
+      (brand.startsWith('generic') && product.startsWith('generic')) ||
+      product.includes('emulator')
+    );
+  } catch {
+    return false;
+  }
 }
 
 // Development API URL for physical devices and emulators.
 // On real devices we prefer Metro's host (usually your LAN IP).
-const DEV_BUNDLE_HOST = getMetroBundleHost();
-const DEV_ANDROID_PRIMARY_HOST = isAndroidEmulator() ? '10.0.2.2' : DEV_BUNDLE_HOST ?? 'localhost';
+const DEV_BUNDLE_HOST = __DEV__ ? getMetroBundleHost() : null;
+const DEV_ANDROID_PRIMARY_HOST = !__DEV__
+  ? 'localhost'
+  : isAndroidEmulator()
+    ? '10.0.2.2'
+    : DEV_BUNDLE_HOST ?? 'localhost';
 
 const DEV_API_HOST = Platform.select({
   android: DEV_ANDROID_PRIMARY_HOST,
